@@ -1,16 +1,21 @@
 # run
 
+## 0. create new env
+pip install openai request
+
 ## 1. create config.yml
 
-if choose model = "GPT..." and api = "openai"
-you should write openai_key.yml in root dir
+config args in config.yml
 
-if choose model = "GPT..." and api = "hkbu"
-you should write hkbu_key.yml in root dir
+if choose model = "GPT..." and GPT["api"] = "openai"
+you should create openai_key.yml in root dir
+
+if choose model = "GPT..." and GPT["api"] = "hkbu"
+you should create hkbu_key.yml in root dir
 
 in openai_key.yml or hkbu_key.yml:
 ``` txt
-api = xxxxxx
+key = xxxxxx
 ```
 
 ## 2.python noise_test.py
