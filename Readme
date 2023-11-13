@@ -3,10 +3,10 @@
 ## 1. create config.yml
 
 if choose model = "GPT..." and api = "openai"
-you should create openai_key.yml in root dir
+you should write openai_key.yml in root dir
 
 if choose model = "GPT..." and api = "hkbu"
-you should create hkbu_key.yml in root dir
+you should write hkbu_key.yml in root dir
 
 in openai_key.yml or hkbu_key.yml:
 ``` txt
