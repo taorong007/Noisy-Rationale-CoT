@@ -8,11 +8,11 @@ batch_size: 1
 
 ## COT 
 if_COT: True
-n_shots: 6
-ex_shots: 6 # self-made excellent shots
+n_shots: 2
+ex_shots: 2 # self-made excellent shots
 
 ## noise
-if_noise: True
+if_noise: False
 error_shots: 0
 error_type: miscalculation
 

@@ -88,7 +88,8 @@ class noise_test:
                 self._if_noise = False
             else:
                 self._error_type = config["error_type"] if "error_type" in config else "miscalculation"
-            
+        else:
+            self._error_shots =0 
         
         self._prefix_context = config["prefix_context"] if "prefix_context" in config else False
         

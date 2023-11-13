@@ -1,23 +1,31 @@
-# run
+# 如何运行
 
-## 0. create new env
+## 环境
+运行前先配置环境
+conda create -n llm
+conda activate llm
 pip install openai request
 
-## 1. create config.yml
+## 配置config文件
 
-config args in config.yml
+1. 配置config.yml
+配置 args 到 config.yml
 
-if choose model = "GPT..." and GPT["api"] = "openai"
-you should create openai_key.yml in root dir
+2. 配置key文件
 
-if choose model = "GPT..." and GPT["api"] = "hkbu"
-you should create hkbu_key.yml in root dir
+如果 model = "GPT..." 并且 GPT["api"] = "openai"（不填GPT["api"]默认为openai）
+在根目录创建 openai_key.yml 
 
-in openai_key.yml or hkbu_key.yml:
+如果 model = "GPT..." 并且 GPT["api"] = "hkbu"
+在根目录创建 hkbu
+
+xxxx_key.yml 中包含下面字段
 ``` txt
 key = xxxxxx
 ```
 
-## 2.python noise_test.py
+## 运行程序
+python noise_test.py
+结果会保存在result文件夹中
 
 
