@@ -10,21 +10,21 @@ pip install openai request
 
 1. 配置config.yml
 
-配置 args 到 config.yml
+    配置 args 到 config.yml
 
 
 
 2. 配置key.yml文件
 
-如果使用GPT接口，需要在根目录中配置key.yml
+    如果使用GPT接口，需要在根目录中配置key.yml
 
-如果 model = "GPT..." 并且 GPT["api"] = "openai"（不填GPT["api"]默认为openai：
+- 如果 model = "GPT..." 并且 GPT["api"] = "openai"（不填GPT["api"]默认为openai：
 
-在根目录创建 openai_key.yml 
+    在根目录创建 openai_key.yml 
 
-如果 model = "GPT..." 并且 GPT["api"] = "hkbu"：
+- 如果 model = "GPT..." 并且 GPT["api"] = "hkbu"：
 
-在根目录创建 hkbu_key.yml
+    在根目录创建 hkbu_key.yml
 
 在创建的xxxx_key.yml 中包含下面字段
 
