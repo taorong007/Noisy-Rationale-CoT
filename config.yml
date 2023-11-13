@@ -1,0 +1,37 @@
+# noise test
+model: GPT-3.5-turbo
+dataset: base_math
+start_num: 0
+test_num: 100
+run_time: 1
+batch_size: 1
+
+## COT 
+if_COT: True
+n_shots: 6
+ex_shots: 6 # self-made excellent shots
+
+## noise
+if_noise: True
+error_shots: 0
+error_type: miscalculation
+
+## prefix
+# prefix_context: True
+
+# math base
+base_math:
+  base: 9
+  
+
+# GPT
+GPT:
+  api: openai
+
+
+# llama2 
+llama2:
+  ckpt_dir: /vol/home/lanlong/xuanli/code/llama-main/llama-2-7b-chat/
+  tokenizer_path: /vol/home/lanlong/xuanli/code/llama-main/tokenizer.model
+  max_seq_len: 4000
+  max_batch_size: 10
