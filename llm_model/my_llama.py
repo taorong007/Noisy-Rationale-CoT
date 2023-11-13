@@ -36,7 +36,26 @@ class my_llama:
         self.top_p =top_p
         self.max_gen_len = max_gen_len
         return
-    
+    # def _chat_with_llama(self):
+    #     batch_size = self._batch_size
+    #     run_time = self._run_time
+    #     qa_list = [self._case_list[i:i+batch_size] for i in range(0, len(self._case_list), batch_size)]
+    #     for qa_batch in qa_list:
+    #         messages_batch = []
+    #         label_batch = []
+    #         for qa in qa_batch:
+    #             question = qa["question"]
+    #             label = qa["label"]
+    #             messages = [{'role': 'user','content': question}]
+    #             if self._if_COT:
+    #                 messages = in_context + messages
+    #             messages_batch.append(messages)
+    #             label_batch.append(label)
+    #         responses_batch = self._GMS_llama.llama_chat(messages_batch)
+    #         self._response_process(messages_batch, responses_batch, label_batch)
+    #     self._answers_list = [self._answers_list[i:i+run_time] for i in range(0, len(self._answers_list), run_time)]
+    #     self._contents_list = [self._contents_list[i:i+run_time] for i in range(0, len(self._contents_list), run_time)]
+        
     def query(self, dialogs : list = [[{"role": "user", "content":"hello"}]]):
         responses = self.llama_generator.chat_completion(
             dialogs,  # type: ignore

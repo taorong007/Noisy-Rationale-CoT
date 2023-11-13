@@ -26,7 +26,7 @@ base_math:
 
 # GPT
 GPT:
-  api: openai
+  api: openai  # openai or hkbu
 
 
 # llama2 

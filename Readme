@@ -1,0 +1,18 @@
+# run
+
+## 1. create config.yml
+
+if choose model = "GPT..." and api = "openai"
+you should create openai_key.yml in root dir
+
+if choose model = "GPT..." and api = "hkbu"
+you should create hkbu_key.yml in root dir
+
+in openai_key.yml or hkbu_key.yml:
+``` txt
+api = xxxxxx
+```
+
+## 2.python noise_test.py
+
+
