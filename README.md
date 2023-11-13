@@ -2,9 +2,11 @@
 
 ## 环境
 运行前先配置环境
+``` bash
 conda create -n llm
 conda activate llm
 pip install openai request
+```
 
 ## 配置config文件
 
