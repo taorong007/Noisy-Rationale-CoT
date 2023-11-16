@@ -98,9 +98,10 @@ class noise_test:
         
         log_name = args["log_name"] if "log_name" in config else self._get_log_file_name()
         self._log_file = open(log_name, 'w',  encoding='utf-8')
+        dirname = os.path.dirname(log_name)
         basename = os.path.basename(log_name)
         name_without_ext = os.path.splitext(basename)[0]
-        self._pickle_name = name_without_ext + '.pkl'
+        self._pickle_name = os.path.join(dirname, name_without_ext + '.pkl')
         self._log(config)
         
         
