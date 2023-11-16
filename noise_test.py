@@ -41,7 +41,7 @@ class noise_test:
         processor_config =  config[self._dataset_name] if self._dataset_name in config else None
         
         if self._dataset_name == "base_math":
-            self._dataset_processor = base_math.base_math(if_COT = self._if_COT, n_shots= self._n_shots, ex_shots = self._ex_shots, error_shots = self._error_shots, prefix_context = self._prefix_context, config = processor_config)
+            self._dataset_processor = base_math.base_math(if_COT = self._if_COT, n_shots= self._n_shots, ex_shots = self._ex_shots, noisy_shots = self._noisy_shots, noisy_type=self._noisy_type, prefix_context = self._prefix_context, config = processor_config)
             self._dataset = self._dataset_processor.load_data()
         else:
             raise ValueError("Unsupported dataset {}".format(self._dataset_name))
@@ -56,7 +56,7 @@ class noise_test:
                 log_file = log_file +"_prefix"
             log_file = log_file + "_COT_{}_{}".format(self._n_shots, self._ex_shots)
         if self._if_noise:
-            log_file = log_file + "_noise_{}{}".format(self._error_shots, self._error_type)
+            log_file = log_file + "_noise_{}{}".format(self._noisy_shots, self._noisy_type)
         else:
             log_file = log_file + "_origin"
         log_file = log_file + ".log"
@@ -83,19 +83,24 @@ class noise_test:
             self._ex_shots = 0
         
         if self._if_noise:
-            self._error_shots = config["error_shots"] if "error_shots" in config else 0
-            if self._error_shots == 0:
+            self._noisy_shots = config["noisy_shots"] if "noisy_shots" in config else 0
+            if self._noisy_shots  == 0:
                 self._if_noise = False
+                self._noisy_type = None
+                self._noisy_shots = 0
             else:
-                self._error_type = config["error_type"] if "error_type" in config else "miscalculation"
+                self._noisy_type = config["noisy_type"] if "noisy_type" in config else "miscalculation"
         else:
-            self._error_shots =0 
+            self._noisy_shots = 0 
+            self._noisy_type = None
         
         self._prefix_context = config["prefix_context"] if "prefix_context" in config else False
         
         log_name = args["log_name"] if "log_name" in config else self._get_log_file_name()
-        self._log_file = open(log_name, 'w')
-        self._pickle_name = log_name.split('.')[0] + '.pkl'
+        self._log_file = open(log_name, 'w',  encoding='utf-8')
+        basename = os.path.basename(log_name)
+        name_without_ext = os.path.splitext(basename)[0]
+        self._pickle_name = name_without_ext + '.pkl'
         self._log(config)
         
         
@@ -136,8 +141,10 @@ class noise_test:
     def _log(self, obj):
         wr_log(obj, self._log_file)
     
-    def _response_process(self, responses_batch, label_batch):
-        for response, label in zip(responses_batch, label_batch):
+    def _response_process(self, case_batch):
+        for case in case_batch:
+            response = case["response"]
+            label = case["label"]
             self._log(json.dumps(response))
             self._log("\ncorrect answer is {}\n".format(label))
             answer = response[-1]["content"]
@@ -167,30 +174,17 @@ class noise_test:
         for case_batch in case_list:
             responses = []
             labels = []
+            
+            self._model.query_batch(case_batch)
             for case in case_batch:
-                while(1):
-                    retval, response = self._model.query_case(case)
-                    # self._log(retval)
-                    if retval[0]:
-                        break
-                    time.sleep(1)
-                responses.append(response)
+                responses.append(case["response"])
                 labels.append(case["label"])
-            self._response_process(responses, labels)
+            self._response_process(case_batch)
         self._answers_list = [self._answers_list[i:i+run_time] for i in range(0, len(self._answers_list), run_time)]
         self._contents_list = [self._contents_list[i:i+run_time] for i in range(0, len(self._contents_list), run_time)]
             
             
     def _question_insert(self, case):
-        # original_question = case["original_question"]
-        # label = case["answer"]
-        # new_qustion = case["new_question"]
-    
-        # if not self._if_noise:
-        #     question = original_question + self._suffix_prompt
-        # else:
-        #     question = new_qustion + self._suffix_prompt
-        # self._case_list.append({"question": question, "label": label})
         processed_case = self._dataset_processor.get_prompt_case(case)
         self._case_list.append(processed_case)        
     def _save_result(self):

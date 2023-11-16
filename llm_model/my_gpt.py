@@ -1,6 +1,8 @@
 import openai
 import requests
 import yaml
+import concurrent.futures
+import time
 
 
 
@@ -20,7 +22,7 @@ class my_gpt:
                 key_config = yaml.safe_load(f)
             apiKey = key_config["key"]
             basicUrl = "https://chatgpt.hkbu.edu.hk/general/rest"
-            modelName = "gpt-3.5-turbo"
+            modelName = "gpt-35-turbo-16k"
             apiVersion = "2023-08-01-preview"
             self.url = basicUrl + "/deployments/" + modelName + "/chat/completions/?api-version=" + apiVersion
             self.headers = { 'Content-Type': 'application/json', 'api-key': apiKey }
@@ -70,6 +72,23 @@ class my_gpt:
                 messages.append({'role':"assistant", 'content':cot_a})
         question = case["question"]
         messages.append({'role':"user", 'content': question})
+        case["response"] = messages
         return self.query(messages), messages
-                
+    
+    def query_and_append(self, case):
+        while True:
+            retval, response = self.query_case(case)
+            if retval[0]:
+                time.sleep(1)
+                return response, case["label"]
+    
+    def query_batch(self, cases):
+        responses = []
+        labels = []
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future_to_case = {executor.submit(self.query_and_append, case): case for case in cases}
+            for future in concurrent.futures.as_completed(future_to_case):
+                future.result()
+            
+        return 
     

@@ -4,17 +4,17 @@ dataset: base_math
 start_num: 0
 test_num: 100
 run_time: 1
-batch_size: 1
+batch_size: 5
 
 ## COT 
 if_COT: True
-n_shots: 2
-ex_shots: 2 # self-made excellent shots
+n_shots: 3
+ex_shots: 3 # self-made excellent shots
 
 ## noise
-if_noise: False
-error_shots: 0
-error_type: miscalculation
+if_noise: True
+noisy_shots: 0
+noisy_type: distracting # distracting, miscalculation, misunderstanding
 
 ## prefix
 # prefix_context: True
@@ -26,7 +26,7 @@ base_math:
 
 # GPT
 GPT:
-  api: openai  # openai or hkbu
+  api: hkbu  # openai or hkbu
 
 
 # llama2 
