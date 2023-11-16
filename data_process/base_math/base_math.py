@@ -86,11 +86,13 @@ class base_math:
         return noisy_answer[:self.noisy_shots]
     
     def distracting_answer(self, expr):
-        self.distracting_index = self.distracting_index % 4
+        self.distracting_index = self.distracting_index % 6
         irrelative_content = ["In base-9, the digits run from 0 to 8. If you're a fan of unique number systems, you might enjoy the Mayan numeral system, which is base-20 and uses a combination of dots, lines, and symbols to represent numbers, quite different from our familiar base-10 system. Fascinating, isn't it?",
                               "By the way, did you know that the word 'digit' comes from the Latin word 'digitus', which means finger? It's a hint at how our ten fingers shaped the base-10 system.",
                               "In base-9, digits run from 0 to 8. As you stroll through nature, you might notice that many natural phenomena have their own 'numbers' too - like the hexagonal cells of a beehive, the six-fold symmetry of a snowflake, or even the veins of a spinach leaf all following certain mathematical patterns. Mathematics is truly everywhere!",
-                              "By the way, did you know that Beethoven's Fifth Symphony is known as the 'Symphony of Fate' in the world of music? Its opening four notes - short, short, short, long - are seen as a symbol of fate knocking at the door. See, that's another kind of power of numbers!"]
+                              "By the way, did you know that Beethoven's Fifth Symphony is known as the 'Symphony of Fate' in the world of music? Its opening four notes - short, short, short, long - are seen as a symbol of fate knocking at the door. See, that's another kind of power of numbers!",
+                              "In base-9, digits go from 0 to 8. If you're a sports enthusiast, you might know that in baseball, a team can have up to 9 players on the field at once. This number is quite significant in baseball, much like our dealings with base-9 numbers in mathematics.",
+                              "By the way, did you know that Mars is the fourth planet from the Sun in our solar system? It's known as the Red Planet because its surface is covered in iron oxide (commonly known as rust), giving it its distinctive red appearance. Space and mathematics have a close connection."]
         
         
         digits = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -125,14 +127,17 @@ class base_math:
         return ret
             
 
-    def get_question(self, expr):
-        cot = self.if_COT
+    def get_question(self, expr, if_demo = False):
         base = self.base
         digits = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-        if cot:
-            return f"You are a mathematician. Assuming that all numbers are in base-{base} where the digits are \"{digits[:base]}\", what is {expr}? Let's think step by step, and end the response with the result in \"Answer:\\boxed{{result}}\"."
+        if if_demo:
+            return f"In base-{base}, what is {expr}?"
         else:
-            return f"You are a mathematician. Assuming that all numbers are in base-{base} where the digits are \"{digits[:base]}\", what is {expr}? End the response with the result in \"Answer:\\boxed{{result}}\"."
+            return f"You are a mathematician. Assuming that all numbers are in base-{base} where the digits are \"{digits[:base]}\", what is {expr}? Let's think step by step, and end the response with the result in \"Answer:\\boxed{{result}}\"."
+        # if cot:
+        #     return f"You are a mathematician. Assuming that all numbers are in base-{base} where the digits are \"{digits[:base]}\", what is {expr}? Let's think step by step, and end the response with the result in \"Answer:\\boxed{{result}}\"."
+        # else:
+        #     return f"You are a mathematician. Assuming that all numbers are in base-{base} where the digits are \"{digits[:base]}\", what is {expr}? End the response with the result in \"Answer:\\boxed{{result}}\"."
         # return "in base-{}, what is {}".format(base, expr)
         
     def ex_answer(self, expr):
@@ -161,22 +166,24 @@ class base_math:
 
     def get_prompt_case(self, expr):
         n_shots = self.n_shots
+        total_shots = self.n_shots + self.noisy_shots
         n_noisy_shot = self.noisy_shots
         case = dict()
         prefix = ''
-        if n_shots > 0:
+        if total_shots > 0:
             COT = []
             expr, demos = expr.split("\t")
-            shots = demos.split(",")[:n_shots - self.ex_shots]
-            assert len(shots) == n_shots - self.ex_shots
-            for shot in shots:
-                COT_q = self.get_question(shot)
+            weak_demos = demos.split(",")[:n_shots - self.ex_shots]
+            assert n_shots >= self.ex_shots
+            assert len(weak_demos) == n_shots - self.ex_shots
+            for shot in weak_demos:
+                COT_q = self.get_question(shot, if_demo=True)
                 COT_a =  self.answer(shot)
                 COT.append([COT_q, COT_a])
-            ex_shots = demos.split(",")[n_shots - self.ex_shots:n_shots]
-            assert len(ex_shots) == self.ex_shots
-            for shot in ex_shots:
-                COT_q = self.get_question(shot)
+            ex_demos = demos.split(",")[n_shots - self.ex_shots:n_shots]
+            assert len(ex_demos) == self.ex_shots
+            for shot in ex_demos:
+                COT_q = self.get_question(shot, if_demo=True)
                 COT_a =  self.ex_answer(shot)
                 COT.append([COT_q, COT_a])
             random.shuffle(COT)
@@ -190,7 +197,7 @@ class base_math:
                     noisy_shots = []
                     noisy_demos = demos.split(',')[n_shots:n_shots+n_noisy_shot]
                     for demo in noisy_demos:
-                        COT_q = self.get_question(demo)
+                        COT_q = self.get_question(demo, if_demo=True)
                         COT_a =  self.distracting_answer(demo)
                         noisy_shots.append([COT_q, COT_a])
                 else:

@@ -2,18 +2,18 @@
 model: GPT-3.5-turbo
 dataset: base_math
 start_num: 0
-test_num: 1000
+test_num: 500
 run_time: 1
 batch_size: 5
 
 ## COT 
 if_COT: True
-n_shots: 2
-ex_shots: 2 # self-made excellent shots
+n_shots: 0
+ex_shots: 0 # self-made excellent shots
 
 ## noise
 if_noise: True
-noisy_shots: 0
+noisy_shots: 3
 noisy_type: distracting # distracting, miscalculation, misunderstanding
 
 ## prefix
@@ -26,7 +26,7 @@ base_math:
 
 # GPT
 GPT:
-  api: hkbu  # openai or hkbu
+  api: openai  # openai or hkbu
 
 
 # llama2 
