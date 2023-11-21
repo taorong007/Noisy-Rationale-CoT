@@ -31,9 +31,9 @@ class noise_test:
         
         if self._model_name == "llama2":
             self._model = my_llama()
-        elif self._model_name.split("-")[0] == "GPT":
-            model_config =  config["GPT"] if "GPT" in config else None
-            self._model = my_gpt(config=model_config)
+        elif self._model_name.split("-")[0] == "gpt":
+            model_config =  config["gpt"] if "gpt" in config else None
+            self._model = my_gpt(model=self._model_name, config=model_config)
         else:
             raise ValueError("Unsupported model {}".format(self._model_name))
     
@@ -41,7 +41,7 @@ class noise_test:
         processor_config =  config[self._dataset_name] if self._dataset_name in config else None
         
         if self._dataset_name == "base_math":
-            self._dataset_processor = base_math.base_math(if_COT = self._if_COT, n_shots= self._n_shots, ex_shots = self._ex_shots, noisy_shots = self._noisy_shots, noisy_type=self._noisy_type, prefix_context = self._prefix_context, config = processor_config)
+            self._dataset_processor = base_math.base_math(if_in_context = self._if_in_context, n_shots= self._n_shots, n_weak_shots = self._n_weak_shots, n_noisy_shots = self._n_noisy_shots, noisy_type=self._noisy_type,  noisy_level=self._noisy_level, prefix_context = self._prefix_context, config = processor_config)
             self._dataset = self._dataset_processor.load_data()
         else:
             raise ValueError("Unsupported dataset {}".format(self._dataset_name))
@@ -51,15 +51,17 @@ class noise_test:
         if not os.path.exists(log_path):
             os.makedirs(log_path)
         log_file = "log"
-        if self._if_COT:
+        if self._if_in_context:
             if self._prefix_context:
-                log_file = log_file +"_prefix"
-            log_file = log_file + "_COT_{}_{}".format(self._n_shots, self._ex_shots)
+                log_file +="_prefix"
+            log_file += "_ICL_{}".format(self._n_shots)
+            if self._n_weak_shots > 0:
+                log_file += "_{}weak".format(self._n_weak_shots)
         if self._if_noise:
-            log_file = log_file + "_noise_{}{}".format(self._noisy_shots, self._noisy_type)
+            log_file += "_noise_{}{}_level{}".format(self._n_noisy_shots, self._noisy_type, self._noisy_level)
         else:
-            log_file = log_file + "_origin"
-        log_file = log_file + ".log"
+            log_file += "_origin"
+        log_file += ".log"
         
         log_file_path = os.path.join(log_path, log_file)
         return log_file_path
@@ -72,27 +74,29 @@ class noise_test:
         self._run_time = args["run_time"]
         self._batch_size = args["batch_size"]
         assert  self._run_time * self._test_num / self._batch_size == int(self._run_time * self._test_num / self._batch_size), "run_time * test_num / batch_size should be a positive integer"
-        self._if_COT = args["if_COT"] if "if_COT" in config else False
-        if self._if_COT:
+        self._if_in_context = args["if_in_context"] if "if_in_context" in config else False
+        if self._if_in_context:
             self._if_noise = args["if_noise"] if "if_noise" in config else False
-            self._n_shots = args["n_shots"] if "if_noise" in config else 1
-            self._ex_shots = args["ex_shots"] if "if_noise" in config else self._n_shots
+            self._n_shots = args["n_shots"] if "n_shots" in config else 1
+            self._n_weak_shots = args["n_weak_shots"] if "n_weak_shots" in config else 0
         else:
             self._if_noise =False
             self._n_shots = 0
-            self._ex_shots = 0
+            self._n_weak_shots = 0
         
         if self._if_noise:
-            self._noisy_shots = config["noisy_shots"] if "noisy_shots" in config else 0
-            if self._noisy_shots  == 0:
+            self._n_noisy_shots = config["n_noisy_shots"] if "n_noisy_shots" in config else 0
+            if self._n_noisy_shots  == 0:
                 self._if_noise = False
                 self._noisy_type = None
-                self._noisy_shots = 0
+                self._noisy_level = 0
             else:
                 self._noisy_type = config["noisy_type"] if "noisy_type" in config else "miscalculation"
+                self._noisy_level = int(config["noisy_level"]) if "noisy_level" in config else 1
         else:
-            self._noisy_shots = 0 
+            self._n_noisy_shots = 0 
             self._noisy_type = None
+            self._noisy_level = 0
         
         self._prefix_context = config["prefix_context"] if "prefix_context" in config else False
         
@@ -172,7 +176,7 @@ class noise_test:
         batch_size = self._batch_size
         run_time = self._run_time
         case_list = [self._case_list[i:i+batch_size] for i in range(0, len(self._case_list), batch_size)]
-        for case_batch in case_list:
+        for index, case_batch in enumerate(case_list):
             responses = []
             labels = []
             
@@ -181,6 +185,7 @@ class noise_test:
                 responses.append(case["response"])
                 labels.append(case["label"])
             self._response_process(case_batch)
+            self._log(f"index {index}/{len(case_list) - 1}, correct_num {self._correct_num}, error_num {self._error_num}, accuracy {self._correct_num/(self._correct_num+self._error_num)}")
         self._answers_list = [self._answers_list[i:i+run_time] for i in range(0, len(self._answers_list), run_time)]
         self._contents_list = [self._contents_list[i:i+run_time] for i in range(0, len(self._contents_list), run_time)]
             

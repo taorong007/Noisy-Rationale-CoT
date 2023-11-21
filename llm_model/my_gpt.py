@@ -15,6 +15,7 @@ class my_gpt:
         if api == 'openai':
             with open('openai_key.yml', 'r') as f:
                 key_config = yaml.safe_load(f)
+            self.key = key_config["key"]
             openai.api_key = key_config["key"]
             openai.api_base = "https://openkey.cloud/v1"
         elif api == 'hkbu':
@@ -47,6 +48,7 @@ class my_gpt:
                 messages.append(completion)
                 return (True, '')
             except Exception as err:
+                print(err)
                 return (False, f'OpenAI API 异常: {err}')
         else:
             payload = { 'messages': messages }
@@ -63,13 +65,13 @@ class my_gpt:
         
     def query_case(self, case):
         messages = []
-        if "COT" in case:
-            COT_list = case["COT"]
-            for shot in COT_list:
-                cot_q = shot[0]
-                cot_a = shot[1]
-                messages.append({'role':"user", 'content':cot_q})
-                messages.append({'role':"assistant", 'content':cot_a})
+        if "in-context" in case:
+            IC_list = case["in-context"]
+            for shot in IC_list:
+                shot_q = shot[0]
+                shot_a = shot[1]
+                messages.append({'role':"user", 'content':shot_q})
+                messages.append({'role':"assistant", 'content':shot_a})
         question = case["question"]
         messages.append({'role':"user", 'content': question})
         case["response"] = messages
@@ -79,12 +81,10 @@ class my_gpt:
         while True:
             retval, response = self.query_case(case)
             if retval[0]:
-                time.sleep(1)
                 return response, case["label"]
+            time.sleep(1)
     
     def query_batch(self, cases):
-        responses = []
-        labels = []
         with concurrent.futures.ThreadPoolExecutor() as executor:
             future_to_case = {executor.submit(self.query_and_append, case): case for case in cases}
             for future in concurrent.futures.as_completed(future_to_case):

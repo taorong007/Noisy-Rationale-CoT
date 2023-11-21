@@ -47,7 +47,7 @@ class my_llama:
     #             question = qa["question"]
     #             label = qa["label"]
     #             messages = [{'role': 'user','content': question}]
-    #             if self._if_COT:
+    #             if self._if_in_context:
     #                 messages = in_context + messages
     #             messages_batch.append(messages)
     #             label_batch.append(label)
