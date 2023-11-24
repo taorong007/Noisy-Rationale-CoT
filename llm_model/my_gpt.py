@@ -31,6 +31,15 @@ class my_gpt:
             raise "Api not support: {}".format(api)
         pass
     
+    def chat(self, single_chat):
+        messages = []
+        messages.append({'role':"user", 'content': single_chat})
+        retval, error = self.query(messages)
+        if retval:
+            return messages[-1]["content"]
+        else:
+            return f"error:{error}"
+    
     def query(self, messages):
         if self.api == 'openai':
             try:

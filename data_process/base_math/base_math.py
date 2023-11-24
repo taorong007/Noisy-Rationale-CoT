@@ -1,6 +1,7 @@
 import numpy as np
 import random
 import json
+import re
 
 class base_math:
     """
@@ -31,7 +32,7 @@ class base_math:
         self.noisy_level = noisy_level
         self.prefix_context = prefix_context
         self.noisy_type = noisy_type
-        self.distracting_index = 0
+        self.irrelative_index = 0
 
 
     def get_label(self, expr):
@@ -99,7 +100,7 @@ class base_math:
         ret = f"In base-{base}, the digits are \"{digits[:base]}\". We have {lo} + {ro} = {int(lo) + int(ro)} in base-10. "+ explaination + f"{int(lo) + int(ro)} mod {base} = {ones_sum[-1]}, so the digit is {ones_sum[-1]} and the carry is {ones_carry_digit}. We have {lt} + {rt} + {ones_carry_digit} = {int(lt) + int(rt) + ones_carry_digit} in base 10. {int(lt) + int(rt) + ones_carry_digit} mod {base} = {tens_sum_w_carry[-1]}, so the digit is {tens_sum_w_carry[-1]} and the carry is {tens_carry_digit}. A leading digit {tens_carry_digit}. So the answer is {self.get_label(expr)}. Answer:\\box{{{self.get_label(expr)}}}"
         return ret
     
-    def distracting_answer(self, expr):
+    def irrelative_answer(self, expr):
         level = self.noisy_level
         digits = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
         base = self.base
@@ -239,15 +240,15 @@ class base_math:
             return f"You are a mathematician. Assuming that all numbers are in base-{base} where the digits are \"{digits[:base]}\", what is {expr}? End the response with the result in \"Answer:\\boxed{{result}}\"."
         
 
-    def get_prompt_case(self, expr):
+    def get_case(self, expr):
         n_shots = self.n_shots
         total_shots = self.n_shots + self.n_weak_shots + self.n_noisy_shots
         n_noisy_shot = self.n_noisy_shots
         case = dict()
         prefix = ''
-        if total_shots > 0:
-            shots = []
-            expr, demos = expr.split("\t")
+        shots = []
+        expr, demos = expr.split("\t")
+        if total_shots > 0:    
             normal_demos = demos.split(",")[:n_shots]
             assert len(normal_demos) == self.n_shots
             for demo in normal_demos:
@@ -272,12 +273,12 @@ class base_math:
                         shot_q = self.get_question(demo)
                         shot_a =  self.arithmetic_error_answer(demo)
                         noisy_shots.append([shot_q, shot_a])
-                elif self.noisy_type == "distracting":
+                elif self.noisy_type == "irrelative":
                     noisy_shots = []
                     noisy_demos = demos.split(',')[n_shots:n_shots+n_noisy_shot]
                     for demo in noisy_demos:
                         shot_q = self.get_question(demo)
-                        shot_a =  self.distracting_answer(demo)
+                        shot_a =  self.irrelative_answer(demo)
                         noisy_shots.append([shot_q, shot_a])
                 else:
                     raise ValueError(f"noisy type not support:{self.noisy_type}")
@@ -293,7 +294,16 @@ class base_math:
         case["question"] = prefix + question
         case["label"] = real_answer 
         return case
-        
+
+    def match_answer(self, answer_str):
+        match = re.search(r'[Aa]nswer:.*?(-?\d+(\.\d+)?)', answer_str)
+        if match:
+            answer = match.group(1)
+            if int(float(answer)) == float(answer):
+                answer = str(int(float(answer)))
+        else:
+            answer = None
+        return answer
         
     def load_data(self):
         noise_file = "./data/base_math/noise/factsOfNumber.json".format(self.base)

@@ -8,17 +8,14 @@ import re
 import pickle
 from llm_model.my_gpt import my_gpt
 import data_process.base_math.base_math as base_math
-import time
+import pandas as pd
+import data_process.family_relation.family_relation as family_relation
+import pandas as pd
 
     
 with open('config.yml', 'r') as f:
     config = yaml.safe_load(f)
 
-def convert_to_number(s):
-    try:
-        return float(s)
-    except ValueError:
-        return s
     
 def wr_log(obj, log_file):
     print(obj)
@@ -39,12 +36,14 @@ class noise_test:
     
     def _init_dataset(self):
         processor_config =  config[self._dataset_name] if self._dataset_name in config else None
-        
         if self._dataset_name == "base_math":
             self._dataset_processor = base_math.base_math(if_in_context = self._if_in_context, n_shots= self._n_shots, n_weak_shots = self._n_weak_shots, n_noisy_shots = self._n_noisy_shots, noisy_type=self._noisy_type,  noisy_level=self._noisy_level, prefix_context = self._prefix_context, config = processor_config)
-            self._dataset = self._dataset_processor.load_data()
+        elif self._dataset_name == "family_relation":
+            self._dataset_processor = family_relation.family_relation(if_in_context = self._if_in_context, n_shots= self._n_shots, n_noisy_shots = self._n_noisy_shots, noisy_type=self._noisy_type,  noisy_level=self._noisy_level, config = processor_config)
         else:
             raise ValueError("Unsupported dataset {}".format(self._dataset_name))
+        self._dataset = self._dataset_processor.load_data()
+        assert len(self._dataset) >= self._test_num
     
     def _get_log_file_name(self):
         log_path = os.path.join("result", self._dataset_name, self._model_name)
@@ -125,18 +124,19 @@ class noise_test:
     
     def run(self):
         if self._noise_test_result == None:
-            count = 0
             test_num = self._test_num
-            for raw_data in self._dataset:
+            if isinstance(self._dataset, pd.DataFrame):
+                data_iter = self._dataset.iterrows()
+            else:
+                data_iter = enumerate(self._dataset)
+            for count, raw_data in data_iter:
                 if count < self._start_num:
-                    count += 1
                     continue
                 for i in range(int(self._run_time)):
                     self._question_insert(raw_data)       
                 test_num -= 1
                 if(test_num <= 0):
                     break
-                count += 1
             self._query_process()
             self._noise_test_result = [self._correct_num, self._error_num, self._answers_list, self._contents_list]
             self._save_result()
@@ -152,20 +152,20 @@ class noise_test:
             label = case["label"]
             self._log(json.dumps(response))
             self._log("\ncorrect answer is {}\n".format(label))
-            answer = response[-1]["content"]
-            self._contents_list.append(answer)
-            self._log(answer)
-            match = re.search(r'[Aa]nswer:.*?(-?\d+(\.\d+)?)', answer)
-            if match:
-                result = convert_to_number(match.group(1))
-                if (result == float(label)):
+            raw_answer = response[-1]["content"]
+            self._contents_list.append(raw_answer)
+            self._log(raw_answer)
+            
+            answer = self._dataset_processor.match_answer(raw_answer)
+            if answer:
+                if (answer == label):
                     self._log("right")
                     self._correct_num += 1
-                    self._answers_list.append([result, 1])
+                    self._answers_list.append([answer, 1])
                 else:
                     self._log("wrong")
                     self._error_num += 1
-                    self._answers_list.append([result, 0])
+                    self._answers_list.append([answer, 0])
             else:
                 self._log("not match")
                 self._not_match_num += 1
@@ -190,8 +190,8 @@ class noise_test:
         self._contents_list = [self._contents_list[i:i+run_time] for i in range(0, len(self._contents_list), run_time)]
             
             
-    def _question_insert(self, case):
-        processed_case = self._dataset_processor.get_prompt_case(case)
+    def _question_insert(self, raw_data):
+        processed_case = self._dataset_processor.get_case(raw_data)
         self._case_list.append(processed_case)        
     def _save_result(self):
         with open(self._pickle_name, 'wb') as f:

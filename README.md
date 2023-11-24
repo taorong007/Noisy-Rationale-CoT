@@ -5,7 +5,7 @@
 ``` bash
 conda create -n llm
 conda activate llm
-pip install openai request
+pip install openai request pandas
 ```
 
 ## 配置config文件
