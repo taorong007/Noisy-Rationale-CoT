@@ -266,22 +266,17 @@ class base_math:
             
             if self.n_noisy_shots > 0:    
                 # shots = shots[:n_shots - self.n_noisy_shots]
-                if self.noisy_type == "arithmetic_error":
-                    noisy_shots = []
-                    noisy_demos = demos.split(',')[n_shots:n_shots+n_noisy_shot]
-                    for demo in noisy_demos:
-                        shot_q = self.get_question(demo)
+                noisy_shots = []
+                noisy_demos = demos.split(',')[n_shots:n_shots + n_noisy_shot]
+                for demo in noisy_demos:
+                    shot_q = self.get_question(demo)
+                    if self.noisy_type == "arithmetic_error":
                         shot_a =  self.arithmetic_error_answer(demo)
-                        noisy_shots.append([shot_q, shot_a])
-                elif self.noisy_type == "irrelative":
-                    noisy_shots = []
-                    noisy_demos = demos.split(',')[n_shots:n_shots+n_noisy_shot]
-                    for demo in noisy_demos:
-                        shot_q = self.get_question(demo)
+                    elif self.noisy_type == "irrelative":
                         shot_a =  self.irrelative_answer(demo)
-                        noisy_shots.append([shot_q, shot_a])
-                else:
-                    raise ValueError(f"noisy type not support:{self.noisy_type}")
+                    else:
+                        raise ValueError(f"noisy type not support:{self.noisy_type}")
+                    noisy_shots.append([shot_q, shot_a])
                 shots = shots + noisy_shots
                 random.shuffle(shots)
             if self.prefix_context:

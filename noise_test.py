@@ -11,6 +11,12 @@ import data_process.base_math.base_math as base_math
 import pandas as pd
 import data_process.family_relation.family_relation as family_relation
 import pandas as pd
+import nltk
+import random
+import time
+from datetime import datetime
+import copy
+import string
 
     
 with open('config.yml', 'r') as f:
@@ -24,8 +30,64 @@ def wr_log(obj, log_file):
 
     
 class noise_test:
-    def _init_model(self):
+    def __init__(self, args = config) -> None:
+        self._model_name = args["model"]
+        self._dataset_name = args["dataset"]
+        self._start_num = args["start_num"]
+        self._test_num = args["test_num"]
+        self._run_times = args["run_times"]
+        self._batch_size = args["batch_size"]
+        assert  self._run_times * self._test_num / self._batch_size == int(self._run_times * self._test_num / self._batch_size), "run_times * test_num / batch_size should be a positive integer"
+        self._if_in_context = args["if_in_context"] if "if_in_context" in config else False
+        if self._if_in_context:
+            self._if_noise = args["if_noise"] if "if_noise" in config else False
+            self._n_shots = args["n_shots"] if "n_shots" in config else 1
+            self._n_weak_shots = args["n_weak_shots"] if "n_weak_shots" in config else 0
+        else:
+            self._if_noise =False
+            self._n_shots = 0
+            self._n_weak_shots = 0
         
+        if self._if_noise:
+            self._n_noisy_shots = config["n_noisy_shots"] if "n_noisy_shots" in config else 0
+            if self._n_noisy_shots  == 0:
+                self._if_noise = False
+                self._noisy_type = None
+                self._noisy_level = 0
+            else:
+                self._noisy_type = config["noisy_type"] if "noisy_type" in config else "miscalculation"
+                self._noisy_level = int(config["noisy_level"]) if "noisy_level" in config else 1
+        else:
+            self._n_noisy_shots = 0 
+            self._noisy_type = None
+            self._noisy_level = 0
+        
+        self._prefix_context = config["prefix_context"] if "prefix_context" in config else False
+        random.seed(time.time())
+        log_name = args["log_name"] if "log_name" in config else self._get_log_file_name()
+        self._log_file = open(log_name, 'w',  encoding='utf-8')
+        dirname = os.path.dirname(log_name)
+        basename = os.path.basename(log_name)
+        name_without_ext = os.path.splitext(basename)[0]
+        self._pickle_name = os.path.join(dirname, name_without_ext + '.pkl')
+        self._log(config)
+        self._log("Start time: {}".format(datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+        
+        self._init_model()
+        self._init_dataset()
+        
+        self._correct_num = 0
+        self._error_num = 0
+        self._not_match_num = 0
+        self._case_list = []
+        self._answers_list = []
+        self._contents_list = []
+        self._noise_test_result = None
+        
+        # self._suffix_prompt = "Please generate the answer and put it into the answer box in the following format: 'Answer: \\boxed{pure number}.'"
+        return
+    
+    def _init_model(self):
         if self._model_name == "llama2":
             self._model = my_llama()
         elif self._model_name.split("-")[0] == "gpt":
@@ -65,63 +127,6 @@ class noise_test:
         log_file_path = os.path.join(log_path, log_file)
         return log_file_path
     
-    def __init__(self, args = config) -> None:
-        self._model_name = args["model"]
-        self._dataset_name = args["dataset"]
-        self._start_num = args["start_num"]
-        self._test_num = args["test_num"]
-        self._run_time = args["run_time"]
-        self._batch_size = args["batch_size"]
-        assert  self._run_time * self._test_num / self._batch_size == int(self._run_time * self._test_num / self._batch_size), "run_time * test_num / batch_size should be a positive integer"
-        self._if_in_context = args["if_in_context"] if "if_in_context" in config else False
-        if self._if_in_context:
-            self._if_noise = args["if_noise"] if "if_noise" in config else False
-            self._n_shots = args["n_shots"] if "n_shots" in config else 1
-            self._n_weak_shots = args["n_weak_shots"] if "n_weak_shots" in config else 0
-        else:
-            self._if_noise =False
-            self._n_shots = 0
-            self._n_weak_shots = 0
-        
-        if self._if_noise:
-            self._n_noisy_shots = config["n_noisy_shots"] if "n_noisy_shots" in config else 0
-            if self._n_noisy_shots  == 0:
-                self._if_noise = False
-                self._noisy_type = None
-                self._noisy_level = 0
-            else:
-                self._noisy_type = config["noisy_type"] if "noisy_type" in config else "miscalculation"
-                self._noisy_level = int(config["noisy_level"]) if "noisy_level" in config else 1
-        else:
-            self._n_noisy_shots = 0 
-            self._noisy_type = None
-            self._noisy_level = 0
-        
-        self._prefix_context = config["prefix_context"] if "prefix_context" in config else False
-        
-        log_name = args["log_name"] if "log_name" in config else self._get_log_file_name()
-        self._log_file = open(log_name, 'w',  encoding='utf-8')
-        dirname = os.path.dirname(log_name)
-        basename = os.path.basename(log_name)
-        name_without_ext = os.path.splitext(basename)[0]
-        self._pickle_name = os.path.join(dirname, name_without_ext + '.pkl')
-        self._log(config)
-        
-        
-        self._init_model()
-        self._init_dataset()
-        
-        self._correct_num = 0
-        self._error_num = 0
-        self._not_match_num = 0
-        self._case_list = []
-        self._answers_list = []
-        self._contents_list = []
-        self._noise_test_result = None
-        
-        # self._suffix_prompt = "Please generate the answer and put it into the answer box in the following format: 'Answer: \\boxed{pure number}.'"
-        return
-    
     def run(self):
         if self._noise_test_result == None:
             test_num = self._test_num
@@ -132,8 +137,8 @@ class noise_test:
             for count, raw_data in data_iter:
                 if count < self._start_num:
                     continue
-                for i in range(int(self._run_time)):
-                    self._question_insert(raw_data)       
+                
+                self._question_insert(raw_data)       
                 test_num -= 1
                 if(test_num <= 0):
                     break
@@ -146,13 +151,77 @@ class noise_test:
     def _log(self, obj):
         wr_log(obj, self._log_file)
     
+    def _random_mask_sentences(self, text, percent):
+        try:
+            nltk.data.find('tokenizers/punkt')
+        except LookupError:
+            nltk.download('punkt')
+        sentences = nltk.sent_tokenize(text)
+        num_to_replace = int(len(sentences) * percent)
+        # print(num_to_replace)
+        to_replace = random.sample(range(len(sentences)), num_to_replace)
+        for i in to_replace:
+            sentences[i] = ""
+        return " ".join(sentences)
+    
+    def _random_mask_words(self, text, percent, mask = "xxxx"):
+        try:
+            nltk.data.find('tokenizers/punkt')
+        except LookupError:
+            nltk.download('punkt')
+        words  = nltk.word_tokenize(text)
+        non_punctuation_words = [i for i, word in enumerate(words) if word not in string.punctuation]
+        num_mask = int(len(non_punctuation_words) * percent)
+        # print(num_to_replace)
+        to_mask = random.sample(non_punctuation_words, num_mask)
+        for i in to_mask:
+            words[i] = mask
+        return " ".join(words)
+    
+    def _method1_rephase_clean_noise(self, case_batch):
+        for case in case_batch:
+            rephase_query = []
+            question = "I want you to clean the noise in the following reasoning process:\n question:"
+            for shot in case["in-context"]:
+                rephase_case = dict()
+                question += shot[0]
+                question += "\nanswer:"
+                question += shot[1]
+                question += "\nNote that there might be some mistakes within the context I provide. You should reason the question STEP-BY-STEP and make sure EVERY STEP IS CORRECT using your own previous knowledge and the learned logic and provide me the cleaned answer to this question."
+                rephase_case["question"] = question
+                rephase_query.append(rephase_case)
+            self._model.query_batch(rephase_query)
+            for shot, rephase_case in zip(case["in-context"], rephase_query):
+                clean_answer = rephase_case["messages"][-1]["content"]
+                shot[1] = clean_answer
+            # for shot in case["in-context"]:
+            #     print(shot[1])
+        return
+        
+        
+    
+    def _method2_mask_noise(self, case_batch):
+        for case in case_batch:
+            # case["question"] += "Answer this question without lack content."
+            for shot in case["in-context"]:
+                answer =  shot[1]
+                # masked_answer = "Some of content are lack:\n"
+                masked_answer = ""
+                masked_answer += self._random_mask_words(answer, 0.3)
+                shot[1] = masked_answer
+            # for shot in case["in-context"]:
+            #     print(shot[1])
+        return
+            
+            
+    
     def _response_process(self, case_batch):
         for case in case_batch:
-            response = case["response"]
+            messages = case["messages"]
             label = case["label"]
-            self._log(json.dumps(response))
+            self._log(json.dumps(messages))
             self._log("\ncorrect answer is {}\n".format(label))
-            raw_answer = response[-1]["content"]
+            raw_answer = messages[-1]["content"]
             self._contents_list.append(raw_answer)
             self._log(raw_answer)
             
@@ -174,25 +243,23 @@ class noise_test:
     
     def _query_process(self):
         batch_size = self._batch_size
-        run_time = self._run_time
-        case_list = [self._case_list[i:i+batch_size] for i in range(0, len(self._case_list), batch_size)]
+        run_times = self._run_times
+        case_list = [copy.deepcopy(self._case_list[i:i+batch_size]) for i in range(0, len(self._case_list), batch_size)]
         for index, case_batch in enumerate(case_list):
-            responses = []
-            labels = []
-            
+            self._method2_mask_noise(case_batch)
             self._model.query_batch(case_batch)
-            for case in case_batch:
-                responses.append(case["response"])
-                labels.append(case["label"])
             self._response_process(case_batch)
             self._log(f"index {index}/{len(case_list) - 1}, correct_num {self._correct_num}, error_num {self._error_num}, accuracy {self._correct_num/(self._correct_num+self._error_num)}")
-        self._answers_list = [self._answers_list[i:i+run_time] for i in range(0, len(self._answers_list), run_time)]
-        self._contents_list = [self._contents_list[i:i+run_time] for i in range(0, len(self._contents_list), run_time)]
-            
+            # COT_SC_correct_rate(self._answers_list)
+        self._answers_list = [self._answers_list[i:i+run_times] for i in range(0, len(self._answers_list), run_times)]
+        self._contents_list = [self._contents_list[i:i+run_times] for i in range(0, len(self._contents_list), run_times)]
             
     def _question_insert(self, raw_data):
         processed_case = self._dataset_processor.get_case(raw_data)
-        self._case_list.append(processed_case)        
+        for i in range(self._run_times):
+            case = copy.deepcopy(processed_case)
+            self._case_list.append(case)        
+        
     def _save_result(self):
         with open(self._pickle_name, 'wb') as f:
             pickle.dump(self._noise_test_result, f)
@@ -219,23 +286,11 @@ def COT_SC_correct_rate(answers_list):
         if guess_value == true_answer:
             SC_right_count += 1
         
-        # if(valid_count <= 10):
-        #     print("answers: {}, guess:{}, Correct:{}".format(answers, guess_value, true_answer))
     print("SC_correct_num{}, vaild_num{}, SC_correct_rate{}".format(SC_right_count, valid_count, SC_right_count/valid_count))
     return SC_right_count, valid_count
     
     
 if __name__ == "__main__":
-    in_context = [
-        {
-            "role": "user", 
-            "content" : "There are one hundred tickets to be sold for a volleyball game. Andrea sold twice as many tickets as Jude while Sandra sold 4 more than half the number of tickets Jude sold. The shoe size of Ada is 5000. If Jude sold 16 tickets, how many tickets need to be sold? Please generate the answer and put it into the answer box in the following format: 'Answer: \\boxed{pure number}.'."
-        },
-        {
-            "role": "assistant",
-            "content": "Andrea sold 16 x 2 = 32 tickets.\n Half the number of Jude's tickets is 16/2 = 8 tickets.\n So, Sandra sold 8 + 4 = 12 tickets.\nTherefore, a total of 16 + 32 + 12 = 60 tickets were sold.\n Thus, 100 - 60 = 40 tickets need to be sold. Answer: \\boxed{40}."
-        }
-    ]
     test = noise_test()
     [correct_num, error_num, answer_list, answer_cotents] = test.run()
     

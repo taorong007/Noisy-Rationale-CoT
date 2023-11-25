@@ -38,7 +38,7 @@ class my_llama:
         return
     # def _chat_with_llama(self):
     #     batch_size = self._batch_size
-    #     run_time = self._run_time
+    #     run_times = self._run_times
     #     qa_list = [self._case_list[i:i+batch_size] for i in range(0, len(self._case_list), batch_size)]
     #     for qa_batch in qa_list:
     #         messages_batch = []
@@ -53,8 +53,8 @@ class my_llama:
     #             label_batch.append(label)
     #         responses_batch = self._GMS_llama.llama_chat(messages_batch)
     #         self._response_process(messages_batch, responses_batch, label_batch)
-    #     self._answers_list = [self._answers_list[i:i+run_time] for i in range(0, len(self._answers_list), run_time)]
-    #     self._contents_list = [self._contents_list[i:i+run_time] for i in range(0, len(self._contents_list), run_time)]
+    #     self._answers_list = [self._answers_list[i:i+run_times] for i in range(0, len(self._answers_list), run_times)]
+    #     self._contents_list = [self._contents_list[i:i+run_times] for i in range(0, len(self._contents_list), run_times)]
         
     def query(self, dialogs : list = [[{"role": "user", "content":"hello"}]]):
         responses = self.llama_generator.chat_completion(

@@ -3,19 +3,19 @@ model: gpt-3.5-turbo-0613
 dataset: base_math # family_relation and base_math
 start_num: 0
 test_num: 200
-run_time: 1
+run_times: 5
 batch_size: 5
 
 ## in-context 
-if_in_context: False
+if_in_context: True
 n_shots: 0 # self-made excellent shots
 # n_weak_shots: 0 # original author's shots 
 
 ## noise
-if_noise: False
+if_noise: True
 n_noisy_shots: 3
 noisy_type: irrelative # base math: irrelative or arithmetic_error
-noisy_level: 2
+noisy_level: 3
 ## prefix
 # prefix_context: True
 

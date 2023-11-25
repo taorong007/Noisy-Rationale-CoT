@@ -83,14 +83,14 @@ class my_gpt:
                 messages.append({'role':"assistant", 'content':shot_a})
         question = case["question"]
         messages.append({'role':"user", 'content': question})
-        case["response"] = messages
+        case["messages"] = messages
         return self.query(messages), messages
     
     def query_and_append(self, case):
         while True:
-            retval, response = self.query_case(case)
+            retval, _ = self.query_case(case)
             if retval[0]:
-                return response, case["label"]
+                return
             time.sleep(1)
     
     def query_batch(self, cases):
@@ -98,6 +98,5 @@ class my_gpt:
             future_to_case = {executor.submit(self.query_and_append, case): case for case in cases}
             for future in concurrent.futures.as_completed(future_to_case):
                 future.result()
-            
         return 
     
