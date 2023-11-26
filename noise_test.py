@@ -246,7 +246,7 @@ class noise_test:
         run_times = self._run_times
         case_list = [copy.deepcopy(self._case_list[i:i+batch_size]) for i in range(0, len(self._case_list), batch_size)]
         for index, case_batch in enumerate(case_list):
-            self._method2_mask_noise(case_batch)
+            # self._method2_mask_noise(case_batch)
             self._model.query_batch(case_batch)
             self._response_process(case_batch)
             self._log(f"index {index}/{len(case_list) - 1}, correct_num {self._correct_num}, error_num {self._error_num}, accuracy {self._correct_num/(self._correct_num+self._error_num)}")
