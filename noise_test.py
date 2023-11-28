@@ -2,14 +2,14 @@ import yaml
 import os
 from typing import List, Optional
 # import fire
-# from my_llama import my_llama
 import json
 import re
 import pickle
+from llm_model.llama.my_llama import my_llama
 from llm_model.my_gpt import my_gpt
 import data_process.base_math.base_math as base_math
-import pandas as pd
 import data_process.family_relation.family_relation as family_relation
+import data_process.GSM_IC.GSM_IC as GSM_IC
 import pandas as pd
 import nltk
 import random
@@ -71,7 +71,6 @@ class noise_test:
         name_without_ext = os.path.splitext(basename)[0]
         self._pickle_name = os.path.join(dirname, name_without_ext + '.pkl')
         self._log(config)
-        self._log("Start time: {}".format(datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
         
         self._init_model()
         self._init_dataset()
@@ -89,7 +88,8 @@ class noise_test:
     
     def _init_model(self):
         if self._model_name == "llama2":
-            self._model = my_llama()
+            model_config =  config["llama2"] if "llama2" in config else None
+            self._model = my_llama(config=model_config)
         elif self._model_name.split("-")[0] == "gpt":
             model_config =  config["gpt"] if "gpt" in config else None
             self._model = my_gpt(model=self._model_name, config=model_config)
@@ -102,6 +102,8 @@ class noise_test:
             self._dataset_processor = base_math.base_math(if_in_context = self._if_in_context, n_shots= self._n_shots, n_weak_shots = self._n_weak_shots, n_noisy_shots = self._n_noisy_shots, noisy_type=self._noisy_type,  noisy_level=self._noisy_level, prefix_context = self._prefix_context, config = processor_config)
         elif self._dataset_name == "family_relation":
             self._dataset_processor = family_relation.family_relation(if_in_context = self._if_in_context, n_shots= self._n_shots, n_noisy_shots = self._n_noisy_shots, noisy_type=self._noisy_type,  noisy_level=self._noisy_level, config = processor_config)
+        elif self._dataset_name == "GSM_IC":
+            self._dataset_processor = GSM_IC.GSM_IC()
         else:
             raise ValueError("Unsupported dataset {}".format(self._dataset_name))
         self._dataset = self._dataset_processor.load_data()
@@ -128,6 +130,7 @@ class noise_test:
         return log_file_path
     
     def run(self):
+        self._log("Start time: {}".format(datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
         if self._noise_test_result == None:
             test_num = self._test_num
             if isinstance(self._dataset, pd.DataFrame):
@@ -146,6 +149,7 @@ class noise_test:
             self._noise_test_result = [self._correct_num, self._error_num, self._answers_list, self._contents_list]
             self._save_result()
             self._log("correct_num:{}, error_num:{}, correate_rate:{}".format(self._correct_num, self._error_num, self._correct_num/(self._correct_num+self._error_num)))
+        self._log("End time: {}".format(datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
         return self._noise_test_result
     
     def _log(self, obj):
@@ -213,7 +217,25 @@ class noise_test:
             #     print(shot[1])
         return
             
-            
+    def _method3_mask_rephrase_noise(self, case_batch):
+        for case in case_batch:
+            rephase_query = []
+            for shot in case["in-context"]:
+                question = "Note that there might be some mistakes within the context I provide. You should reason the question STEP-BY-STEP and make sure EVERY STEP IS CORRECT using your own previous knowledge and the learned logic. Rephrase the noise reasoning of the reasoning process and keep the correct reasoning process(do not rephrase any content without noise).\nQuestion:"
+                rephase_case = dict()
+                question += shot[0]
+                question += "\nanswer:"
+                question += shot[1]
+                question += "\n"
+                rephase_case["question"] = question
+                rephase_query.append(rephase_case)
+            self._model.query_batch(rephase_query)
+            for shot, rephase_case in zip(case["in-context"], rephase_query):
+                clean_answer = rephase_case["messages"][-1]["content"]
+                self._log("before:\n"+shot[1]+"\n")
+                self._log("after:\n" + clean_answer + "\n")
+                shot[1] = clean_answer
+            return
     
     def _response_process(self, case_batch):
         for case in case_batch:
@@ -246,7 +268,7 @@ class noise_test:
         run_times = self._run_times
         case_list = [copy.deepcopy(self._case_list[i:i+batch_size]) for i in range(0, len(self._case_list), batch_size)]
         for index, case_batch in enumerate(case_list):
-            # self._method2_mask_noise(case_batch)
+            # self._method3_mask_rephrase_noise(case_batch)
             self._model.query_batch(case_batch)
             self._response_process(case_batch)
             self._log(f"index {index}/{len(case_list) - 1}, correct_num {self._correct_num}, error_num {self._error_num}, accuracy {self._correct_num/(self._correct_num+self._error_num)}")

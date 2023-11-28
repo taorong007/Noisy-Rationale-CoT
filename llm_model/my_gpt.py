@@ -7,9 +7,11 @@ import time
 
 
 class my_gpt:
-    def __init__(self, model = 'gpt-3.5-turbo', config : dict =  None, api = "openai") -> None:
+    def __init__(self, model = 'gpt-3.5-turbo', config : dict =  None, api = "openai", temperature = 1) -> None:
         if config != None:
             api = config["api"] if "api" in config else api
+            temperature =  config["temperature"] if "temperature" in config else temperature
+        self.temperature = temperature
         self.api = api
         self.model = model
         if api == 'openai':
@@ -47,6 +49,7 @@ class my_gpt:
                     model=self.model,
                     messages=messages,
                     stream=True,
+                    temperature=self.temperature,
                 )
                 completion = {'role': '', 'content': ''}
                 for event in response:
