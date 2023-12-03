@@ -5,8 +5,6 @@ from typing import List, Optional
 import json
 import re
 import pickle
-from llm_model.llama.my_llama import my_llama
-from llm_model.my_gpt import my_gpt
 import data_process.base_math.base_math as base_math
 import data_process.family_relation.family_relation as family_relation
 import data_process.GSM_IC.GSM_IC as GSM_IC
@@ -88,9 +86,11 @@ class noise_test:
     
     def _init_model(self):
         if self._model_name == "llama2":
+            from llm_model.llama.my_llama import my_llama
             model_config =  config["llama2"] if "llama2" in config else None
             self._model = my_llama(config=model_config)
         elif self._model_name.split("-")[0] == "gpt":
+            from llm_model.my_gpt import my_gpt
             model_config =  config["gpt"] if "gpt" in config else None
             self._model = my_gpt(model=self._model_name, config=model_config)
         else:
@@ -237,6 +237,92 @@ class noise_test:
                 shot[1] = clean_answer
             return
     
+    def _method4_contrastive_highlight_noise(self, case_batch):
+        for case in case_batch:
+            good_expr = "67+82"
+            bad_expr = "76+85"   
+            contrastive_case = dict()
+            contrastive_question = "The following are two examples for base-9 questions, there is a good example and a bad example, can you highlight the important and correct steps in the bad example and provided the filtered version for me? "
+            contrastive_question += "Good Example:\nQ:"
+            contrastive_question += self._dataset_processor.get_question(good_expr)
+            contrastive_question += "\nA:"
+            contrastive_question += self._dataset_processor.answer(good_expr)
+            contrastive_question += "\n"
+            contrastive_question += "Bad Example:\nQ:"
+            contrastive_question += self._dataset_processor.get_question(bad_expr)
+            contrastive_question += "\nA:"
+            contrastive_question += self._dataset_processor.irrelative_answer(bad_expr)
+            contrastive_question += "\n"
+            contrastive_case["question"] = contrastive_question
+            self._model.query_case(contrastive_case)
+            
+            case["in-context"] = [[contrastive_case["question"], contrastive_case["messages"][-1]["content"]]] + case["in-context"]
+        return
+    
+    def _method5_contrastive_highlight_noise(self, case_batch):
+        for case in case_batch:
+            in_context = case["in-context"]
+            contrastive_case = dict()
+            contrastive_question = "The following are two examples for base-9 questions, there is a good example and a bad example, can you highlight the important and correct steps in the bad example and provided the filtered version for me? "
+            contrastive_question += "Good Example:\nQ:"
+            contrastive_question += in_context[0][0]
+            contrastive_question += "\nA:"
+            contrastive_question += in_context[0][1]
+            contrastive_question += "\n"
+            contrastive_question += "Bad Example:\nQ:"
+            contrastive_question += in_context[1][0]
+            contrastive_question += "\nA:"
+            contrastive_question += in_context[1][1]
+            contrastive_question += "\n You should end with format of \"Filtered version is:{the filtered version of assistant content in bad example}\""
+            contrastive_case["question"] = contrastive_question
+            self._model.query_case(contrastive_case)
+            match = re.search(r'[Ff]iltered version is:([\s\S]*)', contrastive_case["messages"][-1]["content"])
+            if match:
+                answer = match.group(1)
+                case["in-context"][1][1] = answer
+                case["in-context"] = [[contrastive_case["question"], contrastive_case["messages"][-1]["content"]]] + case["in-context"]
+            else:
+                # raise ValueError("not match")
+                self._log("not match")
+                case["in-context"] = case["in-context"][:1]
+            
+        return  
+    
+    def _method6_contrastive_highlight_noise(self, case_batch):
+        expr = "47+58"
+        for case in case_batch:
+            contrastive_query = []
+            in_context = case["in-context"]
+            for shot in in_context:
+                contrastive_case = dict()
+                contrastive_question = "The following are two examples for base-9 questions, there is a good example and a bad example, can you refer to the good example and correct steps in the bad example and provided the correct version of assistant's response for me. The filtered version should have the reasoning process similar to good example."
+                # contrastive_question = "The following are two examples for base-9 questions, there is a good example and a bad example, can you highlight the important and correct steps in the bad example and provided the modified version for me? "
+                contrastive_question += "Good Example:\nQ:"
+                contrastive_question += self._dataset_processor.get_question(expr)
+                contrastive_question += "\nA:"
+                contrastive_question += self._dataset_processor.answer(expr)
+                contrastive_question += "\n"
+                contrastive_question += "Bad Example:\nQ:"
+                contrastive_question += shot[0]
+                contrastive_question += "\nA:"
+                contrastive_question += shot[1]
+                contrastive_question += "\n You should end with format of \"correct version is:{the correct version of assistant reasoning content in bad example}\""
+                contrastive_case["question"] = contrastive_question
+                contrastive_query.append(contrastive_case)
+            self._model.query_batch(contrastive_query)
+            for shot, query in zip(in_context, contrastive_query):
+                response = query["messages"][-1]["content"]
+                match = re.search(r'[Cc]orrect [Vv]ersion.*?:([\s\S]*)', response)
+                if match:
+                    answer = match.group(1)
+                    shot[1] = answer
+                    # case["in-context"] = [[contrastive_case["question"], contrastive_case["messages"][-1]["content"]]] + case["in-context"]
+                else:
+                    # raise ValueError("not match")
+                    self._log("not match")
+            
+        return  
+    
     def _response_process(self, case_batch):
         for case in case_batch:
             messages = case["messages"]
@@ -268,7 +354,7 @@ class noise_test:
         run_times = self._run_times
         case_list = [copy.deepcopy(self._case_list[i:i+batch_size]) for i in range(0, len(self._case_list), batch_size)]
         for index, case_batch in enumerate(case_list):
-            # self._method3_mask_rephrase_noise(case_batch)
+            # self._method6_contrastive_highlight_noise(case_batch)
             self._model.query_batch(case_batch)
             self._response_process(case_batch)
             self._log(f"index {index}/{len(case_list) - 1}, correct_num {self._correct_num}, error_num {self._error_num}, accuracy {self._correct_num/(self._correct_num+self._error_num)}")

@@ -1,8 +1,8 @@
 # noise test
-model: llama2
-dataset: GSM_IC # family_relation or base_math or GSM_IC
+model: gpt-3.5-turbo-0613
+dataset: base_math # family_relation and base_math
 start_num: 0
-test_num: 200
+test_num: 1000
 run_times: 1
 batch_size: 5
 
@@ -14,7 +14,7 @@ n_shots: 3 # self-made excellent shots
 ## noise
 if_noise: False
 n_noisy_shots: 3
-noisy_type: irrelative # base math: irrelative or arithmetic_error
+noisy_type: arithmetic_error # base math: irrelative or arithmetic_error
 noisy_level: 3
 ## prefix
 # prefix_context: True
@@ -24,9 +24,10 @@ base_math:
   base: 9
   
 
-# GPT
-GPT:
+# gpt
+gpt:
   api: openai  # openai or hkbu
+  temperature: 0
 
 family_relation:
   train_set: 3

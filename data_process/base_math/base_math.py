@@ -100,8 +100,9 @@ class base_math:
         ret = f"In base-{base}, the digits are \"{digits[:base]}\". We have {lo} + {ro} = {int(lo) + int(ro)} in base-10. "+ explaination + f"{int(lo) + int(ro)} mod {base} = {ones_sum[-1]}, so the digit is {ones_sum[-1]} and the carry is {ones_carry_digit}. We have {lt} + {rt} + {ones_carry_digit} = {int(lt) + int(rt) + ones_carry_digit} in base 10. {int(lt) + int(rt) + ones_carry_digit} mod {base} = {tens_sum_w_carry[-1]}, so the digit is {tens_sum_w_carry[-1]} and the carry is {tens_carry_digit}. A leading digit {tens_carry_digit}. So the answer is {self.get_label(expr)}. Answer:\\box{{{self.get_label(expr)}}}"
         return ret
     
-    def irrelative_answer(self, expr):
-        level = self.noisy_level
+    def irrelative_answer(self, expr, level = None):
+        if level == None:
+            level = self.noisy_level
         digits = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
         base = self.base
         lhs, rhs = expr.split("+")
@@ -278,7 +279,7 @@ class base_math:
                         raise ValueError(f"noisy type not support:{self.noisy_type}")
                     noisy_shots.append([shot_q, shot_a])
                 shots = shots + noisy_shots
-                random.shuffle(shots)
+                # random.shuffle(shots)
             if self.prefix_context:
                 for shot in shots:
                     prefix += "user:{}\nassistant:{}\n".format(shot[0], shot[1])
