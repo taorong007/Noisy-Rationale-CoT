@@ -21,7 +21,11 @@ class GSM:
         answer = raw_data["response"]
         return answer
         
-    
+    def get_noisy_answer(self, raw_data):
+        answer = raw_data["response"]
+        
+        return answer
+
     def get_case(self, raw_data):
         n_shots = self.n_shots
         n_noisy_shots = self.n_noisy_shots
@@ -35,8 +39,12 @@ class GSM:
                 question = self.get_question(demo)
                 answer = self.get_answer(demo)
                 shots.append([question, answer])
-        # if n_noisy_shots >= 0:
-        #     question = self.get_question()
+        if n_noisy_shots >= 0:
+            demos = random.sample(self.ICL_set, n_shots)
+            for demo in demos:
+                question = self.get_question(demo)
+                answer = self.get_answer(demo)
+                shots.append([question, answer])
         
         prefix = ""
         if self.prefix_context:
@@ -68,7 +76,7 @@ class GSM:
     
     
     def load_data(self):
-        data_file = os.path.join(self.dataset_path, "GSM_AnsAug.json")
+        data_file = os.path.join(self.dataset_path, "GSM_SV.json")
         with open(data_file, "r") as f:
             dataset = json.load(f)
         
@@ -78,7 +86,7 @@ class GSM:
             assert match is not None
             if match:
                 pure_answer = match.group(1)
-                pure_answer = int(pure_answer)
+                pure_answer = float(pure_answer)
             else:
                 pure_answer = None
             d["label"] = pure_answer

@@ -4,7 +4,7 @@ dataset: GSM # family_relation and base_math and GSM
 start_num: 0
 test_num: 200
 run_times: 1
-batch_size: 5
+batch_size: 2
 
 ## in-context 
 if_in_context: True

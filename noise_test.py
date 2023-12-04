@@ -103,7 +103,7 @@ class noise_test:
         elif self._dataset_name == "family_relation":
             self._dataset_processor = family_relation.family_relation(if_in_context = self._if_in_context, n_shots= self._n_shots, n_noisy_shots = self._n_noisy_shots, noisy_type=self._noisy_type,  noisy_level=self._noisy_level, config = processor_config)
         elif self._dataset_name == "GSM":
-            self._dataset_processor = GSM.GSM(n_shots=self._n_shots, prefix_context=self._prefix_context)
+            self._dataset_processor = GSM.GSM(n_shots=self._n_shots, n_noisy_shots=self._n_noisy_shots,  prefix_context=self._prefix_context)
         else:
             raise ValueError("Unsupported dataset {}".format(self._dataset_name))
         self._dataset = self._dataset_processor.load_data()
