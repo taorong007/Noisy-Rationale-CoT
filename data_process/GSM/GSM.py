@@ -10,6 +10,9 @@ class GSM:
         self.n_shots = n_shots
         self.n_noisy_shots = n_noisy_shots
         self.prefix_context = prefix_context
+        noise_file = "./data/base_math/noise/factsOfNumber.json"
+        with open(noise_file, encoding="utf-8") as f:
+            self.noise_data = json.load(f)["noise_info"]
         
     def get_question(self, raw_data):
         original_question = raw_data["query"]
@@ -20,10 +23,26 @@ class GSM:
     def get_answer(self, raw_data):
         answer = raw_data["response"]
         return answer
-        
+    
+    def _random_choose_fact(self):
+        random_number = random.randrange(0, 19)
+        facts = self.noise_data[random_number]["facts"]
+        random_index = random.randrange(0, len(facts))
+        selected_fact = facts[random_index]
+        return selected_fact
+            
     def get_noisy_answer(self, raw_data):
         answer = raw_data["response"]
-        
+        sentences = answer.split('\n')
+        new_sentences = []
+        for index in range(5):
+            # noise = self._random_choose_fact()
+            # new_sentences.append(sentences[index])
+            # new_sentences.append(noise)
+            index = random.randint(0, len(sentences))
+            noise = self._random_choose_fact()
+            sentences.insert(index, noise)
+        answer = '\n'.join(sentences)
         return answer
 
     def get_case(self, raw_data):
@@ -39,11 +58,11 @@ class GSM:
                 question = self.get_question(demo)
                 answer = self.get_answer(demo)
                 shots.append([question, answer])
-        if n_noisy_shots >= 0:
-            demos = random.sample(self.ICL_set, n_shots)
+        if n_noisy_shots > 0:
+            demos = random.sample(self.ICL_set, n_noisy_shots)
             for demo in demos:
                 question = self.get_question(demo)
-                answer = self.get_answer(demo)
+                answer = self.get_noisy_answer(demo)
                 shots.append([question, answer])
         
         prefix = ""

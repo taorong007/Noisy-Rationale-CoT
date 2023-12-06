@@ -65,7 +65,14 @@ class my_llama:
     #         self._response_process(messages_batch, responses_batch, label_batch)
     #     self._answers_list = [self._answers_list[i:i+run_times] for i in range(0, len(self._answers_list), run_times)]
     #     self._contents_list = [self._contents_list[i:i+run_times] for i in range(0, len(self._contents_list), run_times)]
-        
+    
+    def get_config(self):
+        config = dict()
+        config["max_seq_len"]  = self.max_seq_len
+        config["temperature"] = self.temperature
+        config["top_p"] = self.top_p
+        return config
+    
     def query(self, dialogs : list = [[{"role": "user", "content":"hello"}]]):
         responses = self.llama_generator.chat_completion(
             dialogs,  # type: ignore

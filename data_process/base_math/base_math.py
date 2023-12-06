@@ -303,7 +303,7 @@ class base_math:
         return answer
         
     def load_data(self):
-        noise_file = "./data/base_math/noise/factsOfNumber.json".format(self.base)
+        noise_file = "./data/base_math/noise/factsOfNumber.json"
         data_file = "./data/base_math/icl/base{}.txt".format(self.base)
         dataset = [line.strip() for line in open(data_file)]
         with open(noise_file, encoding="utf-8") as f:

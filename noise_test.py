@@ -15,12 +15,8 @@ import time
 from datetime import datetime
 import copy
 import string
+import argparse
 
-    
-with open('config.yml', 'r') as f:
-    config = yaml.safe_load(f)
-
-    
 def wr_log(obj, log_file):
     print(obj)
     log_file.write(str(obj)+"\n")
@@ -28,7 +24,7 @@ def wr_log(obj, log_file):
 
     
 class noise_test:
-    def __init__(self, args = config) -> None:
+    def __init__(self, args) -> None:
         self._model_name = args["model"]
         self._dataset_name = args["dataset"]
         self._start_num = args["start_num"]
@@ -62,16 +58,18 @@ class noise_test:
         
         self._prefix_context = config["prefix_context"] if "prefix_context" in config else False
         random.seed(time.time())
+    
+        self._init_model()
+        self._init_dataset()
+        
         log_name = args["log_name"] if "log_name" in config else self._get_log_file_name()
         self._log_file = open(log_name, 'w',  encoding='utf-8')
+        self._log_file2 = open("result.log", 'w',  encoding='utf-8')
         dirname = os.path.dirname(log_name)
         basename = os.path.basename(log_name)
         name_without_ext = os.path.splitext(basename)[0]
         self._pickle_name = os.path.join(dirname, name_without_ext + '.pkl')
         self._log(config)
-        
-        self._init_model()
-        self._init_dataset()
         
         self._correct_num = 0
         self._error_num = 0
@@ -95,6 +93,7 @@ class noise_test:
             self._model = my_gpt(model=self._model_name, config=model_config)
         else:
             raise ValueError("Unsupported model {}".format(self._model_name))
+        self._model_config = self._model.get_config()
     
     def _init_dataset(self):
         processor_config =  config[self._dataset_name] if self._dataset_name in config else None
@@ -102,6 +101,7 @@ class noise_test:
             self._dataset_processor = base_math.base_math(if_in_context = self._if_in_context, n_shots= self._n_shots, n_weak_shots = self._n_weak_shots, n_noisy_shots = self._n_noisy_shots, noisy_type=self._noisy_type,  noisy_level=self._noisy_level, prefix_context = self._prefix_context, config = processor_config)
         elif self._dataset_name == "family_relation":
             self._dataset_processor = family_relation.family_relation(if_in_context = self._if_in_context, n_shots= self._n_shots, n_noisy_shots = self._n_noisy_shots, noisy_type=self._noisy_type,  noisy_level=self._noisy_level, prefix_context=self._prefix_context, config = processor_config)
+            self._dataset_config = self._dataset_processor.get_config()
         elif self._dataset_name == "GSM":
             self._dataset_processor = GSM.GSM(n_shots=self._n_shots, n_noisy_shots=self._n_noisy_shots,  prefix_context=self._prefix_context)
         else:
@@ -111,6 +111,15 @@ class noise_test:
     
     def _get_log_file_name(self):
         log_path = os.path.join("result", self._dataset_name, self._model_name)
+        
+        if self._dataset_name == "family relation":
+            log_path = os.path.join(log_path, self._dataset_config["reasoning_type"])
+            if self._dataset_config["reasoning_type"] == "symbolic":
+                log_path = os.path.join(log_path, "hop" + str(self._dataset_config["hop"])) 
+        # elif self._dataset_name == "base_math":
+        #     log_path = os.path.join(log_path, "base"
+        if self._model_name .split("-")[0] == "gpt":
+            log_path = os.path.join(log_path, f"temperature{self._model_config['temperature']}")
         if not os.path.exists(log_path):
             os.makedirs(log_path)
         log_file = "log"
@@ -153,8 +162,10 @@ class noise_test:
         return self._noise_test_result
     
     def _log(self, obj):
-        wr_log(obj, self._log_file)
-    
+        print(obj)
+        self._log_file.write(str(obj)+"\n")
+        self._log_file.flush()
+
     def _random_mask_sentences(self, text, percent):
         try:
             nltk.data.find('tokenizers/punkt')
@@ -189,6 +200,8 @@ class noise_test:
             self._log(json.dumps(messages))
             self._log("\ncorrect answer is {}\n".format(label))
             raw_answer = messages[-1]["content"]
+            wr_log(messages[-2]["content"], self._log_file2)
+            wr_log(messages[-1]["content"], self._log_file2)
             self._contents_list.append(raw_answer)
             self._log(raw_answer)
             
@@ -292,7 +305,11 @@ def COT_SC_correct_rate(answers_list):
     
     
 if __name__ == "__main__":
-    test = noise_test()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-config', type=str, default='config.yml', help='Path to the config file')
+    with open('config.yml', 'r') as f:
+        config = yaml.safe_load(f)
+    test = noise_test(args=config)
     [correct_num, error_num, answer_list, answer_cotents] = test.run()
     
     # with open('log_origin_COT.pkl', 'rb') as f:

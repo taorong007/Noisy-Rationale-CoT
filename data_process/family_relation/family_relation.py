@@ -31,13 +31,30 @@ class family_relation():
             self.hop = hop
         if reasoning_type == "symbolic":
             assert self.trainset >= 5
+        elif reasoning_type == "story":
+            assert self.trainset < 5
+        else:
+            raise ValueError(f"reasoning type not support {reasoning_type}")
         self.file_path = os.path.join("data", "data_emnlp_final")
         self.unzip_data()
         self.init_noise_data()
         return
     
+    def get_config(self):
+        config = dict()
+        config["reasoning_type"] = self.reasoning_type
+        config["hop"] = self.hop
+        return config
+    
     def init_noise_data(self):
-        # with open(os.path.join(self.file_path, "noise", "noise_relation_facts.json"), "r") as f:
+        with open(os.path.join(self.file_path, "noise", "noise_relation_facts.json"), "r") as f:
+            noise_facts = json.load(f)
+        self.noise_relation_facts = dict()
+        for relation_facts in noise_facts:
+            relation = relation_facts["relation"]
+            facts = relation_facts["facts"] 
+            self.noise_relation_facts[relation] = facts
+            
         with open(os.path.join(self.file_path, "noise", "noise_facts.json"), "r") as f:
             noise_facts = json.load(f)
         self.noise_facts = dict()
@@ -135,8 +152,8 @@ class family_relation():
             query = ast.literal_eval(raw_data["query"])
             head_name = query[0]
             tail_name = query[1]
-            relation_str = ", ".join(relation_path)
-            question += f"Context: The relations on the path from {head_name} to {tail_name} are {relation_str}.\n Question: {tail_name} is {head_name}'s what?"
+            relation_str = "'s ".join(relation_path)
+            question += f"In a family tree, if {tail_name} is {head_name}'s {relation_str}. \nQuestion: {tail_name} is {head_name}'s what?"
         question += "Please reason it step by step, and provide a single word answer describing the relationship, in the format  \"Answer: {{relation}}\"\n"
         return question
     
@@ -152,6 +169,12 @@ class family_relation():
                 fact = facts[random_index]
                 selected_set.add(selected)
                 break
+        return fact
+    
+    def get_random_relation_fact(self, relation):
+        facts = self.noise_relation_facts[relation]
+        random_index = random.randrange(0, len(facts))
+        fact = facts[random_index]
         return fact
     
     def find_sentence_containing_strings(self, text, name1, name2):
@@ -198,7 +221,14 @@ class family_relation():
                     answer += f"{explaination}, {tail} is {head}'s {relation}. \n"
         else:
             relation_path = ast.literal_eval(raw_data["edge_types"])
+            query = ast.literal_eval(raw_data["query"])
+            head_name = query[0]
+            tail_name = query[1]
             relation_mix = None
+            relation_path_str = ", ".join(relation_path)
+            relation_desciption = "'s ".join(relation_path)
+            answer += f"The relations path are {relation_path_str}, which means {tail_name} is {head_name}'s {relation_desciption}."
+            
             for proof in reversed(proofs): 
                 for conclusion, reasons in proof.items():
                     relation_mix = conclusion[1]
@@ -215,12 +245,13 @@ class family_relation():
                             relation_path.insert(i, relation_mix)
                             break
                     relation_str = ", ".join(relation_path)
-                    answer += f"For {relation1}'s {relation2}, we have {relation1}'s {relation2} is {relation_mix}." 
+                    answer += f"For {relation1}'s {relation2}, we have {relation1}'s {relation2} is {relation_mix}. " 
                     if(if_noise and self.noisy_level > 0):
                         answer += self.get_random_fact(relation_mix, selected_noise_set).replace("[name1]", head).replace("[name2]", tail)
-                    answer += f"So the relations are reduced to {relation_str}. "
-                    # if(if_noise and self.noisy_level > 0):
-                    #     answer += self.get_random_fact(relation_mix, selected_noise_set) + " "
+                        answer += self.get_random_relation_fact(relation_mix) + " "
+                    answer += f"So the relations path are reduced to {relation_str}. "
+                    if(if_noise and self.noisy_level > 0):
+                        answer += self.get_random_relation_fact(relation_mix) + " "
             answer += f"Therefore, the answer is {relation_mix}. "
         answer += f"Answer:{relation_mix}\n"  
         return answer

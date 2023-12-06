@@ -33,6 +33,13 @@ class my_gpt:
             raise "Api not support: {}".format(api)
         pass
     
+    def get_config(self):
+        config = dict()
+        config["api"]  = self.api
+        config["temperature"] = self.temperature
+        config["model"] = self.model
+        return config
+    
     def chat(self, single_chat):
         messages = []
         messages.append({'role':"user", 'content': single_chat})
