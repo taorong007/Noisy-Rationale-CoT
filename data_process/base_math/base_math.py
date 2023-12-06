@@ -283,6 +283,7 @@ class base_math:
             if self.prefix_context:
                 for shot in shots:
                     prefix += "user:{}\nassistant:{}\n".format(shot[0], shot[1])
+                prefix += "user:"
             else:    
                 case["in-context"] = shots
         question = self.get_question(expr)

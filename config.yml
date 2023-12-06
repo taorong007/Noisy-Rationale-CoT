@@ -1,23 +1,23 @@
 # noise test
-model: llama2
-dataset: GSM # family_relation and base_math and GSM
+model: gpt-3.5-turbo-0613 #gpt-3.5-turbo-0613 or llama2
+dataset: family_relation # family_relation and base_math and GSM
 start_num: 0
 test_num: 200
 run_times: 1
-batch_size: 2
+batch_size: 5
 
 ## in-context 
-if_in_context: True
-n_shots: 3 # self-made excellent shots
+if_in_context: False
+n_shots: 0 # self-made excellent shots
 # n_weak_shots: 0 # original author's shots 
 
 ## noise
 if_noise: False
-n_noisy_shots: 3
-noisy_type: arithmetic_error # base math: irrelative or arithmetic_error
+n_noisy_shots: 5
+noisy_type: irrelative # base math: irrelative or arithmetic_error
 noisy_level: 3
 ## prefix
-prefix_context: True
+prefix_context: False
 
 # math base
 base_math:
@@ -30,7 +30,9 @@ gpt:
   temperature: 0
 
 family_relation:
-  train_set: 3
+  train_set: 5
+  reasoning_type: "symbolic"
+  hop: 4
 
 # llama2 
 llama2:

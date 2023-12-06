@@ -101,7 +101,7 @@ class noise_test:
         if self._dataset_name == "base_math":
             self._dataset_processor = base_math.base_math(if_in_context = self._if_in_context, n_shots= self._n_shots, n_weak_shots = self._n_weak_shots, n_noisy_shots = self._n_noisy_shots, noisy_type=self._noisy_type,  noisy_level=self._noisy_level, prefix_context = self._prefix_context, config = processor_config)
         elif self._dataset_name == "family_relation":
-            self._dataset_processor = family_relation.family_relation(if_in_context = self._if_in_context, n_shots= self._n_shots, n_noisy_shots = self._n_noisy_shots, noisy_type=self._noisy_type,  noisy_level=self._noisy_level, config = processor_config)
+            self._dataset_processor = family_relation.family_relation(if_in_context = self._if_in_context, n_shots= self._n_shots, n_noisy_shots = self._n_noisy_shots, noisy_type=self._noisy_type,  noisy_level=self._noisy_level, prefix_context=self._prefix_context, config = processor_config)
         elif self._dataset_name == "GSM":
             self._dataset_processor = GSM.GSM(n_shots=self._n_shots, n_noisy_shots=self._n_noisy_shots,  prefix_context=self._prefix_context)
         else:

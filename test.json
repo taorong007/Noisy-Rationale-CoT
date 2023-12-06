@@ -1,10 +1,50 @@
 [
     {
         "role": "user",
-        "content": "Here is some examples:\nUser:A park has 50 benches with a capacity of 4 people each. On a Sunday afternoon, 80 people were sitting on the benches. What's the number of available spaces on the benches that other people can sit on before the carrying capacity of the benches is full?\nEnd the response with the result in \"The answer is : {result}\"\n\nAssistant:The total carrying capacity of the benches is 50 benches x 4 people/bench = 200 people.\nThere were already 80 people sitting on the benches, so the number of available spaces is 200 - 80 = 120.\n#### 120\nThe answer is: 120\n\nUser:The class plans to take a field trip to the zoo. The cost to rent a school bus is $100. The cost of admission is $10 per student. The teacher is allowed in for free. If the class has a budget of $350, how many students can go on the field trip?\nEnd the response with the result in \"The answer is : {result}\"\n\nAssistant:The cost to rent a school bus is $100.\nThe teacher is allowed in for free.\nSo, the remaining budget for students' admission is $350 - $100 = $250.\nThe cost of admission per student is $10.\nTherefore, the number of students that can go on the field trip is $250 / $10 = 25 students.\n#### 25\nThe answer is: 25\n\nUser:Trip wanted to watch the new action movie in theaters.  An evening ticket cost $10 and a large popcorn & drink combo would cost him an additional $10.  He noticed on their website, they had a special offer.  From 12 noon to 3 pm, save 20% off tickets and 50% off any food combos.  How much money could Trip save by going to the earlier movie?\nEnd the response with the result in \"The answer is : {result}\"\n\nAssistant:The regular price for an evening ticket is $10.\nThe regular price for a large popcorn & drink combo is $10.\nIf Trip goes to the earlier movie, he can save 20% off the ticket price, which is 20/100 * $10 = $2 off.\nHe can also save 50% off the food combo price, which is 50/100 * $10 = $5 off.\nTherefore, Trip can save a total of $2 + $5 = $7 by going to the earlier movie.\n#### 7\nThe answer is: 7\n\nNow, please this question according to the examples above: \nUser:LaKeisha is mowing lawns to raise money for a collector set of books. She charges $.10 for every square foot of lawn. The book set costs $150. If she has already mowed three 20 x 15 foot lawns, how many more square feet does she have to mow to earn enough for the book set?\nEnd the response with the result in \"The answer is : {result}\""
+        "content": "Context: The relations on the path from Dorothy to Kevin are brother, father, son, son.\n Question: Kevin is Dorothy's what?Please reason it step by step, and provide a single word answer describing the relationship, in the format  \"Answer: {{relation}}\"\n"
     },
     {
         "role": "assistant",
-        "content": " Of course! I'd be happy to help you with that.\nUser:LaKeisha is mowing lawns to raise money for a collector set of books. She charges $.10 for every square foot of lawn. The book set costs $150. If she has already mowed three 20 x 15 foot lawns, how many more square feet does she have to mow to earn enough for the book set?\nAssistant:LaKeisha has already mowed three lawns with a total area of 20 x 15 = 300 square feet.\nTo earn enough money for the book set, LaKeisha needs to mow a total area of 300 square feet x $0.10 = $30.\nTherefore, she has to mow an additional 300 - $30 = 270 square feet to earn enough money for the book set.\n#### 270\nThe answer is: 270"
+        "content": "For father's son, we have father's son is brother.So the relations are reduced to brother, brother, son. For brother's brother, we have brother's brother is brother.So the relations are reduced to brother, son. For brother's son, we have brother's son is nephew.So the relations are reduced to nephew. Therefore, the answer is nephew. Answer:nephew\n"
+    },
+    {
+        "role": "user",
+        "content": "Context: The relations on the path from Pedro to Allan are daughter, brother, uncle, son.\n Question: Allan is Pedro's what?Please reason it step by step, and provide a single word answer describing the relationship, in the format  \"Answer: {{relation}}\"\n"
+    },
+    {
+        "role": "assistant",
+        "content": "For daughter's brother, we have daughter's brother is son.So the relations are reduced to son, uncle, son. For son's uncle, we have son's uncle is brother.So the relations are reduced to brother, son. For brother's son, we have brother's son is nephew.So the relations are reduced to nephew. Therefore, the answer is nephew. Answer:nephew\n"
+    },
+    {
+        "role": "user",
+        "content": "Context: The relations on the path from Antonio to Shantel are daughter, uncle, daughter, grandmother.\n Question: Shantel is Antonio's what?Please reason it step by step, and provide a single word answer describing the relationship, in the format  \"Answer: {{relation}}\"\n"
+    },
+    {
+        "role": "assistant",
+        "content": "For daughter's uncle, we have daughter's uncle is brother.So the relations are reduced to brother, daughter, grandmother. For daughter's grandmother, we have daughter's grandmother is mother.So the relations are reduced to brother, mother. For brother's mother, we have brother's mother is mother.So the relations are reduced to mother. Therefore, the answer is mother. Answer:mother\n"
+    },
+    {
+        "role": "user",
+        "content": "Context: The relations on the path from Antonio to Pedro are father, daughter, son, uncle.\n Question: Pedro is Antonio's what?Please reason it step by step, and provide a single word answer describing the relationship, in the format  \"Answer: {{relation}}\"\n"
+    },
+    {
+        "role": "assistant",
+        "content": "For father's daughter, we have father's daughter is sister.So the relations are reduced to sister, son, uncle. For son's uncle, we have son's uncle is brother.So the relations are reduced to sister, brother. For sister's brother, we have sister's brother is brother.So the relations are reduced to brother. Therefore, the answer is brother. Answer:brother\n"
+    },
+    {
+        "role": "user",
+        "content": "Context: The relations on the path from Harold to Robert are daughter, sister, mother, son.\n Question: Robert is Harold's what?Please reason it step by step, and provide a single word answer describing the relationship, in the format  \"Answer: {{relation}}\"\n"
+    },
+    {
+        "role": "assistant",
+        "content": "For sister's mother, we have sister's mother is mother.So the relations are reduced to daughter, mother, son. For mother's son, we have mother's son is brother.So the relations are reduced to daughter, brother. For daughter's brother, we have daughter's brother is son.So the relations are reduced to son. Therefore, the answer is son. Answer:son\n"
+    },
+    {
+        "role": "user",
+        "content": "Context: The relations on the path from Beverly to Karen are daughter, father, son, wife.\n Question: Karen is Beverly's what?Please reason it step by step, and provide a single word answer describing the relationship, in the format  \"Answer: {{relation}}\"\n"
+    },
+    {
+        "role": "assistant",
+        "content": "For daughter's father, we have daughter's father is father.So the relations are reduced to father, son, wife. For son's wife, we have son's wife is daughter-in-law.So the relations are reduced to father, daughter-in-law. Therefore, the answer is daughter-in-law. Answer: daughter-in-law."
     }
 ]
