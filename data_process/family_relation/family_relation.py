@@ -5,6 +5,7 @@ import zipfile
 import os
 import re
 import ast
+import copy
 from collections import deque
 
 class family_relation():
@@ -35,10 +36,27 @@ class family_relation():
             assert self.trainset < 5
         else:
             raise ValueError(f"reasoning type not support {reasoning_type}")
+
+        self.not_support_relation_reason = []
+        self.replace_num = 0
+        self.error_reason_num = 0
         self.file_path = os.path.join("data", "data_emnlp_final")
         self.unzip_data()
         self.init_noise_data()
+        self.init_relation_dict()
         return
+    
+    def init_relation_dict(self):
+        with open(os.path.join(self.file_path,  "relation_dict.json"), "r") as f:
+            kv_list = json.load(f)
+        self.relation_dict = dict()
+        for kv in kv_list:
+            key = kv["key"]
+            key = (key[0], key[1])
+            value = kv["value"]
+            self.relation_dict[key] = value
+        return
+        
     
     def get_config(self):
         config = dict()
@@ -146,14 +164,14 @@ class family_relation():
             head_name = query[0]
             tail_name = query[1]
             # question += f"Given the relationships described in the story and the gender information, please infer what relationship {tail_name} has to {head_name}. Please note, the answer must be one of the following options: {str(self.relation_list)}.\n"
-            question += f"Question: Given the relationships described in the story information, please infer { tail_name } is { head_name }'s what."
+            question += f"Question: Given the relationships described in the story information, please infer { tail_name } is { head_name }'s what. "
         else:
             relation_path = ast.literal_eval(raw_data["edge_types"])
             query = ast.literal_eval(raw_data["query"])
             head_name = query[0]
             tail_name = query[1]
             relation_str = "'s ".join(relation_path)
-            question += f"In a family tree, if {tail_name} is {head_name}'s {relation_str}. \nQuestion: {tail_name} is {head_name}'s what?"
+            question += f"In a family tree, if {tail_name} is {head_name}'s {relation_str}. \nQuestion: {tail_name} is {head_name}'s what? "
         question += "Please reason it step by step, and provide a single word answer describing the relationship, in the format  \"Answer: {{relation}}\"\n"
         return question
     
@@ -177,6 +195,125 @@ class family_relation():
         fact = facts[random_index]
         return fact
     
+    def _search_relation_in_path(self, relation_path, r1, r2):
+        search_elements = (r1, r2)
+        path_index = -1
+        for path_i in range(len(relation_path) - 1):
+            if (relation_path[path_i], relation_path[path_i+1]) == search_elements:
+                path_index = path_i
+                break
+        return path_index
+        
+    def get_random_relation(self, original_relation):
+        relation_num = len(self.relation_list)
+        while 1:
+            random_index = random.randrange(0, relation_num)
+            new_relation = self.relation_list[random_index]
+            if new_relation != original_relation:
+                break
+        return new_relation
+    
+    def create_proof_chain(self, relation_path, proof_chain = None):
+        if proof_chain == None:
+            proof_chain = []
+        if len(relation_path) <= 1:
+            return proof_chain
+        for index in range(len(relation_path) - 1):
+            r1 = relation_path[index]
+            r2 = relation_path[index + 1]
+            
+            if (r1, r2) not in self.relation_dict:
+                self.not_support_relation_reason.append((r1, r2))
+                continue
+            else:
+                r_mix = self.relation_dict[(r1, r2)]
+                try_path = copy.deepcopy(relation_path)
+                del try_path[index:index+2]
+                try_path.insert(index, r_mix)
+                if self.create_proof_chain(try_path, proof_chain) != None:
+                    proof_chain.append([r1, r2, r_mix])
+                    return proof_chain
+        return None
+            
+    
+    def get_symbolic_relation_reason(self, relation_path, proofs, noisy_type = None, noisy_level = 1):
+        try_count =0
+        # if_replace = False
+        if noisy_type == None:
+            noisy_p = 0
+        elif noisy_level == 1:
+            noisy_p = 0.1
+        elif noisy_level == 2:
+            noisy_p = 0.3
+        elif noisy_level == 3:
+            noisy_p = 0.5
+        proof_chain = []
+        for proof in reversed(proofs):
+            for conclusion, reasons in proof.items():
+                proof_chain.append([reasons[0][1], reasons[1][1], conclusion[1]])
+        
+        reasoning_relation_path = copy.deepcopy(relation_path)
+        new_proof_chain = copy.deepcopy(proof_chain)
+        if noisy_type == "minor_error":
+            for i in range(len(proof_chain)):
+                relation_mix = new_proof_chain[i][2]
+                # whether to replace index i's reasoning
+                if random.random() < noisy_p:
+                    # if_replace = True
+                    while 1: # to make sure the replaced reasoning is proper
+                        # new_relation_path = copy.deepcopy(relation_path)
+                        new_relation = self.get_random_relation(relation_mix)
+                        
+                        try_relation_path = copy.deepcopy(reasoning_relation_path)
+                        index = self._search_relation_in_path(try_relation_path, new_proof_chain[i][0], new_proof_chain[i][1])
+                        del try_relation_path[index:index+2]
+                        try_relation_path.insert(index, new_relation)
+                        
+                        remain_proof_chain = self.create_proof_chain(try_relation_path)
+                        
+                        if remain_proof_chain != None:
+                            reasoning_relation_path = try_relation_path
+                            new_proof_chain[i][2] = new_relation
+                            reversed(remain_proof_chain)
+                            
+                            update_proof_chain = new_proof_chain[:i+1] + remain_proof_chain
+                            if(len(update_proof_chain) > 2):
+                                print("???")
+                            
+                            new_proof_chain = update_proof_chain
+                            self.replace_num += 1
+                            break
+                        else:
+                            try_count += 1
+                        if try_count > 1000:
+                            self.error_reason_num += 1
+                            index = self._search_relation_in_path(reasoning_relation_path, new_proof_chain[i][0], new_proof_chain[i][1])
+                            del reasoning_relation_path[index:index+2]
+                            reasoning_relation_path.insert(index, relation_mix)
+                            break
+                            # raise ValueError(f"can't replace {str(reasoning_relation_path)}, {index}")
+                else:
+                    index = self._search_relation_in_path(reasoning_relation_path, new_proof_chain[i][0], new_proof_chain[i][1])
+                    del reasoning_relation_path[index:index+2]
+                    reasoning_relation_path.insert(index, relation_mix)
+                    
+        reasoning_relation_path = copy.deepcopy(relation_path)
+        answer = ""
+        r_mix = None
+        for proof in new_proof_chain:
+            r1 = proof[0]
+            r2 = proof[1]
+            r_mix = proof[2]
+            index = self._search_relation_in_path(reasoning_relation_path, r1, r2)
+            del reasoning_relation_path[index:index+2]
+            reasoning_relation_path.insert(index, r_mix)
+            relation_str = ", ".join(reasoning_relation_path)
+            answer += f"For {r1}'s {r2}, we have {r1}'s {r2} is {r_mix}. " 
+            answer += f"So the relations path are reduced to {relation_str}. "
+        answer += f"Therefore, the answer is {r_mix}. \n"
+        answer += f"Answer:{r_mix}\n"  
+        return answer
+    
     def find_sentence_containing_strings(self, text, name1, name2):
         sentences = text.split('.')
         for sentence in sentences:
@@ -194,14 +331,11 @@ class family_relation():
         if (self.reasoning_type != "symbolic"):
             for proof in reversed(proofs): 
                 for conclusion, reasons in proof.items():
-                    # answer += "Since "
                     explaination = "Since "
                     for i, reason in enumerate(reasons):
                         head = reason[0]
                         relation = reason[1]
                         tail = reason[2]
-                        # if i > 0:
-                        #     answer += " and "
                         sentence  = self.find_sentence_containing_strings(story, head, tail)
                         if sentence:
                             answer += f"Based on the sentence \"{sentence}\", we can infer that "
@@ -214,46 +348,25 @@ class family_relation():
                             noise_fact = self.get_random_fact(relation, selected_noise_set).replace("[name1]", head).replace("[name2]", tail)
                             answer += noise_fact
                             count -= 1
-                    # answer += ","
                     head = conclusion[0]
                     relation = conclusion[1]
                     tail = conclusion[2]
                     answer += f"{explaination}, {tail} is {head}'s {relation}. \n"
+            answer += f"Answer:{relation_mix}\n"  
         else:
             relation_path = ast.literal_eval(raw_data["edge_types"])
+            relation_path_str = ", ".join(relation_path)
+            relation_desciption = "'s ".join(relation_path)
+            
             query = ast.literal_eval(raw_data["query"])
             head_name = query[0]
             tail_name = query[1]
             relation_mix = None
-            relation_path_str = ", ".join(relation_path)
-            relation_desciption = "'s ".join(relation_path)
-            answer += f"The relations path are {relation_path_str}, which means {tail_name} is {head_name}'s {relation_desciption}."
-            
-            for proof in reversed(proofs): 
-                for conclusion, reasons in proof.items():
-                    relation_mix = conclusion[1]
-                    head = conclusion[0]
-                    tail = conclusion[2]
-                    # relation1 = relation_path.popleft()
-                    # relation2 = relation_path.popleft()
-                    search_elements = (reasons[0][1], reasons[1][1])
-                    for i in range(len(relation_path) - 1):
-                        if (relation_path[i], relation_path[i+1]) == search_elements or (relation_path[i+1], relation_path[i]) == search_elements:
-                            relation1 = relation_path[i]
-                            relation2 = relation_path[i+1]
-                            del relation_path[i:i+2]
-                            relation_path.insert(i, relation_mix)
-                            break
-                    relation_str = ", ".join(relation_path)
-                    answer += f"For {relation1}'s {relation2}, we have {relation1}'s {relation2} is {relation_mix}. " 
-                    if(if_noise and self.noisy_level > 0):
-                        answer += self.get_random_fact(relation_mix, selected_noise_set).replace("[name1]", head).replace("[name2]", tail)
-                        answer += self.get_random_relation_fact(relation_mix) + " "
-                    answer += f"So the relations path are reduced to {relation_str}. "
-                    if(if_noise and self.noisy_level > 0):
-                        answer += self.get_random_relation_fact(relation_mix) + " "
-            answer += f"Therefore, the answer is {relation_mix}. "
-        answer += f"Answer:{relation_mix}\n"  
+            answer += f"The relations path are {relation_path_str}, which means {tail_name} is {head_name}'s {relation_desciption}. "
+            if if_noise:
+                answer += self.get_symbolic_relation_reason(relation_path, proofs, self.noisy_type, self.noisy_level)
+            else:
+                answer += self.get_symbolic_relation_reason(relation_path, proofs)
         return answer
     
     def get_random_demos(self, num):
@@ -261,24 +374,6 @@ class family_relation():
         demos = self.in_context_dataset.sample(n=num)
         return demos
     
-
-        
-    
-    #id	story	query	text_query	target	text_target	clean_story	proof_state	f_comb	task_name	story_edges	edge_types	query_edge	genders	syn_story	node_mapping	task_split	
-    #73a26e9c-62c0-489c-aae3-f293e8564ff9	
-    #[Ellen] wanted to bring all her siblings together for a family reunion so she called up her brother, [Francisco], and her sister, [Victoria]. [Francisco] is in the sixth grade. He looks up to his sister [Louise], who is in the seventh. [Lisbeth] picked up her son [Francisco] from the mall	
-    # ('Victoria', 'Lisbeth')		
-    # mother	
-    # ['[Lisbeth] took her daughter, [Victoria], to lunch.']	
-    # [Ellen] wanted to bring all her siblings together for a family reunion so she called up her brother, [Francisco], and her sister, [Victoria]. [Lisbeth] picked up her son [Francisco] from the mall	
-    # [{('Victoria', 'mother', 'Lisbeth'): [('Victoria', 'sister', 'Ellen'), ('Ellen', 'mother', 'Lisbeth')]}, 
-    # {('Ellen', 'mother', 'Lisbeth'): [('Ellen', 'brother', 'Francisco'), ('Francisco', 'mother', 'Lisbeth')]}]	
-    # sister-brother-mother	
-    # task_3.3	
-    # [(0, 1), (1, 2), (2, 3), (2, 4)]	
-    # ['sister', 'brother', 'mother']	
-    # (0, 3)	Victoria:female,Ellen:female,Francisco:male,Lisbeth:female,Louise:female		{19: 0, 18: 1, 20: 2, 16: 3, 17: 4}	train
-
     
     def get_case(self, raw_data):
         case = dict()

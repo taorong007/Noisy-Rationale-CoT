@@ -64,7 +64,6 @@ class noise_test:
         
         log_name = args["log_name"] if "log_name" in config else self._get_log_file_name()
         self._log_file = open(log_name, 'w',  encoding='utf-8')
-        self._log_file2 = open("result.log", 'w',  encoding='utf-8')
         dirname = os.path.dirname(log_name)
         basename = os.path.basename(log_name)
         name_without_ext = os.path.splitext(basename)[0]
@@ -112,7 +111,7 @@ class noise_test:
     def _get_log_file_name(self):
         log_path = os.path.join("result", self._dataset_name, self._model_name)
         
-        if self._dataset_name == "family relation":
+        if self._dataset_name == "family_relation":
             log_path = os.path.join(log_path, self._dataset_config["reasoning_type"])
             if self._dataset_config["reasoning_type"] == "symbolic":
                 log_path = os.path.join(log_path, "hop" + str(self._dataset_config["hop"])) 
@@ -200,8 +199,6 @@ class noise_test:
             self._log(json.dumps(messages))
             self._log("\ncorrect answer is {}\n".format(label))
             raw_answer = messages[-1]["content"]
-            wr_log(messages[-2]["content"], self._log_file2)
-            wr_log(messages[-1]["content"], self._log_file2)
             self._contents_list.append(raw_answer)
             self._log(raw_answer)
             
