@@ -1,9 +1,9 @@
 # noise test
 model: gpt-3.5-turbo-0613 #gpt-3.5-turbo-0613 or llama2
-dataset: family_relation # family_relation and base_math and GSM
+dataset: base_math # family_relation and base_math and GSM
 start_num: 0
-test_num: 1000
-run_times: 1
+test_num: 300
+run_times: 5
 batch_size: 5
 
 ## in-context 
@@ -13,8 +13,8 @@ n_shots: 0 # self-made excellent shots
 
 ## noise
 if_noise: True
-n_noisy_shots: 5
-noisy_type: minor_error # base math: irrelative or arithmetic_error
+n_noisy_shots: 3
+noisy_type: irrelative # base math: irrelative or arithmetic_error
 noisy_level: 3
 ## prefix
 prefix_context: False

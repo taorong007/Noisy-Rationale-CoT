@@ -300,6 +300,7 @@ class family_relation():
         reasoning_relation_path = copy.deepcopy(relation_path)
         answer = ""
         r_mix = None
+        selected_noise_set = set()
         for proof in new_proof_chain:
             r1 = proof[0]
             r2 = proof[1]
@@ -309,7 +310,17 @@ class family_relation():
             reasoning_relation_path.insert(index, r_mix)
             relation_str = ", ".join(reasoning_relation_path)
             answer += f"For {r1}'s {r2}, we have {r1}'s {r2} is {r_mix}. " 
+            if noisy_type == "irrelative":
+                if random.random() < noisy_p:
+                    noise_fact = self.get_random_relation_fact(r_mix)
+                    answer += noise_fact
+                
+            
             answer += f"So the relations path are reduced to {relation_str}. "
+            if noisy_type == "irrelative":
+                if random.random() < noisy_p:
+                    noise_fact = self.get_random_relation_fact(r_mix)
+                    answer += noise_fact
         answer += f"Therefore, the answer is {r_mix}. \n"
         answer += f"Answer:{r_mix}\n"  
         return answer

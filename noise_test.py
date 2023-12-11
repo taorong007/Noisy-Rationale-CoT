@@ -102,7 +102,7 @@ class noise_test:
             self._dataset_processor = family_relation.family_relation(if_in_context = self._if_in_context, n_shots= self._n_shots, n_noisy_shots = self._n_noisy_shots, noisy_type=self._noisy_type,  noisy_level=self._noisy_level, prefix_context=self._prefix_context, config = processor_config)
             self._dataset_config = self._dataset_processor.get_config()
         elif self._dataset_name == "GSM":
-            self._dataset_processor = GSM.GSM(n_shots=self._n_shots, n_noisy_shots=self._n_noisy_shots,  prefix_context=self._prefix_context)
+            self._dataset_processor = GSM.GSM(n_shots=self._n_shots, n_noisy_shots=self._n_noisy_shots, noisy_type=self._noisy_type,  noisy_level=self._noisy_level, prefix_context=self._prefix_context)
         else:
             raise ValueError("Unsupported dataset {}".format(self._dataset_name))
         self._dataset = self._dataset_processor.load_data()
@@ -223,7 +223,7 @@ class noise_test:
         run_times = self._run_times
         case_list = [copy.deepcopy(self._case_list[i:i+batch_size]) for i in range(0, len(self._case_list), batch_size)]
         for index, case_batch in enumerate(case_list):
-            # self._method6_contrastive_highlight_noise(case_batch)
+            self._method6_contrastive_highlight_noise(case_batch)
             self._model.query_batch(case_batch)
             self._response_process(case_batch)
             self._log(f"index {index}/{len(case_list) - 1}, correct_num {self._correct_num}, error_num {self._error_num}, accuracy {self._correct_num/(self._correct_num+self._error_num)}")
@@ -248,7 +248,7 @@ class noise_test:
             in_context = case["in-context"]
             for shot in in_context:
                 contrastive_case = dict()
-                contrastive_question = "The following are two examples for base-9 questions, there is a good example and a bad example, can you refer to the good example and correct steps in the bad example and provided the correct version of assistant's response for me. The filtered version should have the reasoning process similar to good example."
+                contrastive_question = "Below are two examples of same kind of questions: one is a good example and the other is a poor one. Could you analyze the good example, identify the issues in the poor one, and provide a corrected version of the assistant's response? The revised response should include a reasoning process similar to that in the good example."
                 # contrastive_question = "The following are two examples for base-9 questions, there is a good example and a bad example, can you highlight the important and correct steps in the bad example and provided the modified version for me? "
                 contrastive_question += "Good Example:\nQ:"
                 contrastive_question += self._dataset_processor.get_question(expr)
@@ -259,7 +259,7 @@ class noise_test:
                 contrastive_question += shot[0]
                 contrastive_question += "\nA:"
                 contrastive_question += shot[1]
-                contrastive_question += "\n You should end with format of \"correct version is:{the correct version of assistant reasoning content in bad example}\""
+                contrastive_question += "\n You should end with format of \"correct version is:{the correct version of assistant reasoning content in bad example, WITHOUT HOW YOU analyze}\". "
                 contrastive_case["question"] = contrastive_question
                 contrastive_query.append(contrastive_case)
             self._model.query_batch(contrastive_query)
