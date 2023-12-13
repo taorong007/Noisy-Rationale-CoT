@@ -68,12 +68,6 @@ class my_gpt:
                 self.completion_tokens += response["usage"]["completion_tokens"]
                 self.prompt_tokens += response["usage"]["prompt_tokens"]
                 self.total_tokens += response["usage"]["total_tokens"]
-                # completion = {'role': {}, 'content': {}}
-                # for event in response:
-                #     if event['choices'][0]['finish_reason'] == 'stop':
-                #         break
-                #     for delta_k, delta_v in event['choices'][0]['delta'].items():
-                #         completion[delta_k] += delta_v
                 # 获取同个prompt的多次回答
                 completions = []
                 for choice in response['choices']:
