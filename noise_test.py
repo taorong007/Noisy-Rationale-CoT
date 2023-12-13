@@ -8,6 +8,7 @@ import pickle
 import data_process.base_math.base_math as base_math
 import data_process.family_relation.family_relation as family_relation
 import data_process.GSM.GSM as GSM
+import data_process.SCAN.scan_master as scan_master
 import pandas as pd
 import nltk
 import random
@@ -32,43 +33,43 @@ class noise_test:
         self._run_times = args["run_times"]
         self._batch_size = args["batch_size"]
         assert  self._run_times * self._test_num / self._batch_size == int(self._run_times * self._test_num / self._batch_size), "run_times * test_num / batch_size should be a positive integer"
-        self._if_in_context = args["if_in_context"] if "if_in_context" in config else False
+        self._if_in_context = args["if_in_context"] if "if_in_context" in args else False
         if self._if_in_context:
-            self._if_noise = args["if_noise"] if "if_noise" in config else False
-            self._n_shots = args["n_shots"] if "n_shots" in config else 1
-            self._n_weak_shots = args["n_weak_shots"] if "n_weak_shots" in config else 0
+            self._if_noise = args["if_noise"] if "if_noise" in args else False
+            self._n_shots = args["n_shots"] if "n_shots" in args else 1
+            self._n_weak_shots = args["n_weak_shots"] if "n_weak_shots" in args else 0
         else:
             self._if_noise =False
             self._n_shots = 0
             self._n_weak_shots = 0
         
         if self._if_noise:
-            self._n_noisy_shots = config["n_noisy_shots"] if "n_noisy_shots" in config else 0
+            self._n_noisy_shots = args["n_noisy_shots"] if "n_noisy_shots" in args else 0
             if self._n_noisy_shots  == 0:
                 self._if_noise = False
                 self._noisy_type = None
                 self._noisy_level = 0
             else:
-                self._noisy_type = config["noisy_type"] if "noisy_type" in config else "miscalculation"
-                self._noisy_level = int(config["noisy_level"]) if "noisy_level" in config else 1
+                self._noisy_type = args["noisy_type"] if "noisy_type" in args else "miscalculation"
+                self._noisy_level = int(args["noisy_level"]) if "noisy_level" in args else 1
         else:
             self._n_noisy_shots = 0 
             self._noisy_type = None
             self._noisy_level = 0
         
-        self._prefix_context = config["prefix_context"] if "prefix_context" in config else False
+        self._prefix_context = args["prefix_context"] if "prefix_context" in args else False
         random.seed(time.time())
     
         self._init_model()
         self._init_dataset()
         
-        log_name = args["log_name"] if "log_name" in config else self._get_log_file_name()
+        log_name = args["log_name"] if "log_name" in args else self._get_log_file_name()
         self._log_file = open(log_name, 'w',  encoding='utf-8')
         dirname = os.path.dirname(log_name)
         basename = os.path.basename(log_name)
         name_without_ext = os.path.splitext(basename)[0]
         self._pickle_name = os.path.join(dirname, name_without_ext + '.pkl')
-        self._log(config)
+        self._log(args)
         
         self._correct_num = 0
         self._error_num = 0
@@ -103,6 +104,8 @@ class noise_test:
             self._dataset_config = self._dataset_processor.get_config()
         elif self._dataset_name == "GSM":
             self._dataset_processor = GSM.GSM(n_shots=self._n_shots, n_noisy_shots=self._n_noisy_shots, noisy_type=self._noisy_type,  noisy_level=self._noisy_level, prefix_context=self._prefix_context)
+        elif self._dataset_name == "SCAN":
+            self._dataset_processor = scan_master.scan_master(if_in_context = self._if_in_context, n_shots=self._n_shots, n_noisy_shots=self._n_noisy_shots, noisy_type=self._noisy_type,  noisy_level=self._noisy_level, prefix_context=self._prefix_context, config = processor_config)
         else:
             raise ValueError("Unsupported dataset {}".format(self._dataset_name))
         self._dataset = self._dataset_processor.load_data()
@@ -223,7 +226,7 @@ class noise_test:
         run_times = self._run_times
         case_list = [copy.deepcopy(self._case_list[i:i+batch_size]) for i in range(0, len(self._case_list), batch_size)]
         for index, case_batch in enumerate(case_list):
-            self._method6_contrastive_highlight_noise(case_batch)
+            # self._method6_contrastive_highlight_noise(case_batch)
             self._model.query_batch(case_batch)
             self._response_process(case_batch)
             self._log(f"index {index}/{len(case_list) - 1}, correct_num {self._correct_num}, error_num {self._error_num}, accuracy {self._correct_num/(self._correct_num+self._error_num)}")
@@ -309,7 +312,7 @@ if __name__ == "__main__":
     test = noise_test(args=config)
     [correct_num, error_num, answer_list, answer_cotents] = test.run()
     
-    # with open('log_origin_COT.pkl', 'rb') as f:
+    # with open('./result/base_math/gpt-3.5-turbo-0613/temperature1/rephrase/log_ICL_0_noise_3irrelative_level3.pkl', 'rb') as f:
     #     lists = pickle.load(f)
     
     # [correct_num, error_num, answer_list, answer_cotents]  = lists

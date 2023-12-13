@@ -2,3 +2,5 @@ result/*
 *key.yml
 **/__pycache__/
 data/**/unzip_data/*
+test.ipynb
+test.json

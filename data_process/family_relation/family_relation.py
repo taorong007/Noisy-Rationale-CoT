@@ -107,7 +107,7 @@ class family_relation():
         unzip_path = os.path.join(self.file_path, "unzip_data", str(self.trainset))
         # trainset_file_name = f"{self.trainset}.2,{self.trainset}.3_train.csv"
         # testset_file_name = f"{self.testset}_test.csv"
-        # self.in_context_dataset = pd.read_csv(os.path.join(unzip_path, trainset_file_name))
+        # self.trainset = pd.read_csv(os.path.join(unzip_path, trainset_file_name))
         
         if self.reasoning_type !=  "symbolic":
             file_name = f"{self.trainset}.2,{self.trainset}.3_train.csv"
@@ -126,7 +126,7 @@ class family_relation():
             step2_test = step2_set.iloc[train_num:]
             
             testset = self.shuffle_dataset(step2_test, step3_test)
-            self.in_context_dataset = self.shuffle_dataset(step2_train, step3_train)
+            self.trainset = self.shuffle_dataset(step2_train, step3_train)
         else:
             file_name = f"1.2,1.3,1.4_train.csv"
             dataset = pd.read_csv(os.path.join(unzip_path, file_name))
@@ -146,7 +146,7 @@ class family_relation():
                 raise ValueError(f"hop {self.hop} not support")
 
             train_num = int(len(dataset) * 0.5)
-            self.in_context_dataset = dataset[:train_num]
+            self.trainset = dataset[:train_num]
             testset = dataset[train_num:]
         
         with open(os.path.join(unzip_path, "example_set.json"), "r") as f:
@@ -381,8 +381,8 @@ class family_relation():
         return answer
     
     def get_random_demos(self, num):
-        assert len(self.in_context_dataset) > num
-        demos = self.in_context_dataset.sample(n=num)
+        assert len(self.trainset) > num
+        demos = self.trainset.sample(n=num)
         return demos
     
     
