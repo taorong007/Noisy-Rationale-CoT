@@ -4,5 +4,5 @@ result/*
 data/**/unzip_data/*
 test.ipynb
 test.json
-test.py
-.vscode
+.vscode/
+.idea/
