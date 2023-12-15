@@ -3,12 +3,9 @@ model: gpt-3.5-turbo-0613 #gpt-3.5-turbo-0613 or llama2
 dataset: SCAN # family_relation and base_math and GSM and SCAN
 start_num: 0
 test_num: 300
-batch_size: 1
-temperature_rephrase: 1
-n_rephrase: 5
-temperature_reason: 0.1
 n_reason: 5
-rephrase_aggregate: True # aggregate rephrase before ICL or after ICL
+batch_size: 5
+temperature_reason: 1
 
 ## in-context 
 if_in_context: True
@@ -18,10 +15,17 @@ n_shots: 0 # self-made excellent shots
 ## noise
 if_noise: True
 n_noisy_shots: 3
-noisy_type: arithmetic_error # base math: irrelative or arithmetic_error
+noisy_type: irrelative # base math: irrelative or arithmetic_error
 noisy_level: 3
 ## prefix
 prefix_context: False
+
+# method
+## rephrase
+if_rephrase: True
+temperature_rephrase: 1
+rephrase_aggregate: False # aggregate rephrase before ICL or after ICL
+n_rephrase: 5 # only valid when rephrase_aggregate is ture
 
 # math base
 base_math:
@@ -33,6 +37,7 @@ SCAN:
 # gpt
 gpt:
   api: openai  # openai or hkbu
+  # api_base: "https://openkey.cloud/v1"
 
 
 family_relation:

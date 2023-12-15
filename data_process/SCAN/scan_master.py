@@ -26,58 +26,27 @@ class scan_master():
             self.reasoning_type = reasoning_type
         
         self.file_path = os.path.join("data", "SCAN-master")
-        # self.unzip_data()
-        # self.init_noise_data()
-        # self.init_relation_dict()
+        self.unzip_data()
+        self.init_noise_data()
         return
+
     
-    
-    # def init_relation_dict(self):
-    #     with open(os.path.join(self.file_path,  "relation_dict.json"), "r") as f:
-    #         kv_list = json.load(f)
-    #     self.relation_dict = dict()
-    #     for kv in kv_list:
-    #         key = kv["key"]
-    #         key = (key[0], key[1])
-    #         value = kv["value"]
-    #         self.relation_dict[key] = value
-    #     return
-        
-    
-    # def get_config(self):
-    #     config = dict()
-    #     config["reasoning_type"] = self.reasoning_type
-    #     config["hop"] = self.hop
-    #     return config
-    
-    # def init_noise_data(self):
-        # with open(os.path.join(self.file_path, "noise", "noise_relation_facts.json"), "r") as f:
-        #     noise_facts = json.load(f)
-        # self.noise_relation_facts = dict()
-        # for relation_facts in noise_facts:
-        #     relation = relation_facts["relation"]
-        #     facts = relation_facts["facts"] 
-        #     self.noise_relation_facts[relation] = facts
-            
-        # with open(os.path.join(self.file_path, "noise", "noise_facts.json"), "r") as f:
-        #     noise_facts = json.load(f)
-        # self.noise_facts = dict()
-        # for relation_facts in noise_facts:
-        #     relation = relation_facts["relation"]
-        #     facts = relation_facts["facts"] 
-        #     self.noise_facts[relation] = facts
-    
+    def init_noise_data(self):
+        with open(os.path.join(self.file_path, "noise", "action_facts.json"), "r") as f:
+            noise_facts = json.load(f)
+        self.noise_facts = dict()
+        for noise_fact in noise_facts:
+            phrase = noise_fact["phrase"]
+            facts = noise_fact["facts"] 
+            self.noise_facts[phrase] = facts
+
     def unzip_data(self):
-        zip_files = ["data_7c5b0e70.zip", "data_06b8f2a1.zip", "data_523348e6.zip", "data_d83ecc3e.zip", "data_db9b8f04.zip"]
+        zip_files = "SCAN-master.zip"
         unzip_path = os.path.join(self.file_path, "unzip_data")
         if not os.path.exists(unzip_path):
             os.makedirs(unzip_path)
-        for index, zip_file in enumerate(zip_files):
-            with zipfile.ZipFile(os.path.join(self.file_path, zip_file), 'r') as zip_ref:
-                unzip_file_path = os.path.join(unzip_path, str(index + 1))
-                if not os.path.exists(unzip_file_path):
-                    os.makedirs(unzip_file_path)
-                zip_ref.extractall(unzip_file_path)
+        with zipfile.ZipFile(os.path.join(self.file_path, zip_files), 'r') as zip_ref:
+            zip_ref.extractall(unzip_path)
     
     def read_raw_file(self, file_path):
         dataset = []
@@ -135,31 +104,17 @@ class scan_master():
     def get_label(self, raw_data):
         return str(raw_data[1])
         
-    def get_random_fact(self, relation, selected_set):
-        facts = self.noise_facts[relation]
+    def get_random_fact(self, rephrase, selected_set):
+        facts = self.noise_facts[rephrase]
         while(1):
             random_index = random.randrange(0, len(facts))
-            selected = f"{relation}_{random_index}"
+            selected = f"{rephrase}_{random_index}"
             if selected not in selected_set:
                 fact = facts[random_index]
                 selected_set.add(selected)
                 break
         return fact
-    
-    def get_random_relation_fact(self, relation):
-        facts = self.noise_relation_facts[relation]
-        random_index = random.randrange(0, len(facts))
-        fact = facts[random_index]
-        return fact
         
-    def get_random_relation(self, original_relation):
-        relation_num = len(self.relation_list)
-        while 1:
-            random_index = random.randrange(0, relation_num)
-            new_relation = self.relation_list[random_index]
-            if new_relation != original_relation:
-                break
-        return new_relation
     def find_sentence_containing_strings(self, text, name1, name2):
         sentences = text.split('.')
         for sentence in sentences:
@@ -174,6 +129,17 @@ class scan_master():
         direction = ["right", "left"]
         angle = ["opposite", "around"]
         times_phrase = ["twice", "thrice"]
+        noisy_level = self.noisy_level
+        selected_set = set()
+        
+        if if_noise == False:
+            noisy_p = -1
+        elif noisy_level == 1:
+            noisy_p = 0.1
+        elif noisy_level == 2:
+            noisy_p = 0.3
+        elif noisy_level == 3:
+            noisy_p = 0.5
         
         action_sequence = []
         if "and" in in_content.split():
@@ -189,7 +155,6 @@ class scan_master():
         
         
         for i, actions in enumerate(sub_action_list):
-            
             sub_action_sequence = []
             actions_str = " ".join(actions)
             if i > 0:
@@ -236,6 +201,9 @@ class scan_master():
                 once_action = []
                 once_action.append(f"I_{this_action.upper()}")
                 answer += "\"{}\" means the agent needs to {}. So, in action sequence is {}. ".format(this_action, this_action, " ".join(once_action))
+                if random.random() < noisy_p:
+                    noise_fact = self.get_random_fact(this_action, selected_set)
+                    answer += noise_fact
             elif this_angle == "":
                 once_action = []
                 answer += f"\"{this_action} {this_direction}\" means the agent needs to turn {this_direction}"
@@ -244,11 +212,16 @@ class scan_master():
                     answer += f" and {this_action}"
                     once_action.append(f"I_{this_action.upper()}")
                 answer += ". "
-                if if_noise:
-                    if this_direction == "left":
-                        answer += "In countries with right-hand traffic, turning left at a traffic light often requires a green arrow to indicate a protected turn. "
-                    elif this_direction == "right":
-                        answer += "Turning right in countries that drive on the right side of the road typically does not intersect with oncoming traffic. "
+                
+                if random.random() < noisy_p:
+                    noise_fact = self.get_random_fact(this_direction, selected_set)
+                    answer += noise_fact
+                
+                if action_kind == 2:
+                    if random.random() < noisy_p:
+                        noise_fact = self.get_random_fact(this_action, selected_set)
+                        answer += noise_fact
+                
                 answer += "So, in action sequence is {}. ".format(" ".join(once_action))
             else:
                 once_action = []
@@ -261,14 +234,19 @@ class scan_master():
                         once_action.append(f"I_{this_action.upper()}")
                     else:
                         answer += f". "
-                    if if_noise:
-                        if this_direction == "left":
-                            answer += "The command to 'turn opposite' is not standard in directional terms but implies facing or moving in the opposite direction."
-                            answer += "Making a left turn typically exposes a driver to oncoming traffic, increasing the complexity of the turn relative to turning right."
-                        elif this_direction == "right":
-                                answer += "In military drill commands, a command to 'about face' is the equivalent of turning to the opposite direction."
-                                answer += "In left-hand traffic jurisdictions, such as the UK, turning right is analogous to turning left in right-hand traffic jurisdictions, crossing the path of oncoming vehicles."
+                        
+                    if action_kind == 2:
+                        if random.random() < noisy_p:
+                            noise_fact = self.get_random_fact(this_action, selected_set)
+                            answer += noise_fact
                     
+                    if random.random() < noisy_p:
+                        noise_fact = self.get_random_fact("opposite", selected_set)
+                        answer += noise_fact
+                    
+                    if random.random() < noisy_p:
+                        noise_fact = self.get_random_fact(this_direction, selected_set)
+                        answer += noise_fact
                 elif this_angle == "around":
                     answer += f"\"{this_action} {this_angle} {this_direction}\" means the agent needs to turn {this_direction}"
                     once_action.append(f"I_TURN_{this_direction.upper()}")
@@ -279,8 +257,18 @@ class scan_master():
                     answer += ", and repeat this action sequence four times to complete a 360-degree loop"
                     answer += ". "
                     once_action = once_action * angle_times
-                    if if_noise:
-                        answer += "Many GPS navigation systems will issue a 'turn around' command if the driver deviates from the planned route."
+                    if action_kind == 2:
+                        if random.random() < noisy_p:
+                            noise_fact = self.get_random_fact(this_action, selected_set)
+                            answer += noise_fact
+                    
+                    if random.random() < noisy_p:
+                        noise_fact = self.get_random_fact("around", selected_set)
+                        answer += noise_fact
+                    
+                    if random.random() < noisy_p:
+                        noise_fact = self.get_random_fact(this_direction, selected_set)
+                        answer += noise_fact
                 answer += "So, in action sequence is {}. ".format(" ".join(once_action))
                 
             if this_times != "":
@@ -290,7 +278,10 @@ class scan_master():
                     action_times = 3
                 sub_action_sequence = once_action * action_times
                 answer += f"Since we need do {this_times} in command \"{actions_str}\",  this entire sequence is repeated {action_times} times. "
-                answer += "So the action sequence to \"{}\" is :{}".format(actions_str, " ".join(sub_action_sequence))        
+                if random.random() < noisy_p:
+                    noise_fact = self.get_random_fact(this_times, selected_set)
+                    answer += noise_fact
+                answer += "So the action sequence to \"{}\" is :{}".format(actions_str, " ".join(sub_action_sequence))
             else:
                 sub_action_sequence = once_action
             answer += "\n"

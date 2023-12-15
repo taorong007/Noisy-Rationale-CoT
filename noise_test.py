@@ -33,22 +33,31 @@ class noise_test:
         self._test_num = args["test_num"]
         # self._run_times = args["run_times"]
         self._batch_size = args["batch_size"]
-        self.temperature_rephrase = args["temperature_rephrase"]
-        self.n_rephrase = args["n_rephrase"]
         self.temperature_reason = args["temperature_reason"]
         self.n_reason = args["n_reason"]
-        self.rephrase_aggregate = args["rephrase_aggregate"]
+        
         assert self._test_num / self._batch_size == int(
             self._test_num / self._batch_size), "test_num / batch_size should be a positive integer"
+        
         self._if_in_context = args["if_in_context"] if "if_in_context" in args else False
         if self._if_in_context:
             self._if_noise = args["if_noise"] if "if_noise" in args else False
             self._n_shots = args["n_shots"] if "n_shots" in args else 1
             self._n_weak_shots = args["n_weak_shots"] if "n_weak_shots" in args else 0
+            self.if_rephrase = args["if_rephrase"]
         else:
             self._if_noise = False
             self._n_shots = 0
             self._n_weak_shots = 0
+            self.if_rephrase = False
+            
+        if self.if_rephrase:
+            self.rephrase_aggregate = args["rephrase_aggregate"]
+            self.temperature_rephrase = args["temperature_rephrase"]
+            if self.rephrase_aggregate:
+                self.n_rephrase = args["n_rephrase"]
+            else:
+                self.n_rephrase = self.n_reason
 
         if self._if_noise:
             self._n_noisy_shots = args["n_noisy_shots"] if "n_noisy_shots" in args else 0
@@ -138,7 +147,7 @@ class noise_test:
                 # elif self._dataset_name == "base_math":
         #     log_path = os.path.join(log_path, "base"
         if self._model_name.split("-")[0] == "gpt":
-            log_path = os.path.join(log_path, f"temperature{self.temperature_rephrase}")
+            log_path = os.path.join(log_path, f"temperature{self.temperature_reason}")
         if not os.path.exists(log_path):
             os.makedirs(log_path)
         log_file = "log"
@@ -152,7 +161,8 @@ class noise_test:
             log_file += "_noise_{}{}_level{}".format(self._n_noisy_shots, self._noisy_type, self._noisy_level)
         else:
             log_file += "_origin"
-        log_file += "_rephrase_aggregate_{}".format(self.rephrase_aggregate)
+        if self.if_rephrase:
+            log_file += "_rephrase_aggregate_{}".format(self.rephrase_aggregate)
         log_file += "_case{}".format(self._test_num - self._start_num)
         log_file += "_reason_temp{}.log".format(self.temperature_reason)
         log_file_path = os.path.join(log_path, log_file)
@@ -174,10 +184,7 @@ class noise_test:
                 test_num -= 1
                 if test_num <= 0:
                     break
-            if self.rephrase_aggregate:
-                self._rephrase_aggregate_query_process()
-            else:
-                self._icl_aggregate_query_process()
+            self._query_process()
             self._noise_test_result = [self._correct_num, self._error_num, self._answers_list, self._contents_list]
             self._save_result()
             self._log("correct_num:{}, error_num:{}, correate_rate:{}".format(self._correct_num, self._error_num,
@@ -246,14 +253,18 @@ class noise_test:
                     self._answers_list.append("not match")
         return
 
-    def _rephrase_aggregate_query_process(self):
+    def _query_process(self):
         batch_size = self._batch_size
         case_list = [copy.deepcopy(self._case_list[i:i + batch_size]) for i in
                      range(0, len(self._case_list), batch_size)]
         for index, case_batch in enumerate(case_list):
             temperature_reason = self.temperature_reason
             n_reason = self.n_reason
-            case_batch = self._rephrase_aggregate_icl(case_batch)
+            if self.if_rephrase:
+                if self.rephrase_aggregate:
+                    case_batch = self._rephrase_aggregate(case_batch)
+                else:
+                    case_batch = self._rephrase(case_batch)
             self._model.query_batch(case_batch, temperature_reason, n_reason)
             self._response_process(case_batch)
             self._log(
@@ -263,24 +274,6 @@ class noise_test:
                               for i in range(0, len(self._answers_list), self.n_reason)]
         self._contents_list = [self._contents_list[i:i + self.n_reason]
                                for i in range(0, len(self._contents_list), self.n_reason)]
-
-    def _icl_aggregate_query_process(self):
-        batch_size = self._batch_size
-        case_list = [copy.deepcopy(self._case_list[i:i + batch_size]) for i in
-                     range(0, len(self._case_list), batch_size)]
-        for index, case_batch in enumerate(case_list):
-            temperature_reason = self.temperature_reason
-            n_reason = self.n_reason
-            n_case_batch = self._rephrase_icl_aggregate(case_batch)
-            self._model.query_batch(n_case_batch, temperature_reason, n_reason)
-            self._response_process(n_case_batch)
-            self._log(
-                f"index {index}/{len(case_list) - 1}, correct_num {self._correct_num}, error_num {self._error_num}, accuracy {self._correct_num / (self._correct_num + self._error_num)}")
-            self._log(self._model.compute_cost())
-        self._answers_list = [self._answers_list[i:i + self.n_rephrase]
-                              for i in range(0, len(self._answers_list), self.n_rephrase)]
-        self._contents_list = [self._contents_list[i:i + self.n_rephrase]
-                               for i in range(0, len(self._contents_list), self.n_rephrase)]
 
     def _question_insert(self, raw_data):
         processed_case = self._dataset_processor.get_case(raw_data)
@@ -293,7 +286,12 @@ class noise_test:
             pickle.dump(self._noise_test_result, f)
 
     def _rephrase_icl_shots(self, case):
-        expr = "47+58"
+        if self._dataset_name == "base_math":
+            expr = "47+58"
+        elif self._dataset_name == "SCAN":
+            expr = ["walk around right twice after run opposite left", ["I_TURN_LEFT","I_TURN_LEFT","I_RUN","I_TURN_RIGHT","I_WALK","I_TURN_RIGHT","I_WALK","I_TURN_RIGHT","I_WALK","I_TURN_RIGHT","I_WALK","I_TURN_RIGHT","I_WALK","I_TURN_RIGHT","I_WALK","I_TURN_RIGHT","I_WALK","I_TURN_RIGHT","I_WALK"]]
+        else:
+            raise ValueError("dataset type {} not support rephrase".format(self._dataset_name))
         temperature_rephrase = self.temperature_rephrase
         n_rephrase = self.n_rephrase
         contrastive_queries = []
@@ -301,7 +299,11 @@ class noise_test:
         for shot in in_context:
             contrastive_case = dict()
             # contrastive_question = "Below are two examples of same kind of questions: one is a good example and the other is a poor one. Could you analyze the good example, identify the issues in the poor one, and provide a corrected version of the assistant's response? The revised response should include a reasoning process similar to that in the good example."
-            contrastive_question = "The following are two examples for the same kind of tasks: " \
+            if self._dataset_name == "SCAN":
+                contrastive_question = self._dataset_processor.get_sys_prompt()
+            else:
+                contrastive_question = ""
+            contrastive_question += "The following are two examples for this same kind of tasks: " \
                                    "there is an excellent response and a distracted response. " \
                                    "Please follow the good response and provide a corrected version of the distracted response, " \
                                    "which must be logically consistent with the excellent one."
@@ -309,13 +311,16 @@ class noise_test:
             contrastive_question += "Good Example:\nQ:"
             contrastive_question += self._dataset_processor.get_question(expr)
             contrastive_question += "\nA:"
-            contrastive_question += self._dataset_processor.answer(expr)
+            if self._dataset_name == "base_math": 
+                contrastive_question += self._dataset_processor.answer(expr)
+            if self._dataset_name == "SCAN":
+                contrastive_question += self._dataset_processor.get_answer(expr, False)
             contrastive_question += "\n"
             contrastive_question += "Bad Example:\nQ:"
             contrastive_question += shot[0]
             contrastive_question += "\nA:"
             contrastive_question += shot[1]
-            contrastive_question += "\n You must answer in the format of \"correct version is:{only the correct version of response in the bad example}\". "
+            contrastive_question += "\n You must answer in the format of \"correct version is:{only the correct version of response in the bad example with reaoning step like in good example}\". "
             contrastive_question += "Don't offer anything else."
             contrastive_case["question"] = contrastive_question
             contrastive_queries.append(contrastive_case)
@@ -340,7 +345,7 @@ class noise_test:
             n_shot_list.append(n_shot)
         return n_shot_list
 
-    def _rephrase_icl_aggregate(self, case_batch):
+    def _rephrase(self, case_batch):
         n_case_batch = []
         for case in case_batch:
             n_shot_list = self._rephrase_icl_shots(case)
@@ -378,7 +383,7 @@ class noise_test:
         self._log("selected_shot:{}".format(selected_shot))
         return selected_shot
 
-    def _rephrase_aggregate_icl(self, case_batch):
+    def _rephrase_aggregate(self, case_batch):
         for case in case_batch:
             n_shot_list = self._rephrase_icl_shots(case)
             selected_shots = []

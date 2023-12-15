@@ -1,6 +1,6 @@
 [
 {
-    "phrase": "TURN LEFT",
+    "phrase": "left",
     "facts": [
         "In countries with right-hand traffic, turning left at a traffic light often requires a green arrow to indicate a protected turn.",
         "Making a left turn typically exposes a driver to oncoming traffic, increasing the complexity of the turn relative to turning right.",
@@ -11,7 +11,7 @@
     ]
 },
 {
-    "phrase": "TURN RIGHT",
+    "phrase": "right",
     "facts": [
         "Turning right in countries that drive on the right side of the road typically does not intersect with oncoming traffic.",
         "In left-hand traffic jurisdictions, such as the UK, turning right is analogous to turning left in right-hand traffic jurisdictions, crossing the path of oncoming vehicles.",
@@ -22,7 +22,7 @@
     ]
 },
 {
-    "phrase": "TURN AROUND",
+    "phrase": "around",
     "facts": [
         "A turn-around maneuver is often necessary when one has passed a destination or is going the wrong way.",
         "The phrase 'turn around' is often used metaphorically to signify a complete change in situation or attitude.",
@@ -32,7 +32,7 @@
     ]
 },
 {
-    "phrase": "TURN OPPOSITE",
+    "phrase": "opposite",
     "facts": [
         "The command to 'turn opposite' is not standard in directional terms but implies facing or moving in the opposite direction.",
         "In military drill commands, a command to 'about face' is the equivalent of turning to the opposite direction.",
@@ -43,7 +43,7 @@
     ]
 },
 {
-    "phrase": "WALK",
+    "phrase": "walk",
     "facts": [
         "Walking is a low-impact aerobic activity that can improve cardiovascular health and strengthen muscles.",
         "The average human walking speed is about 3.1 miles per hour, or 5 kilometers per hour.",
@@ -54,7 +54,7 @@
     ]
 },
 {
-    "phrase": "RUN",
+    "phrase": "run",
     "facts": [
         "The 100-meter sprint is one of the most popular and prestigious running events in track and field athletics.",
         "Regular running has been associated with increased lifespan and reduced risk of many diseases, including cancer.",
@@ -65,7 +65,7 @@
     ]
 },
 {
-    "phrase": "LOOK",
+    "phrase": "look",
     "facts": [
         "The human eye can distinguish approximately 10 million different colors and has automatic focusing abilities.",
         "When people are told to 'look', they instinctively shift their gaze and attention toward a specified direction or object.",
@@ -76,7 +76,17 @@
     ]
 },
 {
-    "phrase": "TWICE",
+    "phrase": "jump",
+    "facts": [
+        "The high jump is an athletic event where competitors must leap over a horizontal bar at various heights without aid.",
+        "Frogs use their powerful hind legs to jump, and some species can leap over 20 times their body length in a single bound.",
+        "Jumping exercises, such as plyometrics, are used by athletes to improve explosive power and strength.",
+        "The long jump is a track and field event where athletes combine speed, strength, and agility to leap as far as possible from a take-off point.",
+        "Skydiving is an extreme sport involving a high-altitude jump from an aircraft and free-falling before deploying a parachute."
+    ]
+},
+{
+    "phrase": "twice",
     "facts": [
         "The term 'twice' is numerically equivalent to two times or doubling the quantity or occurrence of something.",
         "In music, repeating a phrase 'twice' is often indicated by the direction 'bis', especially in written sheet music.",
@@ -87,7 +97,7 @@
     ]
 },
 {
-    "phrase": "THRICE",
+    "phrase": "thrice",
     "facts": [
         "The word 'thrice' is an archaic or literary term for three times and is less commonly used in everyday language than 'twice'.",
         "In some cultures, doing something 'thrice' can have symbolic significance, such as knocking three times for luck.",
