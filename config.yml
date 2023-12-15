@@ -4,11 +4,13 @@ dataset: base_math # family_relation and base_math and GSM
 start_num: 0
 test_num: 300
 batch_size: 1
-temperature_rephrase: 1
+if_rephrase: False
+rephrase_aggregate: False # aggregate rephrase before ICL or after ICL
+temperature_rephrase: 0.75
 n_rephrase: 5
-temperature_reason: 0.1
+temperature_reason: 1
 n_reason: 5
-rephrase_aggregate: True # aggregate rephrase before ICL or after ICL
+
 
 ## in-context 
 if_in_context: True
@@ -18,7 +20,7 @@ n_shots: 0 # self-made excellent shots
 ## noise
 if_noise: True
 n_noisy_shots: 3
-noisy_type: arithmetic_error # base math: irrelative or arithmetic_error
+noisy_type: irrelative # base math: irrelative or arithmetic_error
 noisy_level: 3
 ## prefix
 prefix_context: False

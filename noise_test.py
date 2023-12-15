@@ -32,11 +32,13 @@ class noise_test:
         self._test_num = args["test_num"]
         # self._run_times = args["run_times"]
         self._batch_size = args["batch_size"]
-        self.temperature_rephrase = args["temperature_rephrase"]
-        self.n_rephrase = args["n_rephrase"]
-        self.temperature_reason = args["temperature_reason"]
-        self.n_reason = args["n_reason"]
-        self.rephrase_aggregate = args["rephrase_aggregate"]
+        self._if_rephrase = args['if_rephrase']
+        if self._if_rephrase:
+            self._rephrase_aggregate = args['rephrase_aggregate']
+            self._temperature_rephrase = args["temperature_rephrase"]
+            self._n_rephrase = args["n_rephrase"]
+        self._temperature_reason = args["temperature_reason"]
+        self._n_reason = args["n_reason"]
         assert self._test_num / self._batch_size == int(
             self._test_num / self._batch_size), "test_num / batch_size should be a positive integer"
         self._if_in_context = args["if_in_context"] if "if_in_context" in config else False
@@ -137,7 +139,7 @@ class noise_test:
                 # elif self._dataset_name == "base_math":
         #     log_path = os.path.join(log_path, "base"
         if self._model_name.split("-")[0] == "gpt":
-            log_path = os.path.join(log_path, f"temperature{self.temperature_rephrase}")
+            log_path = os.path.join(log_path, f"reason_temperature{self._temperature_reason}")
         if not os.path.exists(log_path):
             os.makedirs(log_path)
         log_file = "log"
@@ -151,9 +153,10 @@ class noise_test:
             log_file += "_noise_{}{}_level{}".format(self._n_noisy_shots, self._noisy_type, self._noisy_level)
         else:
             log_file += "_origin"
-        log_file += "_rephrase_aggregate_{}".format(self.rephrase_aggregate)
-        log_file += "_case{}".format(self._test_num - self._start_num)
-        log_file += "_reason_temp{}.log".format(self.temperature_reason)
+        if self._if_rephrase:
+            log_file += "_rephrase_aggregate_{}".format(self._rephrase_aggregate)
+            log_file += "_rephrase_temp{}".format(self._temperature_rephrase)
+        log_file += "_case{}.log".format(self._test_num - self._start_num)
         log_file_path = os.path.join(log_path, log_file)
         return log_file_path
 
@@ -173,10 +176,13 @@ class noise_test:
                 test_num -= 1
                 if test_num <= 0:
                     break
-            if self.rephrase_aggregate:
-                self._rephrase_aggregate_query_process()
+            if self._if_rephrase:
+                if self._rephrase_aggregate:
+                    self._rephrase_aggregate_query_process()
+                else:
+                    self._icl_aggregate_query_process()
             else:
-                self._icl_aggregate_query_process()
+                self._no_rephrase_query_process()
             self._noise_test_result = [self._correct_num, self._error_num, self._answers_list, self._contents_list]
             self._save_result()
             self._log("correct_num:{}, error_num:{}, correate_rate:{}".format(self._correct_num, self._error_num,
@@ -250,36 +256,53 @@ class noise_test:
         case_list = [copy.deepcopy(self._case_list[i:i + batch_size]) for i in
                      range(0, len(self._case_list), batch_size)]
         for index, case_batch in enumerate(case_list):
-            temperature_reason = self.temperature_reason
-            n_reason = self.n_reason
+            temperature_reason = self._temperature_reason
+            n_reason = self._n_reason
             case_batch = self._rephrase_aggregate_icl(case_batch)
             self._model.query_batch(case_batch, temperature_reason, n_reason)
             self._response_process(case_batch)
             self._log(
                 f"index {index}/{len(case_list) - 1}, correct_num {self._correct_num}, error_num {self._error_num}, accuracy {self._correct_num / (self._correct_num + self._error_num)}")
             self._log(self._model.compute_cost())
-        self._answers_list = [self._answers_list[i:i + self.n_reason]
-                              for i in range(0, len(self._answers_list), self.n_reason)]
-        self._contents_list = [self._contents_list[i:i + self.n_reason]
-                               for i in range(0, len(self._contents_list), self.n_reason)]
+        self._answers_list = [self._answers_list[i:i + self._n_reason]
+                              for i in range(0, len(self._answers_list), self._n_reason)]
+        self._contents_list = [self._contents_list[i:i + self._n_reason]
+                               for i in range(0, len(self._contents_list), self._n_reason)]
+
+    def _no_rephrase_query_process(self):
+        batch_size = self._batch_size
+        case_list = [copy.deepcopy(self._case_list[i:i + batch_size]) for i in
+                     range(0, len(self._case_list), batch_size)]
+        for index, case_batch in enumerate(case_list):
+            temperature_reason = self._temperature_reason
+            n_reason = self._n_reason
+            self._model.query_batch(case_batch, temperature_reason, n_reason)
+            self._response_process(case_batch)
+            self._log(
+                f"index {index}/{len(case_list) - 1}, correct_num {self._correct_num}, error_num {self._error_num}, accuracy {self._correct_num / (self._correct_num + self._error_num)}")
+            self._log(self._model.compute_cost())
+        self._answers_list = [self._answers_list[i:i + self._n_reason]
+                              for i in range(0, len(self._answers_list), self._n_reason)]
+        self._contents_list = [self._contents_list[i:i + self._n_reason]
+                               for i in range(0, len(self._contents_list), self._n_reason)]
 
     def _icl_aggregate_query_process(self):
         batch_size = self._batch_size
         case_list = [copy.deepcopy(self._case_list[i:i + batch_size]) for i in
                      range(0, len(self._case_list), batch_size)]
         for index, case_batch in enumerate(case_list):
-            temperature_reason = self.temperature_reason
-            n_reason = self.n_reason
+            temperature_reason = self._temperature_reason
+            n_reason = self._n_reason
             n_case_batch = self._rephrase_icl_aggregate(case_batch)
             self._model.query_batch(n_case_batch, temperature_reason, n_reason)
             self._response_process(n_case_batch)
             self._log(
                 f"index {index}/{len(case_list) - 1}, correct_num {self._correct_num}, error_num {self._error_num}, accuracy {self._correct_num / (self._correct_num + self._error_num)}")
             self._log(self._model.compute_cost())
-        self._answers_list = [self._answers_list[i:i + self.n_rephrase]
-                              for i in range(0, len(self._answers_list), self.n_rephrase)]
-        self._contents_list = [self._contents_list[i:i + self.n_rephrase]
-                               for i in range(0, len(self._contents_list), self.n_rephrase)]
+        self._answers_list = [self._answers_list[i:i + (self._n_rephrase * self._n_reason)]
+                              for i in range(0, len(self._answers_list), (self._n_rephrase * self._n_reason))]
+        self._contents_list = [self._contents_list[i:i + (self._n_rephrase * self._n_reason)]
+                               for i in range(0, len(self._contents_list), (self._n_rephrase * self._n_reason))]
 
     def _question_insert(self, raw_data):
         processed_case = self._dataset_processor.get_case(raw_data)
@@ -293,8 +316,8 @@ class noise_test:
 
     def _rephrase_icl_shots(self, case):
         expr = "47+58"
-        temperature_rephrase = self.temperature_rephrase
-        n_rephrase = self.n_rephrase
+        temperature_rephrase = self._temperature_rephrase
+        n_rephrase = self._n_rephrase
         contrastive_queries = []
         in_context = case["in-context"]
         for shot in in_context:
