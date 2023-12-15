@@ -25,7 +25,7 @@ prefix_context: False
 if_rephrase: True
 temperature_rephrase: 1
 rephrase_aggregate: False # aggregate rephrase before ICL or after ICL
-n_rephrase: 5 # only valid when rephrase_aggregate is ture
+n_rephrase: 5 # only valid when rephrase_aggregate is true
 
 # math base
 base_math:

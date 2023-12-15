@@ -260,17 +260,16 @@ class noise_test:
                      range(0, len(self._case_list), batch_size)]
         for index, case_batch in enumerate(case_list):
             temperature_reason = self.temperature_reason
-            n_reason = self.n_reason
             if self.if_rephrase:
                 if self.rephrase_aggregate:
-                    case_n = self.n_reason
                     case_batch = self._rephrase_aggregate(case_batch)
+                    repeat_n = self.n_reason
                 else:
-                    case_n = self.n_reason * self.n_rephrase
                     case_batch = self._rephrase(case_batch)
+                    repeat_n = 1
             else:
-                case_n = self.n_reason
-            self._model.query_batch(case_batch, temperature_reason, n_reason)
+                repeat_n = self.n_reason
+            self._model.query_batch(case_batch, temperature_reason, repeat_n)
             self._response_process(case_batch)
             self._log(
                 f"index {index}/{len(case_list) - 1}, correct_num {self._correct_num}, error_num {self._error_num}, accuracy {self._correct_num / (self._correct_num + self._error_num)}")
