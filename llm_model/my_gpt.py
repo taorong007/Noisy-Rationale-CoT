@@ -104,6 +104,9 @@ class my_gpt:
 
     def query_case(self, case, temperature, n):
         messages = []
+        if "system-prompt" in case:
+            system_prompt = case["system-prompt"]
+            messages.append({'role':"system", 'content':system_prompt})
         if "in-context" in case:
             IC_list = case["in-context"]
             for shot in IC_list:

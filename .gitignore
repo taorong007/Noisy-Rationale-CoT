@@ -2,6 +2,8 @@ result/*
 *key.yml
 **/__pycache__/
 data/**/unzip_data/*
-test.py
+test.ipynb
+test.json
 .vscode/
 .idea/
+test.py
