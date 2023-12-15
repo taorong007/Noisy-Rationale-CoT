@@ -35,7 +35,6 @@ class noise_test:
         self._batch_size = args["batch_size"]
         self.temperature_reason = args["temperature_reason"]
         self.n_reason = args["n_reason"]
-        
 
         assert self._test_num / self._batch_size == int(
             self._test_num / self._batch_size), "test_num / batch_size should be a positive integer"
@@ -55,10 +54,11 @@ class noise_test:
         if self.if_rephrase:
             self.rephrase_aggregate = args["rephrase_aggregate"]
             self.temperature_rephrase = args["temperature_rephrase"]
-            if self.rephrase_aggregate:
-                self.n_rephrase = args["n_rephrase"]
-            else:
-                self.n_rephrase = self.n_reason
+            # if self.rephrase_aggregate:
+            #     self.n_rephrase = args["n_rephrase"]
+            # else:
+            #     self.n_rephrase = self.n_reason
+            self.n_rephrase = args["n_rephrase"]
 
         if self._if_noise:
             self._n_noisy_shots = args["n_noisy_shots"] if "n_noisy_shots" in args else 0
@@ -263,18 +263,22 @@ class noise_test:
             n_reason = self.n_reason
             if self.if_rephrase:
                 if self.rephrase_aggregate:
+                    case_n = self.n_reason
                     case_batch = self._rephrase_aggregate(case_batch)
                 else:
+                    case_n = self.n_reason * self.n_rephrase
                     case_batch = self._rephrase(case_batch)
+            else:
+                case_n = self.n_reason
             self._model.query_batch(case_batch, temperature_reason, n_reason)
             self._response_process(case_batch)
             self._log(
                 f"index {index}/{len(case_list) - 1}, correct_num {self._correct_num}, error_num {self._error_num}, accuracy {self._correct_num / (self._correct_num + self._error_num)}")
             self._log(self._model.compute_cost())
-        self._answers_list = [self._answers_list[i:i + self.n_reason]
-                              for i in range(0, len(self._answers_list), self.n_reason)]
-        self._contents_list = [self._contents_list[i:i + self.n_reason]
-                               for i in range(0, len(self._contents_list), self.n_reason)]
+        self._answers_list = [self._answers_list[i:i + case_n]
+                              for i in range(0, len(self._answers_list), case_n)]
+        self._contents_list = [self._contents_list[i:i + case_n]
+                               for i in range(0, len(self._contents_list), case_n)]
 
     def _question_insert(self, raw_data):
         processed_case = self._dataset_processor.get_case(raw_data)
