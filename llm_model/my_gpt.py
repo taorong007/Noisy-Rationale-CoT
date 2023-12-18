@@ -68,7 +68,6 @@ class my_gpt:
                 self.completion_tokens += response["usage"]["completion_tokens"]
                 self.prompt_tokens += response["usage"]["prompt_tokens"]
                 self.total_tokens += response["usage"]["total_tokens"]
-                # 获取同个prompt的多次回答
                 completions = []
                 for choice in response['choices']:
                     message = choice['message']
@@ -120,10 +119,15 @@ class my_gpt:
         return self.query(messages, temperature, n), messages
 
     def query_and_append(self, case, temperature, n):
+        err_count = 0
         while True:
-            retval, _ = self.query_case(case, temperature, n)
+            retval, messages = self.query_case(case, temperature, n)
             if retval[0]:
                 return
+            err_count += 1
+            if err_count == 100:
+                messages.append({'role': "assistant", 'content': f"error:{retval}"})
+                break
             time.sleep(1)
 
     def query_batch(self, cases, temperature, n):

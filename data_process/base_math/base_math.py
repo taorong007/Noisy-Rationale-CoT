@@ -100,9 +100,16 @@ class base_math:
         ret = f"In base-{base}, the digits are \"{digits[:base]}\". We have {lo} + {ro} = {int(lo) + int(ro)} in base-10. "+ explaination + f"{int(lo) + int(ro)} mod {base} = {ones_sum[-1]}, so the digit is {ones_sum[-1]} and the carry is {ones_carry_digit}. We have {lt} + {rt} + {ones_carry_digit} = {int(lt) + int(rt) + ones_carry_digit} in base 10. {int(lt) + int(rt) + ones_carry_digit} mod {base} = {tens_sum_w_carry[-1]}, so the digit is {tens_sum_w_carry[-1]} and the carry is {tens_carry_digit}. A leading digit {tens_carry_digit}. So the answer is {self.get_label(expr)}. Answer:\\box{{{self.get_label(expr)}}}"
         return ret
     
-    def irrelative_answer(self, expr, level = None):
-        if level == None:
-            level = self.noisy_level
+    def irrelative_answer(self, expr, noisy_level = None):
+        if noisy_level == None:
+            noisy_level = self.noisy_level
+        if noisy_level == 1:
+            noise_p = 0.2
+        elif noisy_level == 2:
+            noise_p = 0.3
+        elif noisy_level == 3:
+            noise_p = 0.5
+        
         digits = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
         base = self.base
         lhs, rhs = expr.split("+")
@@ -124,41 +131,44 @@ class base_math:
         explaination = f"Since we're in base-{base}, that exceeds the maximum value of {digits[base-1]} for a single digit." if carry_over == 1 else f"Since we're in base-{base}, that doesn't exceed the maximum value of {digits[base-1]} for a single digit. "
         
         selected_noise_set = set()
+    
+        
         ret = f"In base-{base}, the digits are \"{digits[:base]}\". "
         # if(level>=3):
         #     fact = self._random_choose_fact(-1, selected_noise_set)    
         #     ret += f"{fact}. "
+        if random.random() < noise_p:
+            fact = self._random_choose_fact(base, selected_noise_set)    
+            ret += f"{fact}. "
         ret += f" We have {lo} + {ro} = {int(lo) + int(ro)} in base-10. "
-        if(level>=1):
+        if random.random() < noise_p:
             number = int(lo) + int(ro)
             fact = self._random_choose_fact(number, selected_noise_set)    
             ret += f"{fact}. "
-            if(level >= 2):
-                fact = self._random_choose_fact(number, selected_noise_set)    
-                ret += f"{fact}. "
          
         ret += explaination + f"{int(lo) + int(ro)} mod {base} = {ones_sum[-1]}, so the digit is {ones_sum[-1]} and the carry is {ones_carry_digit}. "
-        if(level >= 3):
+        if random.random() < noise_p:
             number = int(ones_sum[-1])
             fact = self._random_choose_fact(number, selected_noise_set)    
             ret += f"{fact}. "
         
         ret += f"We have {lt} + {rt} + {ones_carry_digit} = {int(lt) + int(rt) + ones_carry_digit} in base 10. " 
         
-        if(level>=1):
-            number = int(lt) + int(rt) + ones_carry_digit
+        number = int(lt) + int(rt) + ones_carry_digit
+        if random.random() < noise_p:
             fact = self._random_choose_fact(number, selected_noise_set)    
             ret += f"{fact}. "
-            if(level >= 2):
-                fact = self._random_choose_fact(number, selected_noise_set)    
-                ret += f"{fact}. "
         
         ret += f"{int(lt) + int(rt) + ones_carry_digit} mod {base} = {tens_sum_w_carry[-1]}, so the digit is {tens_sum_w_carry[-1]} and the carry is {tens_carry_digit}. A leading digit {tens_carry_digit}. "
-        if(level >= 3):
+        if random.random() < noise_p:
             number = int(tens_sum_w_carry[-1])
             fact = self._random_choose_fact(number, selected_noise_set)    
             ret += f"{fact}. "
         ret += f"So the answer is {self.get_label(expr)}. Answer:\\box{{{self.get_label(expr)}}}"
+        if random.random() < noise_p:
+            number = int(self.get_label(expr)[-1])
+            fact = self._random_choose_fact(number, selected_noise_set)    
+            ret += f"{fact}. "
         
         return ret
             
@@ -168,37 +178,43 @@ class base_math:
             randomnum = random.randrange(-3, 3, 1)
         return randomnum
     
-    def arithmetic_error_answer(self, expr):
-        digits = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    def minor_error_answer(self, expr):
         noisy_level = self.noisy_level
+        if noisy_level == 1:
+            noise_p = 0.2
+        elif noisy_level == 2:
+            noise_p = 0.3
+        elif noisy_level == 3:
+            noise_p = 0.5
+        digits = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
         base = self.base
         lhs, rhs = expr.split("+")
         lt, lo = lhs  # tens, ones
         rt, ro = rhs
         ones_sum_base10 = int(lo) + int(ro)
-        if noisy_level >= 1:
+        if random.random() < noise_p:
             ones_sum_base10 += self._get_random_error()
-        if noisy_level>=2:
+        if random.random() < noise_p:
             digit_one = np.base_repr((ones_sum_base10 + self._get_random_error()) % base, base)
         else:
             digit_one = np.base_repr(ones_sum_base10 % base, base)
         carry_over =  int(ones_sum_base10/base)
         carry_over_show = carry_over
-        if noisy_level >= 3:
+        if random.random() < noise_p:
             if carry_over == 0:
                 carry_over = 1
             else:
                 carry_over = 0
         tens_sum_base10 = int(lt) + int(rt) + carry_over
-        if noisy_level >= 1:
+        if random.random() < noise_p:
             tens_sum_base10 +=  self._get_random_error()
-        if noisy_level>=2:
+        if random.random() < noise_p:
             digit_ten =  np.base_repr((tens_sum_base10 + self._get_random_error()) % base, base)
         else:
             digit_ten =  np.base_repr(tens_sum_base10 % base, base)
         tens_carry_over = int(tens_sum_base10 / base)
         tens_carry_over_show = tens_carry_over
-        if noisy_level >= 3:
+        if random.random() < noise_p:
             if tens_carry_over == 0:
                 tens_carry_over = 1
             else:
@@ -213,7 +229,7 @@ class base_math:
                 
         ret = f"In base-{base}, the digits are \"{digits[:base]}\". We have {lo} + {ro} = {ones_sum_base10} in base-10. "
         
-        ret += explaination + f"{ones_sum_base10} mod {base} = {digit_one}, so the digit is {digit_one} and the carry is {carry_over_show}. We have {lt} + {rt} + {carry_over} = {tens_sum_base10} in base 10. {tens_sum_base10} mod {base} = {digit_ten}, so the digit is {digit_ten} and the carry is {tens_carry_over_show}. A leading digit {tens_carry_over}. So the answer is {result}. Answer:\\box{{{result}}}"
+        ret += explaination + f"{ones_sum_base10} mod {base} = {digit_one}, so the digit is {digit_one} and the carry is {carry_over}. We have {lt} + {rt} + {carry_over} = {tens_sum_base10} in base 10. {tens_sum_base10} mod {base} = {digit_ten}, so the digit is {digit_ten} and the carry is {tens_carry_over}. A leading digit {tens_carry_over}. So the answer is {result}. Answer:\\box{{{result}}}"
         return ret
     
     def _random_choose_fact(self, number, selected_noise_set:set):
@@ -271,8 +287,8 @@ class base_math:
                 noisy_demos = demos.split(',')[n_shots:n_shots + n_noisy_shot]
                 for demo in noisy_demos:
                     shot_q = self.get_question(demo)
-                    if self.noisy_type == "arithmetic_error":
-                        shot_a =  self.arithmetic_error_answer(demo)
+                    if self.noisy_type == "minor_error":
+                        shot_a =  self.minor_error_answer(demo)
                     elif self.noisy_type == "irrelative":
                         shot_a =  self.irrelative_answer(demo)
                     else:

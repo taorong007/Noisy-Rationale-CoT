@@ -1,8 +1,8 @@
 # noise test
 model: gpt-3.5-turbo-0613 #gpt-3.5-turbo-0613 or llama2
-dataset: SCAN # family_relation and base_math and GSM and SCAN
+dataset: base_math # family_relation and base_math and GSM and SCAN
 start_num: 0
-test_num: 300
+test_num: 500
 n_reason: 5
 batch_size: 5
 temperature_reason: 1
@@ -15,16 +15,16 @@ n_shots: 0 # self-made excellent shots
 ## noise
 if_noise: True
 n_noisy_shots: 3
-noisy_type: irrelative # base math: irrelative or arithmetic_error
-noisy_level: 3
+noisy_type: irrelative # irrelative or minor_error
+noisy_level: 1
 ## prefix
 prefix_context: False
 
 # method
 ## rephrase
-if_rephrase: True
+if_rephrase: False
 temperature_rephrase: 1
-rephrase_aggregate: False # aggregate rephrase before ICL or after ICL
+rephrase_aggregate: True # aggregate rephrase before ICL or after ICL
 n_rephrase: 5 # only valid when rephrase_aggregate is true
 
 # math base

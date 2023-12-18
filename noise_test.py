@@ -162,9 +162,9 @@ class noise_test:
             log_file += "_noise_{}{}_level{}".format(self._n_noisy_shots, self._noisy_type, self._noisy_level)
         else:
             log_file += "_origin"
-        if self._if_rephrase:
-            log_file += "_rephrase_aggregate_{}".format(self._rephrase_aggregate)
-            log_file += "_rephrase_temp{}".format(self._temperature_rephrase)
+        if self.if_rephrase:
+            log_file += "_rephrase_aggregate_{}".format(self.rephrase_aggregate)
+            log_file += "_rephrase_temp{}".format(self.temperature_rephrase)
         log_file += "_case{}.log".format(self._test_num - self._start_num)
         log_file_path = os.path.join(log_path, log_file)
         return log_file_path
@@ -228,7 +228,7 @@ class noise_test:
 
     def _response_process(self, case_batch):
         for case in case_batch:
-            context = case["messages"][:-1]
+            context = case["messages"]
             label = case["label"]
             self._log(json.dumps(context))
             self._log("\ncorrect answer is {}\n".format(label))
@@ -331,7 +331,6 @@ class noise_test:
         self._model.query_batch(contrastive_queries, temperature_rephrase, n_rephrase)
         n_shot_list = []
         for shot, query in zip(in_context, contrastive_queries):
-            # 获取多个response
             n_shot = []
             responses = query["messages"][-1]
             for response in responses:
