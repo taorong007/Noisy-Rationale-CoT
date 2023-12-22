@@ -5,7 +5,7 @@ import random
 import math
 
 class GSM:
-    def __init__(self, n_shots=0,  n_noisy_shots=0, noisy_type="irrelative", noisy_level = 1, prefix_context = False) -> None:
+    def __init__(self, n_shots=0,  n_noisy_shots=0, noise_type="irrelevant", noisy_level = 1, prefix_context = False) -> None:
         self.dataset_path = "./data/GSM/"
         self._suffix_prompt = "\nEnd the response with the result in \"The answer is : {result}\""
         self.n_shots = n_shots
@@ -14,7 +14,7 @@ class GSM:
         noise_file = "./data/base_math/noise/factsOfNumber.json"
         with open(noise_file, encoding="utf-8") as f:
             self.noise_data = json.load(f)["noise_info"]
-        self.noisy_type = noisy_type
+        self.noise_type = noise_type
         self.noisy_level = noisy_level
         
     def get_question(self, raw_data):
@@ -34,7 +34,7 @@ class GSM:
         selected_fact = facts[random_index]
         return selected_fact
             
-    def get_irrelative_answer(self, raw_data):
+    def get_irrelevant_answer(self, raw_data):
         answer = raw_data["response"]
         sentences = answer.split('\n')
         lenth = len(sentences)
@@ -74,8 +74,8 @@ class GSM:
             demos = random.sample(self.ICL_set, n_noisy_shots)
             for demo in demos:
                 question = self.get_question(demo)
-                if self.noisy_type == "irrelative":
-                    answer = self.get_irrelative_answer(demo)
+                if self.noise_type == "irrelevant":
+                    answer = self.get_irrelevant_answer(demo)
                 else:
                     raise ValueError(f"error type {self.error_type} not support")
                 shots.append([question, answer])

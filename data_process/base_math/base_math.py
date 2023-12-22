@@ -2,37 +2,50 @@ import numpy as np
 import random
 import json
 import re
+import math
 
 class base_math:
     """
     Processor of a base caculation dataset.
     
     Attributes:
-        if_in_context: A boolean indicating if in-context learning is used. Default is False.
         n_shots: The number of normal shots. Default is 0.
         weak_shots: The number of weak shots. Default is 0.
         n_noisy_shots: The number of noisy shots. Default is 0.
-        noisy_type: The type of noisy, can be "misunderstanding" or "miscalculation". Default is "miscalculation".
-        noisy_level: The level of noise. 1 - low, 2 - mid, 3 - high.
+        noise_type: The type of noisy, can be "misunderstanding" or "miscalculation". Default is "miscalculation".
+        noise_ratio: The ratio of noise. Each thought has a chance.
+        noise_distribution: The method to fill the noise. ( fixed noise num in one shot or random num in one shot )
         prefix_context: A boolean indicating if prefix context is used. Default is False.
         config: A dictionary containing all the attribute values. If provided, values in the config dictionary will be used to overwrite the following parameters.
         base: The base number for calculations. Default is 9.
         
     """
-    def __init__(self, if_in_context = False, n_shots=0, n_weak_shots = 0, n_noisy_shots=0, noisy_type="miscalculation", noisy_level = 1, prefix_context = False, config: dict = None, base=9) -> None:
+    def __init__(self, n_shots=0, n_noisy_shots=0, noise_type="miscalculation", noise_ratio = 0.5, noise_distribution = "fixed", prefix_context = False, config: dict = None, base=9) -> None:
         if config is not None:
             self.base = config["base"]
         else:
             self.base = base
-            
-        self.if_in_context = if_in_context
+
         self.n_shots = n_shots
-        self.n_weak_shots = n_weak_shots
         self.n_noisy_shots = n_noisy_shots
-        self.noisy_level = noisy_level
+        self.total_shot = self.n_shots + self.n_noisy_shots 
+        if self.total_shot > 0:
+            self.if_in_context = True
+        else:
+            self.if_in_context = False
+        
+        # self.n_weak_shots = n_weak_shots
+        
+        if self.n_noisy_shots > 0:
+            self.noise_ratio = noise_ratio
+            self.noise_distribution = noise_distribution
+            assert noise_distribution == "fixed" or noise_distribution == "random"
+        else:
+            self.noise_ratio = 0
+            self.noise_distribution = None
         self.prefix_context = prefix_context
-        self.noisy_type = noisy_type
-        self.irrelative_index = 0
+        self.noise_type = noise_type
+        self.irrelevant_index = 0
 
 
     def get_label(self, expr):
@@ -100,16 +113,26 @@ class base_math:
         ret = f"In base-{base}, the digits are \"{digits[:base]}\". We have {lo} + {ro} = {int(lo) + int(ro)} in base-10. "+ explaination + f"{int(lo) + int(ro)} mod {base} = {ones_sum[-1]}, so the digit is {ones_sum[-1]} and the carry is {ones_carry_digit}. We have {lt} + {rt} + {ones_carry_digit} = {int(lt) + int(rt) + ones_carry_digit} in base 10. {int(lt) + int(rt) + ones_carry_digit} mod {base} = {tens_sum_w_carry[-1]}, so the digit is {tens_sum_w_carry[-1]} and the carry is {tens_carry_digit}. A leading digit {tens_carry_digit}. So the answer is {self.get_label(expr)}. Answer:\\box{{{self.get_label(expr)}}}"
         return ret
     
-    def irrelative_answer(self, expr, noisy_level = None):
-        if noisy_level == None:
-            noisy_level = self.noisy_level
-        if noisy_level == 1:
-            noise_p = 0.2
-        elif noisy_level == 2:
-            noise_p = 0.3
-        elif noisy_level == 3:
-            noise_p = 0.5
+    def _generate_noise_distribution_list(self, n_thought, noise_ratio, noise_distribution):
+        noise_distribution_list = [0] * n_thought
+        if noise_distribution == "fixed":
+            noise_count = math.ceil(n_thought * noise_ratio)
+            noise_positions = random.sample(range(n_thought), noise_count)
+            for pos in noise_positions:
+                noise_distribution_list[pos] = 1
+        else:
+            for pos in range(len(noise_distribution_list)):
+                if random.random() < noise_ratio:
+                    noise_distribution_list[pos] = 1
+        self.noise_pos = 0
+        return noise_distribution_list
         
+    def _should_add_noise(self, noise_distribution_list):
+        if_noise = noise_distribution_list[self.noise_pos]
+        self.noise_pos += 1
+        return if_noise
+
+    def irrelevant_answer(self, expr):
         digits = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
         base = self.base
         lhs, rhs = expr.split("+")
@@ -118,6 +141,9 @@ class base_math:
         ones_sum = self.get_label(f"{lo}+{ro}")
         carry_over = len(ones_sum) > 1
         tens_sum_wo_carry = self.get_label(f"{lt}+{rt}")
+        
+        noise_distribution_list = self._generate_noise_distribution_list(n_thought=6, noise_ratio=self.noise_ratio, noise_distribution=self.noise_distribution)
+        
         if carry_over:
             ones_carry_digit = 1
             assert ones_sum[0] == "1"
@@ -134,20 +160,18 @@ class base_math:
     
         
         ret = f"In base-{base}, the digits are \"{digits[:base]}\". "
-        # if(level>=3):
-        #     fact = self._random_choose_fact(-1, selected_noise_set)    
-        #     ret += f"{fact}. "
-        if random.random() < noise_p:
+        if self._should_add_noise(noise_distribution_list):
             fact = self._random_choose_fact(base, selected_noise_set)    
             ret += f"{fact}. "
+        
         ret += f" We have {lo} + {ro} = {int(lo) + int(ro)} in base-10. "
-        if random.random() < noise_p:
+        if self._should_add_noise(noise_distribution_list):
             number = int(lo) + int(ro)
             fact = self._random_choose_fact(number, selected_noise_set)    
             ret += f"{fact}. "
          
         ret += explaination + f"{int(lo) + int(ro)} mod {base} = {ones_sum[-1]}, so the digit is {ones_sum[-1]} and the carry is {ones_carry_digit}. "
-        if random.random() < noise_p:
+        if self._should_add_noise(noise_distribution_list):
             number = int(ones_sum[-1])
             fact = self._random_choose_fact(number, selected_noise_set)    
             ret += f"{fact}. "
@@ -155,17 +179,18 @@ class base_math:
         ret += f"We have {lt} + {rt} + {ones_carry_digit} = {int(lt) + int(rt) + ones_carry_digit} in base 10. " 
         
         number = int(lt) + int(rt) + ones_carry_digit
-        if random.random() < noise_p:
+        if self._should_add_noise(noise_distribution_list):
             fact = self._random_choose_fact(number, selected_noise_set)    
             ret += f"{fact}. "
         
         ret += f"{int(lt) + int(rt) + ones_carry_digit} mod {base} = {tens_sum_w_carry[-1]}, so the digit is {tens_sum_w_carry[-1]} and the carry is {tens_carry_digit}. A leading digit {tens_carry_digit}. "
-        if random.random() < noise_p:
+        if self._should_add_noise(noise_distribution_list):
             number = int(tens_sum_w_carry[-1])
             fact = self._random_choose_fact(number, selected_noise_set)    
             ret += f"{fact}. "
+
         ret += f"So the answer is {self.get_label(expr)}. Answer:\\box{{{self.get_label(expr)}}}"
-        if random.random() < noise_p:
+        if self._should_add_noise(noise_distribution_list):
             number = int(self.get_label(expr)[-1])
             fact = self._random_choose_fact(number, selected_noise_set)    
             ret += f"{fact}. "
@@ -179,57 +204,92 @@ class base_math:
         return randomnum
     
     def minor_error_answer(self, expr):
-        noisy_level = self.noisy_level
-        if noisy_level == 1:
-            noise_p = 0.2
-        elif noisy_level == 2:
-            noise_p = 0.3
-        elif noisy_level == 3:
-            noise_p = 0.5
+        
+        noise_distribution_list = self._generate_noise_distribution_list(n_thought=16, noise_ratio=self.noise_ratio, noise_distribution=self.noise_distribution)
+        
         digits = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
         base = self.base
         lhs, rhs = expr.split("+")
         lt, lo = lhs  # tens, ones
         rt, ro = rhs
         ones_sum_base10 = int(lo) + int(ro)
-        if random.random() < noise_p:
-            ones_sum_base10 += self._get_random_error()
-        if random.random() < noise_p:
-            digit_one = np.base_repr((ones_sum_base10 + self._get_random_error()) % base, base)
-        else:
-            digit_one = np.base_repr(ones_sum_base10 % base, base)
+        digit_one = np.base_repr(ones_sum_base10 % base, base)
         carry_over =  int(ones_sum_base10/base)
-        carry_over_show = carry_over
-        if random.random() < noise_p:
-            if carry_over == 0:
-                carry_over = 1
-            else:
-                carry_over = 0
         tens_sum_base10 = int(lt) + int(rt) + carry_over
-        if random.random() < noise_p:
-            tens_sum_base10 +=  self._get_random_error()
-        if random.random() < noise_p:
-            digit_ten =  np.base_repr((tens_sum_base10 + self._get_random_error()) % base, base)
-        else:
-            digit_ten =  np.base_repr(tens_sum_base10 % base, base)
+        digit_ten =  np.base_repr((tens_sum_base10 + self._get_random_error()) % base, base)
         tens_carry_over = int(tens_sum_base10 / base)
-        tens_carry_over_show = tens_carry_over
-        if random.random() < noise_p:
-            if tens_carry_over == 0:
-                tens_carry_over = 1
-            else:
-                tens_carry_over = 0
+        
         
         if tens_carry_over > 0:
             result = str(tens_carry_over) + digit_ten + digit_one
         else:
             result = digit_ten + digit_one
-        
+            
         explaination = f"Since we're in base-{base}, that exceeds the maximum value of {digits[base-1]} for a single digit." if carry_over >= 1 else f"Since we're in base-{base}, that doesn't exceed the maximum value of {digits[base-1]} for a single digit. "
-                
-        ret = f"In base-{base}, the digits are \"{digits[:base]}\". We have {lo} + {ro} = {ones_sum_base10} in base-10. "
         
-        ret += explaination + f"{ones_sum_base10} mod {base} = {digit_one}, so the digit is {digit_one} and the carry is {carry_over}. We have {lt} + {rt} + {carry_over} = {tens_sum_base10} in base 10. {tens_sum_base10} mod {base} = {digit_ten}, so the digit is {digit_ten} and the carry is {tens_carry_over}. A leading digit {tens_carry_over}. So the answer is {result}. Answer:\\box{{{result}}}"
+        ret = f"In base-{base}, the digits are \"{digits[:base]}\". "
+        
+        lo_show = int(lo) + self._get_random_error() if self._should_add_noise(noise_distribution_list) else lo
+        ro_show = int(ro) + self._get_random_error() if self._should_add_noise(noise_distribution_list) else ro
+        ones_sum_base10_show = ones_sum_base10 + self._get_random_error() if self._should_add_noise(noise_distribution_list) else ones_sum_base10
+        ret += f"We have {lo_show} + {ro_show} = {ones_sum_base10_show} in base-10. "
+        
+        digit_one_show = int(digit_one) + self._get_random_error() if self._should_add_noise(noise_distribution_list) else digit_one
+        ones_sum_base10_show = ones_sum_base10 + self._get_random_error() if self._should_add_noise(noise_distribution_list) else ones_sum_base10
+        ret += explaination + f"{ones_sum_base10_show} mod {base} = {digit_one_show}, "
+        
+        digit_one_show = int(digit_one) + self._get_random_error() if self._should_add_noise(noise_distribution_list) else digit_one
+        carry_over_show = carry_over + self._get_random_error() if self._should_add_noise(noise_distribution_list) else carry_over
+        ret += f"so the digit is {digit_one_show} and the carry is {carry_over_show}." 
+        
+        lt_show = int(lt) + self._get_random_error() if self._should_add_noise(noise_distribution_list) else lt
+        rt_show = int(rt) + self._get_random_error() if self._should_add_noise(noise_distribution_list) else rt
+        carry_over_show = carry_over + self._get_random_error() if self._should_add_noise(noise_distribution_list) else carry_over
+        tens_sum_base10_show = tens_sum_base10 + self._get_random_error() if self._should_add_noise(noise_distribution_list) else tens_sum_base10
+        ret += f"We have {lt_show} + {rt_show} + {carry_over_show} = {tens_sum_base10_show} in base 10. "
+        
+        tens_sum_base10_show = tens_sum_base10 + self._get_random_error() if self._should_add_noise(noise_distribution_list) else tens_sum_base10
+        digit_ten_show = int(digit_ten) + self._get_random_error() if self._should_add_noise(noise_distribution_list) else digit_ten
+        ret += f"{tens_sum_base10} mod {base} = {digit_ten_show}, "
+        
+        digit_ten_show = int(digit_ten) + self._get_random_error() if self._should_add_noise(noise_distribution_list) else digit_ten
+        tens_carry_over_show = tens_carry_over + self._get_random_error() if self._should_add_noise(noise_distribution_list) else tens_carry_over
+        ret += f"so the digit is {digit_ten_show} and the carry is {tens_carry_over_show}. "
+        
+        tens_carry_over_show = tens_carry_over + self._get_random_error() if self._should_add_noise(noise_distribution_list) else tens_carry_over
+        ret += f"A leading digit {tens_carry_over}. So the answer is {result}. Answer:\\box{{{result}}}"
+        
+        # if random.random() < noise_p:
+        #     ones_sum_base10 += self._get_random_error()
+        # if random.random() < noise_p:
+        #     digit_one = np.base_repr((ones_sum_base10 + self._get_random_error()) % base, base)
+        # else:
+        #     digit_one = np.base_repr(ones_sum_base10 % base, base)
+        
+        # carry_over_show = carry_over
+        # if random.random() < noise_p:
+        #     if carry_over == 0:
+        #         carry_over = 1
+        #     else:
+        #         carry_over = 0
+        
+        # if random.random() < noise_p:
+        #     tens_sum_base10 +=  self._get_random_error()
+        # if random.random() < noise_p:
+        #     digit_ten =  np.base_repr((tens_sum_base10 + self._get_random_error()) % base, base)
+        # else:
+        #     digit_ten =  np.base_repr(tens_sum_base10 % base, base)
+        # tens_carry_over = int(tens_sum_base10 / base)
+        # tens_carry_over_show = tens_carry_over
+        # if random.random() < noise_p:
+        #     if tens_carry_over == 0:
+        #         tens_carry_over = 1
+        #     else:
+        #         tens_carry_over = 0
+                
+        
+        
+        
         return ret
     
     def _random_choose_fact(self, number, selected_noise_set:set):
@@ -259,7 +319,7 @@ class base_math:
 
     def get_case(self, expr):
         n_shots = self.n_shots
-        total_shots = self.n_shots + self.n_weak_shots + self.n_noisy_shots
+        total_shots = self.n_shots + self.n_noisy_shots
         n_noisy_shot = self.n_noisy_shots
         case = dict()
         prefix = ''
@@ -272,13 +332,13 @@ class base_math:
                 shot_q = self.get_question(demo)
                 shot_a =  self.answer(demo)
                 shots.append([shot_q, shot_a])
-            if self.n_weak_shots > 0:
-                weak_demos = demos.split(",")[n_shots:n_shots + self.n_weak_shots]
-                assert len(weak_demos) == self.n_weak_shots
-                for shot in weak_demos:
-                    shot_q = self.get_question(demo)
-                    shot_a =  self.weak_answer(demo)
-                    shots.append([shot_q, shot_a])
+            # if self.n_weak_shots > 0:
+            #     weak_demos = demos.split(",")[n_shots:n_shots + self.n_weak_shots]
+            #     assert len(weak_demos) == self.n_weak_shots
+            #     for shot in weak_demos:
+            #         shot_q = self.get_question(demo)
+            #         shot_a =  self.weak_answer(demo)
+            #         shots.append([shot_q, shot_a])
             random.shuffle(shots)
             
             if self.n_noisy_shots > 0:    
@@ -287,12 +347,12 @@ class base_math:
                 noisy_demos = demos.split(',')[n_shots:n_shots + n_noisy_shot]
                 for demo in noisy_demos:
                     shot_q = self.get_question(demo)
-                    if self.noisy_type == "minor_error":
+                    if self.noise_type == "minor_error":
                         shot_a =  self.minor_error_answer(demo)
-                    elif self.noisy_type == "irrelative":
-                        shot_a =  self.irrelative_answer(demo)
+                    elif self.noise_type == "irrelevant":
+                        shot_a =  self.irrelevant_answer(demo)
                     else:
-                        raise ValueError(f"noisy type not support:{self.noisy_type}")
+                        raise ValueError(f"noisy type not support:{self.noise_type}")
                     noisy_shots.append([shot_q, shot_a])
                 shots = shots + noisy_shots
                 # random.shuffle(shots)
@@ -326,4 +386,4 @@ class base_math:
             self.noise_data = json.load(f)["noise_info"]
         return dataset
 
-
+        

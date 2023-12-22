@@ -9,6 +9,7 @@ import data_process.base_math.base_math as base_math
 import data_process.family_relation.family_relation as family_relation
 import data_process.GSM.GSM as GSM
 import data_process.SCAN.scan_master as scan_master
+import data_process.tracking_shuffled_objects.tracking_shuffled_objects as shuffled_obj
 import pandas as pd
 import nltk
 import random
@@ -64,15 +65,18 @@ class noise_test:
             self._n_noisy_shots = args["n_noisy_shots"] if "n_noisy_shots" in args else 0
             if self._n_noisy_shots  == 0:
                 self._if_noise = False
-                self._noisy_type = None
-                self._noisy_level = 0
+                self._noise_type = None
+                self._noise_ratio = 0
+                self._noise_distribution = None
             else:
-                self._noisy_type = args["noisy_type"] if "noisy_type" in args else "miscalculation"
-                self._noisy_level = int(args["noisy_level"]) if "noisy_level" in args else 1
+                self._noise_type = args["noise_type"]
+                self._noise_ratio = args["noise_ratio"]
+                self._noise_distribution = args["noise_distribution"]
         else:
             self._n_noisy_shots = 0
-            self._noisy_type = None
-            self._noisy_level = 0
+            self._noise_type = None
+            self._noise_ratio = 0
+            self._noise_distribution = None
         
         self._prefix_context = args["prefix_context"] if "prefix_context" in args else False
         random.seed(time.time())
@@ -115,24 +119,25 @@ class noise_test:
     def _init_dataset(self):
         processor_config = config[self._dataset_name] if self._dataset_name in config else None
         if self._dataset_name == "base_math":
-            self._dataset_processor = base_math.base_math(if_in_context=self._if_in_context, n_shots=self._n_shots,
-                                                          n_weak_shots=self._n_weak_shots,
+            self._dataset_processor = base_math.base_math(n_shots=self._n_shots,
                                                           n_noisy_shots=self._n_noisy_shots,
-                                                          noisy_type=self._noisy_type, noisy_level=self._noisy_level,
+                                                          noise_type=self._noise_type, noise_ratio=self._noise_ratio, noise_distribution=self._noise_distribution,
                                                           prefix_context=self._prefix_context, config=processor_config)
         elif self._dataset_name == "family_relation":
             self._dataset_processor = family_relation.family_relation(if_in_context=self._if_in_context,
                                                                       n_shots=self._n_shots,
                                                                       n_noisy_shots=self._n_noisy_shots,
-                                                                      noisy_type=self._noisy_type,
+                                                                      noise_type=self._noise_type,
                                                                       noisy_level=self._noisy_level,
                                                                       prefix_context=self._prefix_context,
                                                                       config=processor_config)
             self._dataset_config = self._dataset_processor.get_config()
         elif self._dataset_name == "GSM":
-            self._dataset_processor = GSM.GSM(n_shots=self._n_shots, n_noisy_shots=self._n_noisy_shots, noisy_type=self._noisy_type,  noisy_level=self._noisy_level, prefix_context=self._prefix_context)
+            self._dataset_processor = GSM.GSM(n_shots=self._n_shots, n_noisy_shots=self._n_noisy_shots, noise_type=self._noise_type,  noisy_level=self._noisy_level, prefix_context=self._prefix_context)
         elif self._dataset_name == "SCAN":
-            self._dataset_processor = scan_master.scan_master(if_in_context = self._if_in_context, n_shots=self._n_shots, n_noisy_shots=self._n_noisy_shots, noisy_type=self._noisy_type,  noisy_level=self._noisy_level, prefix_context=self._prefix_context, config = processor_config)
+            self._dataset_processor = scan_master.scan_master(n_shots=self._n_shots, n_noisy_shots=self._n_noisy_shots, noise_type=self._noise_type,  noise_ratio=self._noise_ratio, noise_distribution=self._noise_distribution, prefix_context=self._prefix_context, config = processor_config)
+        elif self._dataset_name == "shuffled_obj":
+            self._dataset_processor = shuffled_obj.tracking_shuffled_objects(n_shots=self._n_shots, n_noisy_shots=self._n_noisy_shots, noise_type=self._noise_type,  noise_ratio=self._noise_ratio, noise_distribution=self._noise_distribution, prefix_context=self._prefix_context, config = processor_config)
         else:
             raise ValueError("Unsupported dataset {}".format(self._dataset_name))
         self._dataset = self._dataset_processor.load_data()
@@ -155,11 +160,11 @@ class noise_test:
         if self._if_in_context:
             if self._prefix_context:
                 log_file += "_prefix"
-            log_file += "_ICL_{}".format(self._n_shots)
+            log_file += "_ICL_{}clean".format(self._n_shots)
             if self._n_weak_shots > 0:
                 log_file += "_{}weak".format(self._n_weak_shots)
         if self._if_noise:
-            log_file += "_noise_{}{}_level{}".format(self._n_noisy_shots, self._noisy_type, self._noisy_level)
+            log_file += "_noise_{}{}_{}_ratio{}".format(self._n_noisy_shots, self._noise_type, self._noise_distribution, self._noise_ratio)
         else:
             log_file += "_origin"
         if self.if_rephrase:
@@ -431,7 +436,7 @@ if __name__ == "__main__":
     test = noise_test(args=config)
     [correct_num, error_num, answer_list, answer_cotents] = test.run()
     
-    # with open('./result/base_math/gpt-3.5-turbo-0613/temperature1/rephrase/log_ICL_0_noise_3irrelative_level3.pkl', 'rb') as f:
+    # with open('./result/base_math/gpt-3.5-turbo-0613/temperature1/rephrase/log_ICL_0_noise_3irrelevant_level3.pkl', 'rb') as f:
     #     lists = pickle.load(f)
 
     # [correct_num, error_num, answer_list, answer_cotents]  = lists

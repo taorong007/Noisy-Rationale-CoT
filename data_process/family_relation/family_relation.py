@@ -9,16 +9,16 @@ import copy
 from collections import deque
 
 class family_relation():
-    def __init__(self, if_in_context = False, n_shots=0, n_noisy_shots=0, noisy_type="irrelative", noisy_level = 1, prefix_context =False, config: dict = None, reasoning_type = "symbolic", hop = 3, trainset=5, testset = 5.3) -> None:
+    def __init__(self, if_in_context = False, n_shots=0, n_noisy_shots=0, noise_type="irrelevant", noisy_level = 1, prefix_context =False, config: dict = None, reasoning_type = "symbolic", hop = 3, trainset=5, testset = 5.3) -> None:
         self.if_in_context = if_in_context
         self.n_shots = n_shots
         self.n_noisy_shots = n_noisy_shots
         self.prefix_context = prefix_context
         if self.n_noisy_shots > 0:
-            self.noisy_type = noisy_type
+            self.noise_type = noise_type
             self.noisy_level = noisy_level
         else:
-            self.noisy_type = None
+            self.noise_type = None
             self.noisy_level = 0
         if config is not None:
             self.trainset = config["train_set"]
@@ -236,15 +236,15 @@ class family_relation():
         return None
             
     
-    def get_symbolic_relation_reason(self, relation_path, proofs, noisy_type = None, noisy_level = 1):
+    def get_symbolic_relation_reason(self, relation_path, proofs, noise_type = None, noisy_level = 1):
         try_count =0
         # if_replace = False
-        if noisy_type == None:
+        if noise_type == None:
             noisy_p = 0
         elif noisy_level == 1:
-            noisy_p = 0.1
+            noisy_p = 0.2
         elif noisy_level == 2:
-            noisy_p = 0.3
+            noisy_p = 0.35
         elif noisy_level == 3:
             noisy_p = 0.5
         proof_chain = []
@@ -254,7 +254,7 @@ class family_relation():
         
         reasoning_relation_path = copy.deepcopy(relation_path)
         new_proof_chain = copy.deepcopy(proof_chain)
-        if noisy_type == "minor_error":
+        if noise_type == "minor_error":
             for i in range(len(proof_chain)):
                 relation_mix = new_proof_chain[i][2]
                 # whether to replace index i's reasoning
@@ -310,14 +310,14 @@ class family_relation():
             reasoning_relation_path.insert(index, r_mix)
             relation_str = ", ".join(reasoning_relation_path)
             answer += f"For {r1}'s {r2}, we have {r1}'s {r2} is {r_mix}. " 
-            if noisy_type == "irrelative":
+            if noise_type == "irrelevant":
                 if random.random() < noisy_p:
                     noise_fact = self.get_random_relation_fact(r_mix)
                     answer += noise_fact
                 
             
             answer += f"So the relations path are reduced to {relation_str}. "
-            if noisy_type == "irrelative":
+            if noise_type == "irrelevant":
                 if random.random() < noisy_p:
                     noise_fact = self.get_random_relation_fact(r_mix)
                     answer += noise_fact
@@ -375,7 +375,7 @@ class family_relation():
             relation_mix = None
             answer += f"The relations path are {relation_path_str}, which means {tail_name} is {head_name}'s {relation_desciption}. "
             if if_noise:
-                answer += self.get_symbolic_relation_reason(relation_path, proofs, self.noisy_type, self.noisy_level)
+                answer += self.get_symbolic_relation_reason(relation_path, proofs, self.noise_type, self.noisy_level)
             else:
                 answer += self.get_symbolic_relation_reason(relation_path, proofs)
         return answer

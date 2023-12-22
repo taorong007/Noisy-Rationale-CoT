@@ -7,21 +7,29 @@ import re
 import ast
 import copy
 from collections import deque
+import math
 
 class scan_master():
-    def __init__(self, if_in_context = False, n_shots=0, n_noisy_shots=0, noisy_type="irrelative", noisy_level = 1, prefix_context =True, config: dict = None, reasoning_type = "length") -> None:
-        self.if_in_context = if_in_context
+    def __init__(self, n_shots=0, n_noisy_shots=0, noise_type="irrelevant", noise_ratio = 0.5, noise_distribution = "fixed", prefix_context =True, config: dict = None, reasoning_type = "length") -> None:
+        
         self.n_shots = n_shots
         self.n_noisy_shots = n_noisy_shots
+        self.total_shots = self.n_shots + self.n_noisy_shots 
+        if self.total_shots > 0:
+            self.if_in_context = True
+        else:
+            self.if_in_context = False
         self.prefix_context = prefix_context
         if self.n_noisy_shots > 0:
-            if noisy_type != "irrelative" and noisy_type != "minor_error":
-                raise ValueError(f"noise type: {noisy_type} not supported")
-            self.noisy_type = noisy_type
-            self.noisy_level = noisy_level
+            if noise_type != "irrelevant" and noise_type != "minor_error":
+                raise ValueError(f"noise type: {noise_type} not supported")
+            self.noise_type = noise_type
+            self.noise_ratio = noise_ratio
+            self.noise_distribution = noise_distribution
         else:
-            self.noisy_type = None
-            self.noisy_level = 0
+            self.noise_type = None
+            self.noise_ratio = 0
+            self.noise_distribution = None
         if config is not None:
             self.reasoning_type = config["reasoning_type"]
         else:
@@ -96,6 +104,28 @@ class scan_master():
             prompt += "example{}:\nIN:\n{}OUT:{}\n".format(i, base_example["IN"], base_example["OUT"])
 
         return prompt
+    
+    def _prepare_noise_distribution_iteration_state(self, n_thought, noise_ratio, noise_distribution):
+        noise_distribution_list = [0] * n_thought
+        if noise_distribution == "fixed":
+            noise_count = math.ceil(n_thought * noise_ratio)
+            noise_positions = random.sample(range(n_thought), noise_count)
+            for pos in noise_positions:
+                noise_distribution_list[pos] = 1
+        else:
+            for pos in range(len(noise_distribution_list)):
+                if random.random() < noise_ratio:
+                    noise_distribution_list[pos] = 1 
+        return [noise_distribution_list, 0]
+        
+    def _should_add_noise(self, noise_distribution_state):
+        if noise_distribution_state == None:
+            return 0
+        distribution_list = noise_distribution_state[0]
+        pos = noise_distribution_state[1]
+        if_noise = distribution_list[pos]
+        noise_distribution_state[1] += 1
+        return if_noise
         
     def get_question(self, raw_data):
         in_content = raw_data[0]
@@ -140,39 +170,15 @@ class scan_master():
         else:
             return "left"
     
-    def get_answer(self, raw_data, if_noise):
-        in_content = raw_data[0]
-        label = raw_data[1]
+    
+    def _get_answer(self, in_content, ir_noise_distrib_state=None, mn_noise_distrib_state=None):
         answer = ""
         direction = ["right", "left"]
         angle = ["opposite", "around"]
         times_phrase = ["twice", "thrice"]
-        noisy_level = self.noisy_level
-        noisy_type = self.noisy_type
+        action_sequence = []
         selected_set = set()
         
-        if self.noisy_type == "irrelative":
-            if if_noise == False:
-                irrelative_noise_p = -1
-            elif noisy_level == 1:
-                irrelative_noise_p = 0.2
-            elif noisy_level == 2:
-                irrelative_noise_p = 0.3
-            elif noisy_level == 3:
-                irrelative_noise_p = 0.5
-            mn_noise_p = -1
-        else:
-            if if_noise == False:
-                mn_noise_p = -1
-            elif noisy_level == 1:
-                mn_noise_p = 0.2
-            elif noisy_level == 2:
-                mn_noise_p = 0.3
-            elif noisy_level == 3:
-                mn_noise_p = 0.5
-            irrelative_noise_p = -1
-        
-        action_sequence = []
         if "and" in in_content.split():
             sub_action_list = [actions.split() for actions in in_content.split("and")]
             answer += "Since command is {}, we should consider Step1: \"{}\" firstly. \n".format(in_content, " ".join(sub_action_list[0]))
@@ -184,9 +190,10 @@ class scan_master():
             sub_action_list = [in_content.split()]
             answer += "Let's consider {}. \n".format(" ".join(sub_action_list[0]))
         
+        n_ir_pos = 0
+        n_mn_pos = 0
         
         for i, actions in enumerate(sub_action_list):
-            sub_action_sequence = []
             actions_str = " ".join(actions)
             if i > 0:
                 answer += "Now, we consider Step2:\"{}\". ".format(actions_str)
@@ -197,9 +204,9 @@ class scan_master():
             this_direction = ""
             this_angle = ""
             if actions[0] == "turn":
-                action_kind = 1
+                this_action_kind = 1
             else:
-                action_kind = 2
+                this_action_kind = 2
             this_action = actions[0]
             
             if len(actions) > 1:
@@ -226,139 +233,180 @@ class scan_master():
                 else:
                     print(f"err:{actions_str}, no angle and direction")
                     continue
-                
-                    
+                          
             if this_direction == "":
                 once_action = []
-                if random.random() >= mn_noise_p:
-                    once_action.append(f"I_{this_action.upper()}")
+                noisy_once_action = []
+                n_mn_pos += 1
+                once_action.append(f"I_{this_action.upper()}")
+                if not self._should_add_noise(mn_noise_distrib_state):
+                    noisy_once_action.append(f"I_{this_action.upper()}")
                     answer += "\"{}\" means the agent needs to {}. So, in action sequence is {}. ".format(this_action, this_action, " ".join(once_action))
                 else:
                     error_action = self.error_action(this_action)
-                    once_action.append(f"I_{error_action.upper()}")
-                    answer += "\"{}\" means the agent needs to {}. So, in action sequence is {}. ".format(this_action, error_action, " ".join(once_action))
-                if random.random() < irrelative_noise_p:
+                    noisy_once_action.append(f"I_{error_action.upper()}")
+                    answer += "\"{}\" means the agent needs to {}. So, in action sequence is {}. ".format(this_action, error_action, " ".join(noisy_once_action))
+                
+                n_ir_pos += 1
+                if self._should_add_noise(ir_noise_distrib_state):
                     noise_fact = self.get_random_fact(this_action, selected_set)
                     answer += noise_fact
+                    
             elif this_angle == "":
                 once_action = []
-                if random.random() >= mn_noise_p:
+                noisy_once_action = []
+                n_mn_pos += 1
+                once_action.append(f"I_TURN_{this_direction.upper()}")
+                if not self._should_add_noise(mn_noise_distrib_state):
                     answer += f"\"{this_action} {this_direction}\" means the agent needs to turn {this_direction}"
-                    once_action.append(f"I_TURN_{this_direction.upper()}")
+                    noisy_once_action.append(f"I_TURN_{this_direction.upper()}")
                 else:
                     error_direction = self.error_direction(this_direction)
                     answer += f"\"{this_action} {this_direction}\" means the agent needs to turn {error_direction}"
-                    once_action.append(f"I_TURN_{error_direction.upper()}")
+                    noisy_once_action.append(f"I_TURN_{error_direction.upper()}")
                 
-                if random.random() >= mn_noise_p:    
-                    if action_kind == 2:
+                n_mn_pos += 1
+                if this_action_kind == 2:
+                    once_action.append(f"I_{this_action.upper()}")
+                if not self._should_add_noise(mn_noise_distrib_state):  
+                    if this_action_kind == 2:
                         answer += f" and {this_action}"
-                        once_action.append(f"I_{this_action.upper()}")
+                        noisy_once_action.append(f"I_{this_action.upper()}")
                 else:
                     error_action = self.error_action(this_action)
                     answer += f" and {error_action}"
-                    once_action.append(f"I_{error_action.upper()}")
+                    noisy_once_action.append(f"I_{error_action.upper()}")
                 answer += ". "
                 
-                if random.random() < irrelative_noise_p:
+                n_ir_pos += 1
+                if self._should_add_noise(ir_noise_distrib_state):
                     noise_fact = self.get_random_fact(this_direction, selected_set)
                     answer += noise_fact
                 
-                if action_kind == 2:
-                    if random.random() < irrelative_noise_p:
+                if this_action_kind == 2:
+                    n_ir_pos += 1
+                    if self._should_add_noise(ir_noise_distrib_state):
                         noise_fact = self.get_random_fact(this_action, selected_set)
                         answer += noise_fact
                 
-                answer += "So, in action sequence is {}. ".format(" ".join(once_action))
+                answer += "So, in action sequence is {}. ".format(" ".join(noisy_once_action))
             else:
                 once_action = []
+                noisy_once_action = []
                 if this_angle == "opposite":
                     answer += f"\"{this_action} {this_angle} {this_direction}\" means the agent needs to turn {this_direction} twice"
-                    if random.random() >= mn_noise_p:
-                        once_action.append(f"I_TURN_{this_direction.upper()}")
-                        once_action.append(f"I_TURN_{this_direction.upper()}")
+                    n_mn_pos += 1
+                    once_action.append(f"I_TURN_{this_direction.upper()}")
+                    once_action.append(f"I_TURN_{this_direction.upper()}")
+                    if not self._should_add_noise(mn_noise_distrib_state):
+                        noisy_once_action.append(f"I_TURN_{this_direction.upper()}")
+                        noisy_once_action.append(f"I_TURN_{this_direction.upper()}")
                     else:
-                        once_action.append(f"I_TURN_{this_direction.upper()}")
+                        noisy_once_action.append(f"I_TURN_{this_direction.upper()}")
                         error_direction = self.error_direction(this_direction)
-                        once_action.append(f"I_TURN_{error_direction.upper()}")
+                        noisy_once_action.append(f"I_TURN_{error_direction.upper()}")
                         
-                    if random.random() >= mn_noise_p:    
-                        if action_kind == 2:
+                    n_mn_pos += 1
+                    if this_action_kind == 2:
+                        once_action.append(f"I_{this_action.upper()}")
+                    if not self._should_add_noise(mn_noise_distrib_state):    
+                        if this_action_kind == 2:
                             answer += f" before {this_action}"
-                            once_action.append(f"I_{this_action.upper()}")
+                            noisy_once_action.append(f"I_{this_action.upper()}")
                     else:
                         error_action = self.error_action(this_action)
                         answer += f" before {error_action}"
-                        once_action.append(f"I_{error_action.upper()}")
+                        noisy_once_action.append(f"I_{error_action.upper()}")
                     answer += ". "
                         
-                    if action_kind == 2:
-                        if random.random() < irrelative_noise_p:
+                    if this_action_kind == 2:
+                        n_ir_pos += 1
+                        if self._should_add_noise(ir_noise_distrib_state):
                             noise_fact = self.get_random_fact(this_action, selected_set)
                             answer += noise_fact
                     
-                    if random.random() < irrelative_noise_p:
+                    n_ir_pos += 1
+                    if self._should_add_noise(ir_noise_distrib_state):
                         noise_fact = self.get_random_fact("opposite", selected_set)
                         answer += noise_fact
                     
-                    if random.random() < irrelative_noise_p:
+                    n_ir_pos += 1
+                    if self._should_add_noise(ir_noise_distrib_state):
                         noise_fact = self.get_random_fact(this_direction, selected_set)
                         answer += noise_fact
                 elif this_angle == "around":
                     answer += f"\"{this_action} {this_angle} {this_direction}\" means the agent needs to turn {this_direction}"
-                    if random.random() >= mn_noise_p:
-                        once_action.append(f"I_TURN_{this_direction.upper()}")
+                    
+                    n_mn_pos += 1
+                    once_action.append(f"I_TURN_{this_direction.upper()}")
+                    if not self._should_add_noise(mn_noise_distrib_state):
+                        noisy_once_action.append(f"I_TURN_{this_direction.upper()}")
                     else:
                         error_direction = self.error_direction(this_direction)
-                        once_action.append(f"I_TURN_{error_direction.upper()}")
-                    if action_kind == 2:
-                        if random.random() >= mn_noise_p:
+                        noisy_once_action.append(f"I_TURN_{error_direction.upper()}")
+                        
+                    if this_action_kind == 2:
+                        n_mn_pos += 1
+                        once_action.append(f"I_{this_action.upper()}")
+                        if not self._should_add_noise(mn_noise_distrib_state):
                             answer += f" and {this_action}"
-                            once_action.append(f"I_{this_action.upper()}")
+                            noisy_once_action.append(f"I_{this_action.upper()}")
                         else:
                             error_action = self.error_action(this_action)
                             answer += f" and {error_action}"
-                            once_action.append(f"I_{error_action.upper()}")
+                            noisy_once_action.append(f"I_{error_action.upper()}")
                             
-                    if random.random() >= mn_noise_p:
+                    n_mn_pos += 1
+                    once_action = 4 * once_action
+                    if not self._should_add_noise(mn_noise_distrib_state):
                         angle_times = 4
                     else:
                         angle_times = 3
+                    noisy_once_action = noisy_once_action * angle_times
                     answer += ", and repeat this action sequence four times to complete a 360-degree loop"
                     answer += ". "
                     
-                    once_action = once_action * angle_times
-                    if action_kind == 2:
-                        if random.random() < irrelative_noise_p:
+                    
+                    if this_action_kind == 2:
+                        n_ir_pos += 1
+                        if self._should_add_noise(ir_noise_distrib_state):
                             noise_fact = self.get_random_fact(this_action, selected_set)
                             answer += noise_fact
                     
-                    if random.random() < irrelative_noise_p:
+                    n_ir_pos += 1
+                    if self._should_add_noise(ir_noise_distrib_state):
                         noise_fact = self.get_random_fact("around", selected_set)
                         answer += noise_fact
                     
-                    if random.random() < irrelative_noise_p:
+                    n_ir_pos += 1
+                    if self._should_add_noise(ir_noise_distrib_state):
                         noise_fact = self.get_random_fact(this_direction, selected_set)
                         answer += noise_fact
-                answer += "So, in action sequence is {}. ".format(" ".join(once_action))
+                answer += "So, in action sequence is {}. ".format(" ".join(noisy_once_action))
                 
             if this_times != "":
                 if this_times == "twice":
-                    if random.random() >= mn_noise_p:
+                    n_mn_pos += 1
+                    sub_action_sequence = once_action * 2
+                    if not self._should_add_noise(mn_noise_distrib_state):
                         action_times = 2
                     else:
                         action_times = 3
                 if this_times == "thrice":
-                    if random.random() >= mn_noise_p:    
+                    n_mn_pos += 1
+                    sub_action_sequence = once_action * 3
+                    if not self._should_add_noise(mn_noise_distrib_state): 
                         action_times = 3
                     else:
                         action_times = 2
                 answer += f"Since we need do {this_times} in command \"{actions_str}\",  this entire sequence is repeated {action_times} times. "
-                sub_action_sequence = once_action * action_times
-                if random.random() < irrelative_noise_p:
+                noisy_sub_action_sequence = once_action * action_times
+                
+                n_ir_pos += 1
+                if self._should_add_noise(ir_noise_distrib_state):
                     noise_fact = self.get_random_fact(this_times, selected_set)
                     answer += noise_fact
-                answer += "So the action sequence to \"{}\" is :{}".format(actions_str, " ".join(sub_action_sequence))
+                answer += "So the action sequence to \"{}\" is :{}".format(actions_str, " ".join(noisy_sub_action_sequence))
             else:
                 sub_action_sequence = once_action
             answer += "\n"
@@ -366,10 +414,28 @@ class scan_master():
             action_sequence = action_sequence + sub_action_sequence
         
         answer += "Above all -- So, final answer is OUT:{}".format(" ".join(action_sequence))
+    
+        return answer, action_sequence, n_ir_pos, n_mn_pos
+    
+    def get_answer(self, raw_data, if_noise):
+        in_content = raw_data[0]
+        label = raw_data[1]
+        
+        _, _, n_ir_pos, n_mn_pos = self._get_answer(in_content)
+        
+        
+        if self.noise_type == "irrelevant":
+            ir_noise_p = self.noise_ratio
+            mn_noise_p = 0
+        else:
+            ir_noise_p = 0
+            mn_noise_p = self.noise_ratio
+        ir_noise_distrib_state = self._prepare_noise_distribution_iteration_state(n_ir_pos, ir_noise_p, self.noise_distribution) 
+        mn_noise_distrib_state = self._prepare_noise_distribution_iteration_state(n_mn_pos, mn_noise_p, self.noise_distribution)                 
+        answer,action_sequence, _, _ = self._get_answer(in_content, ir_noise_distrib_state, mn_noise_distrib_state)
         
         # print(action_sequence)
-        if not (if_noise == True and self.noisy_type == "minor_error"):
-            assert str(action_sequence) == str(label)
+        assert str(action_sequence) == str(label)
         return answer
 
     def get_random_demos(self, num):
