@@ -1,11 +1,10 @@
 # noise test
 model: gpt-3.5-turbo-0613 #gpt-3.5-turbo-0613 or llama2
-dataset: SCAN # family_relation and base_math and GSM and SCAN
+dataset: base_math # family_relation and base_math and GSM and SCAN
 start_num: 0
 test_num: 300
-n_reason: 5
+#n_reason: 1
 batch_size: 5
-temperature_reason: 1
 
 ## in-context 
 if_in_context: True
@@ -21,11 +20,25 @@ noisy_level: 3
 prefix_context: False
 
 # method
-## rephrase
-if_rephrase: True
-temperature_rephrase: 1
-rephrase_aggregate: False # aggregate rephrase before ICL or after ICL
-n_rephrase: 5 # only valid when rephrase_aggregate is ture
+method: both # RV or RAV or both or baseline
+## baseline
+temperature_reason: 0.1
+n_reason: 10
+## RV or RAV or both
+temperature_rephrase: 0.75
+n_rephrase: 5
+## RV
+RV_n_reason: 1
+RV_temp_reason: 0.1
+RV_topp_reason: 1
+## RAV
+RAV_n_reason: 5
+RAV_temp_reason: 0.7
+RAV_topp_reason: 0.9
+# both
+RV_weight: 0.5
+RAV_weight: 0.5
+
 
 # math base
 base_math:

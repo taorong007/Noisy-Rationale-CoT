@@ -15,6 +15,7 @@ class my_gpt:
         self.model = model
         self.prompt_tokens = 0
         self.completion_tokens = 0
+        self.embedding_tokens = 0
         self.total_tokens = 0
         # self.temperature = temperature
         # self.run_times = run_times
@@ -55,15 +56,26 @@ class my_gpt:
         else:
             return f"error:{error}"
 
-    def query(self, messages, temperature, n):
+    def get_embedding(self, text, model="text-embedding-ada-002"):
+        text = text.replace("\n", " ")
+        text = text.replace("\\", "")
+        response = openai.Embedding.create(
+            input=text,
+            model=model
+        )
+        embedding = response['data'][0]['embedding']
+        self.embedding_tokens += response['usage']['prompt_tokens']
+        return embedding
+
+    def query(self, messages, temperature, n, top_p):
         if self.api == 'openai':
             try:
                 response = openai.ChatCompletion.create(
                     model=self.model,
                     messages=messages,
-                    # stream=True,
                     temperature=temperature,
                     n=n,
+                    top_p=top_p,
                 )
                 self.completion_tokens += response["usage"]["completion_tokens"]
                 self.prompt_tokens += response["usage"]["prompt_tokens"]
@@ -96,17 +108,19 @@ class my_gpt:
     def compute_cost(self):
         input_price = 0.0015
         output_price = 0.002
+        embedding_price = 0.0001
         rate = 7.18
         cost = float(self.prompt_tokens) / 1000 * input_price * rate + \
-               float(self.completion_tokens) / 1000 * output_price * rate
-        return "input tokens:{}, output tokens:{}, total tokens:{}, total cost:{:.2f}".format(
-            self.prompt_tokens, self.completion_tokens, self.total_tokens, cost)
+               float(self.completion_tokens) / 1000 * output_price * rate + \
+               float(self.embedding_tokens) / 1000 * embedding_price * rate
+        return "input tokens:{}, output tokens:{}, embedding tokens:{}, total tokens:{}, total cost:{:.2f}".format(
+            self.prompt_tokens, self.completion_tokens, self.embedding_tokens, self.total_tokens, cost)
 
-    def query_case(self, case, temperature, n):
+    def query_case(self, case, temperature, n, top_p):
         messages = []
         if "system-prompt" in case:
             system_prompt = case["system-prompt"]
-            messages.append({'role':"system", 'content':system_prompt})
+            messages.append({'role': "system", 'content': system_prompt})
         if "in-context" in case:
             IC_list = case["in-context"]
             for shot in IC_list:
@@ -117,18 +131,18 @@ class my_gpt:
         question = case["question"]
         messages.append({'role': "user", 'content': question})
         case["messages"] = messages
-        return self.query(messages, temperature, n), messages
+        return self.query(messages, temperature, n, top_p), messages
 
-    def query_and_append(self, case, temperature, n):
+    def query_and_append(self, case, temperature, n, top_p):
         while True:
-            retval, _ = self.query_case(case, temperature, n)
+            retval, _ = self.query_case(case, temperature, n, top_p)
             if retval[0]:
                 return
             time.sleep(1)
 
-    def query_batch(self, cases, temperature, n):
+    def query_batch(self, cases, temperature, n, top_p):
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            future_to_case = {executor.submit(self.query_and_append, case, temperature, n): case for case in cases}
+            future_to_case = {executor.submit(self.query_and_append, case, temperature, n, top_p): case for case in cases}
             for future in concurrent.futures.as_completed(future_to_case):
                 future.result()
         return
