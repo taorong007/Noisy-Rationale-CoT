@@ -1,33 +1,46 @@
 # noise test
 model: gpt-3.5-turbo-0613 #gpt-3.5-turbo-0613 or llama2
-dataset: shuffled_obj # family_relation and base_math and GSM and SCAN and shuffled_obj
+dataset: base_math # family_relation and base_math and GSM and SCAN
 start_num: 0
 test_num: 300
-n_reason: 10
+#n_reason: 1
 batch_size: 5
-temperature_reason: 1
 
 ## in-context 
-if_in_context: False
+if_in_context: True
 n_shots: 0 # self-made excellent shots
 # n_weak_shots: 0 # original author's shots 
 
 ## noise
-if_noise: False
+if_noise: True
 n_noisy_shots: 3
 noise_type: minor_error # irrelevant or minor_error
-noise_ratio: 0.5
+noise_ratio: 0.2
 noise_distribution: fixed #fixed or random
 
 ## prefix
 prefix_context: False
 
 # method
-## rephrase
-if_rephrase: False
-temperature_rephrase: 1
-rephrase_aggregate: True # aggregate rephrase before ICL or after ICL
-n_rephrase: 5 # only valid when rephrase_aggregate is true
+method: baseline # RV or RAV or both or baseline
+## baseline
+temperature_reason: 1
+n_reason: 10
+## RV or RAV or both
+temperature_rephrase: 0.75
+n_rephrase: 5
+## RV
+RV_n_reason: 1
+RV_temp_reason: 0.1
+RV_topp_reason: 1
+## RAV
+RAV_n_reason: 5
+RAV_temp_reason: 0.7
+RAV_topp_reason: 0.9
+# both
+RV_weight: 0.5
+RAV_weight: 0.5
+
 
 # math base
 base_math:
