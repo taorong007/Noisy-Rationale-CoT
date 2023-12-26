@@ -3,7 +3,6 @@ model: gpt-3.5-turbo-0613 #gpt-3.5-turbo-0613 or llama2
 dataset: base_math # family_relation and base_math and GSM and SCAN
 start_num: 0
 test_num: 300
-#n_reason: 1
 batch_size: 5
 
 ## in-context 
@@ -14,15 +13,15 @@ n_shots: 0 # self-made excellent shots
 ## noise
 if_noise: True
 n_noisy_shots: 3
-noise_type: minor_error # irrelevant or minor_error
-noise_ratio: 0.2
+noise_type: irrelevant # irrelevant or minor_error
+noise_ratio: 0.8 # 0.3, 0.5 or 0.8
 noise_distribution: fixed #fixed or random
 
 ## prefix
 prefix_context: False
 
 # method
-method: baseline # RV or RAV or both or baseline
+method: both # RV or RAV or both or baseline
 ## baseline
 temperature_reason: 1
 n_reason: 10
@@ -31,12 +30,12 @@ temperature_rephrase: 0.75
 n_rephrase: 5
 ## RV
 RV_n_reason: 1
-RV_temp_reason: 0.1
-RV_topp_reason: 1
+RV_temp_reason: 1 # 0.1
+RV_topp_reason: 0.9 # 1
 ## RAV
 RAV_n_reason: 5
-RAV_temp_reason: 0.7
-RAV_topp_reason: 0.9
+RAV_temp_reason: 1 # 1
+RAV_topp_reason: 0.9 # 0.9
 # both
 RV_weight: 0.5
 RAV_weight: 0.5

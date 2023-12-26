@@ -321,10 +321,10 @@ class noise_test:
                 f"index {index}/{len(case_list) - 1}, correct_num {self._correct_num}, error_num {self._error_num}, "
                 f"accuracy {self._correct_num / (self._correct_num + self._error_num)}")
             self._log(self._model.compute_cost())
-        self._answers_list = [self._answers_list[i:i + self.n_reason]
-                              for i in range(0, len(self._answers_list), self.n_reason)]
-        self._contents_list = [self._contents_list[i:i + self.n_reason]
-                               for i in range(0, len(self._contents_list), self.n_reason)]
+        self._answers_list = [self._answers_list[i:i + case_n]
+                              for i in range(0, len(self._answers_list), case_n)]
+        self._contents_list = [self._contents_list[i:i + case_n]
+                               for i in range(0, len(self._contents_list), case_n)]
 
     def _question_insert(self, raw_data):
         processed_case = self._dataset_processor.get_case(raw_data)
@@ -578,6 +578,7 @@ class noise_test:
             most_counter = 0
             for k,v in merged_weighted_counter.items():
                 if v > most_counter:
+                    most_counter = v
                     guess_answer = k
             if guess_answer == true_answer:
                 SC_right_count += 1
