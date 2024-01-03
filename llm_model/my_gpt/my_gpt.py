@@ -24,7 +24,8 @@ class my_gpt:
             with open('openai_key.yml', 'r') as f:
                 openai_config = yaml.safe_load(f)
             openai.api_key = openai_config["key"]
-            openai.api_base = openai_config["api_base"]
+            if "api_base" in openai_config:
+                openai.api_base = openai_config["api_base"]
             # openai.api_base = "https://openkey.cloud/v1"
         elif api == 'hkbu':
             with open('hkbu_key.yml', 'r') as f:
@@ -144,7 +145,7 @@ class my_gpt:
                 break
             time.sleep(1)
 
-    def query_batch(self, cases, temperature, n, top_p = 1):
+    def query_batch(self, cases, temperature = 1, n = 1, top_p = 1):
         with concurrent.futures.ThreadPoolExecutor() as executor:
             future_to_case = {executor.submit(self.query_and_append, case, temperature, n, top_p): case for case in cases}
             for future in concurrent.futures.as_completed(future_to_case):

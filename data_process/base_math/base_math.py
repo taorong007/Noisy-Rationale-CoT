@@ -312,9 +312,9 @@ class base_math:
         base = self.base
         digits = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
         if self.if_in_context:
-            return f"In base-{base}, what is {expr}? end the response with the result in \"Answer:\\boxed{{result}}\"."
+            return f"In base-{base}, what is {expr}? Please reason it step by step. End the response with the result in \"Answer:\\boxed{{result}}\"."
         else:
-            return f"You are a mathematician. Assuming that all numbers are in base-{base} where the digits are \"{digits[:base]}\", what is {expr}? End the response with the result in \"Answer:\\boxed{{result}}\"."
+            return f"You are a mathematician. Assuming that all numbers are in base-{base} where the digits are \"{digits[:base]}\", what is {expr}? Please reason it step by step. End the response with the result in \"Answer:\\boxed{{result}}\"."
         
 
     def get_case(self, expr):

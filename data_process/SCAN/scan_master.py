@@ -130,7 +130,7 @@ class scan_master():
     def get_question(self, raw_data):
         in_content = raw_data[0]
         question = f"With IN:{in_content}, what is OUT?\n"
-        question += "Please reason it step by step, and provide the final action sequence as the answer. End the question with \"So, final answer is OUT: <action sequence>\"\n"
+        question += "Please reason it step by step, and provide the final action sequence as the answer. End the response with \"So, final answer is OUT: <action sequence>\"\n"
         return question
     
     def get_label(self, raw_data):

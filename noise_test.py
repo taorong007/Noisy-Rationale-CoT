@@ -9,6 +9,7 @@ import data_process.family_relation.family_relation as family_relation
 import data_process.GSM.GSM as GSM
 import data_process.SCAN.scan_master as scan_master
 import data_process.tracking_shuffled_objects.tracking_shuffled_objects as shuffled_obj
+import data_process.BBH.bbh as bbh
 import pandas as pd
 import nltk
 import random
@@ -17,7 +18,6 @@ from datetime import datetime
 import copy
 import string
 import argparse
-
 
 def wr_log(obj, log_file):
     print(obj)
@@ -92,12 +92,19 @@ class noise_test:
             self.RAV_topp_reason = args["RAV_topp_reason"] if "RAV_topp_reason" in args else 0.9
             self.RV_weight = args["RV_weight"] if "RV_weight" in args else 0.5
             self.RAV_weight = args["RAV_weight"] if "RAV_weight" in args else 0.5
-
+        elif self.method == "smoothllm":
+            from method.smooth_llm_main.lib.defenses import SmoothLLM
+            from method.smooth_llm_main.lib.perturbations import RandomSwapPerturbation
+            self.temperature_reason = args["temperature_reason"] if "temperature_reason" in args else 1
+            self.n_reason = args["n_reason"] if "n_reason" in args else 1
         random.seed(time.time())
 
         self._init_model()
         self._init_dataset()
-
+            
+        if self.method == "smoothllm":
+            self.smoothllm = SmoothLLM(self._model, self._dataset_processor, "RandomSwapPerturbation", 10, self.n_reason)
+            
         log_name = args["log_name"] if "log_name" in args else self._get_log_file_name()
         self._log_file = open(log_name, 'w', encoding='utf-8')
         dirname = os.path.dirname(log_name)
@@ -122,7 +129,7 @@ class noise_test:
             model_config = config["llama2"] if "llama2" in config else None
             self._model = my_llama(config=model_config)
         elif self._model_name.split("-")[0] == "gpt":
-            from llm_model.my_gpt import my_gpt
+            from llm_model.my_gpt.my_gpt import my_gpt
             model_config = config["gpt"] if "gpt" in config else None
             self._model = my_gpt(model=self._model_name, config=model_config)
         else:
@@ -148,6 +155,8 @@ class noise_test:
             self._dataset_processor = GSM.GSM(n_shots=self._n_shots, n_noisy_shots=self._n_noisy_shots, noise_type=self._noise_type,  noisy_level=self._noisy_level, prefix_context=self._prefix_context)
         elif self._dataset_name == "SCAN":
             self._dataset_processor = scan_master.scan_master(n_shots=self._n_shots, n_noisy_shots=self._n_noisy_shots, noise_type=self._noise_type,  noise_ratio=self._noise_ratio, noise_distribution=self._noise_distribution, prefix_context=self._prefix_context, config = processor_config)
+        elif self._dataset_name == "BBH":
+            self._dataset_processor = bbh.bbh(n_shots=self._n_shots, n_noisy_shots=self._n_noisy_shots, noise_type=self._noise_type,  noise_ratio=self._noise_ratio, noise_distribution=self._noise_distribution, prefix_context=self._prefix_context, config = processor_config)
         elif self._dataset_name == "shuffled_obj":
             self._dataset_processor = shuffled_obj.tracking_shuffled_objects(n_shots=self._n_shots, n_noisy_shots=self._n_noisy_shots, noise_type=self._noise_type,  noise_ratio=self._noise_ratio, noise_distribution=self._noise_distribution, prefix_context=self._prefix_context, config = processor_config)
         else:
@@ -156,12 +165,16 @@ class noise_test:
         assert len(self._dataset) >= self._test_num
 
     def _get_log_file_name(self):
-        log_path = os.path.join("result", self._dataset_name, self._model_name)
-
+        log_path = os.path.join("result", self._dataset_name)
+        dataset_config = config[self._dataset_name] if self._dataset_name in config else None
+        if dataset_config != None:
+            if "reasoning_type" in dataset_config:
+                log_path = os.path.join(log_path, dataset_config["reasoning_type"])
+                    
         if self._dataset_name == "family_relation":
-            log_path = os.path.join(log_path, self._dataset_config["reasoning_type"])
             if self._dataset_config["reasoning_type"] == "symbolic":
                 log_path = os.path.join(log_path, "hop" + str(self._dataset_config["hop"]))
+        log_path = os.path.join(log_path, self._model_name)
         log_path = os.path.join(log_path, f"method_{self.method}")
         if not os.path.exists(log_path):
             os.makedirs(log_path)
@@ -316,7 +329,10 @@ class noise_test:
                     merge_case_batch += merge_split
                 self._response_process(merge_case_batch)
                 case_n = self.n_rephrase * self.RV_n_reason + self.RAV_n_reason
-
+            elif self.method == "smoothllm":
+                case_batch = self.smoothllm(case_batch)
+                self._response_process(case_batch)
+                case_n = 1
             self._log(
                 f"index {index}/{len(case_list) - 1}, correct_num {self._correct_num}, error_num {self._error_num}, "
                 f"accuracy {self._correct_num / (self._correct_num + self._error_num)}")

@@ -172,7 +172,7 @@ class family_relation():
             tail_name = query[1]
             relation_str = "'s ".join(relation_path)
             question += f"In a family tree, if {tail_name} is {head_name}'s {relation_str}. \nQuestion: {tail_name} is {head_name}'s what? "
-        question += "Please reason it step by step, and provide a single word answer describing the relationship, in the format  \"Answer: {{relation}}\"\n"
+        question += "Please reason it step by step, and provide a single word answer describing the relationship. End the response in the format  \"Answer: {{relation}}\"\n"
         return question
     
     def get_label(self, raw_data):
