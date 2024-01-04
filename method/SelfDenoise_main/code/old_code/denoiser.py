@@ -47,33 +47,33 @@ class chatgpt_denoiser:
         # print(result)
         return result
     
-    def get_single_response_by_model(self,sentence, model):
+    def get_batch_response_by_model(self, sentences, model, n_reasoning):
         # print(sentence)
         while True:
             try:
-                chat_completion = openai.ChatCompletion.create(
-                    model="gpt-3.5-turbo",
-                    messages = [
-                        # 系统消息首先，它有助于设置助手的行为
-                        {"role": "system", "content": "You are a helpful assistant."},
-                        # 我是用户，这是我的提示
-                        {"role": "user", "content": self.prompt+sentence},
-                        # 我们还可以添加以前的对话
-                        # {"role": "assistant", "content": "Episode III."},
-                    ],
-                    )
+                case_batch = []
+                for sentence in sentences:
+                    case = dict()
+                    case["system-prompt"] = "You are a helpful assistant."
+                    case["question"] = self.prompt+sentence
+                    case_batch.append(case)
+                model.query_batch(case_batch, n=n_reasoning)
                 # print(chat_completion.choices[0].message.content)
                 break
             except Exception as e:
                 print(e)
                 continue
             # print(chat_completion)
-        result = ''
-        for choice in chat_completion.choices:
-            result += choice.message.content
-        # print(sentence)
-        # print(result)
-        return result
+        
+        new_sentences_list = []
+        for case in case_batch:
+            responses = case["messages"][-1]
+            new_sentences = []
+            for response in responses:
+                result = response["content"]
+                new_sentences.append(result)
+            new_sentences_list.append(new_sentences)
+        return new_sentences_list
     
     def get_batch_response(self, message_list,batch_size=5):
         response_list = []

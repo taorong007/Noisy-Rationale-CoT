@@ -94,7 +94,10 @@ class noise_test:
             self.RAV_weight = args["RAV_weight"] if "RAV_weight" in args else 0.5
         elif self.method == "smoothllm":
             from method.smooth_llm_main.lib.defenses import SmoothLLM
-            from method.smooth_llm_main.lib.perturbations import RandomSwapPerturbation
+            self.temperature_reason = args["temperature_reason"] if "temperature_reason" in args else 1
+            self.n_reason = args["n_reason"] if "n_reason" in args else 1
+        elif self.method == "selfdenoise":
+            from method.SelfDenoise_main.baseline_test import SelfDenoise
             self.temperature_reason = args["temperature_reason"] if "temperature_reason" in args else 1
             self.n_reason = args["n_reason"] if "n_reason" in args else 1
         random.seed(time.time())
@@ -104,7 +107,8 @@ class noise_test:
             
         if self.method == "smoothllm":
             self.smoothllm = SmoothLLM(self._model, self._dataset_processor, "RandomSwapPerturbation", 10, self.n_reason)
-            
+        elif self.method == "selfdenoise":
+            self.SelfDenoise = SelfDenoise(n_reason=self.n_reason)
         log_name = args["log_name"] if "log_name" in args else self._get_log_file_name()
         self._log_file = open(log_name, 'w', encoding='utf-8')
         dirname = os.path.dirname(log_name)
@@ -333,6 +337,10 @@ class noise_test:
                 case_batch = self.smoothllm(case_batch)
                 self._response_process(case_batch)
                 case_n = 1
+            elif self.method == "selfdenoise":
+                case_batch = self.SelfDenoise.certify(case_batch, model= self._model)
+                self._response_process(case_batch)
+                case_n = self.n_reason
             self._log(
                 f"index {index}/{len(case_list) - 1}, correct_num {self._correct_num}, error_num {self._error_num}, "
                 f"accuracy {self._correct_num / (self._correct_num + self._error_num)}")

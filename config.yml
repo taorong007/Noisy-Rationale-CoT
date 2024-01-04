@@ -13,18 +13,18 @@ prefix_context: False ## prefix
 
 ## noise
 if_noise: True
-n_noisy_shots: 6
+n_noisy_shots: 3
 noise_type: minor_error # irrelevant or minor_error
 noise_ratio: 0.8 # 0.3, 0.5 or 0.8
 noise_distribution: fixed #fixed or random
 
 
 # method
-method: baseline # RV or RAV or both or baseline,  smoothllm, selfdenoise
+method: selfdenoise # RV or RAV or both or baseline,  smoothllm, selfdenoise, selfdenoise
 
 ## baseline, smoothllm
 temperature_reason: 1
-n_reason: 10
+n_reason: 5
 
 ## RV or RAV or both
 temperature_rephrase: 0.75

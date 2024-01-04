@@ -1,6 +1,6 @@
 import numpy as np
 from typing import List, Dict
-from data.instance import InputInstance
+# from .data.instance import InputInstance
 
 
 def mask_forbidden_index(sentence: str, forbidden_words: List[str]) -> List[int]:
@@ -27,24 +27,24 @@ def sampling_index_loop_nums(length: int,
         mask_indexes.append(np.random.choice(list(range(length)), mask_numbers, replace=False, p=sampling_probs).tolist()) 
     return mask_indexes
 
-def mask_instance(instance: InputInstance, 
-                  rate: float, 
-                  token: str, 
-                  nums: int = 1, 
-                  return_indexes: bool = False, 
-                  forbidden_indexes: List[int] = None, 
-                  random_probs: List[float] = None) -> List[InputInstance]:
-    sentence = instance.perturbable_sentence()
-    results = mask_sentence(sentence, rate, token, nums, return_indexes, forbidden_indexes, random_probs)
-    if return_indexes:
-        mask_sentences_list = results[0]
-    else:
-        mask_sentences_list = results
-    tmp_instances = [InputInstance.from_instance_and_perturb_sentence(instance, sent) for sent in mask_sentences_list]
-    if return_indexes:
-        return tmp_instances, results[1]
-    else:
-        return tmp_instances
+# def mask_instance(instance: InputInstance, 
+#                   rate: float, 
+#                   token: str, 
+#                   nums: int = 1, 
+#                   return_indexes: bool = False, 
+#                   forbidden_indexes: List[int] = None, 
+#                   random_probs: List[float] = None) -> List[InputInstance]:
+#     sentence = instance.perturbable_sentence()
+#     results = mask_sentence(sentence, rate, token, nums, return_indexes, forbidden_indexes, random_probs)
+#     if return_indexes:
+#         mask_sentences_list = results[0]
+#     else:
+#         mask_sentences_list = results
+#     tmp_instances = [InputInstance.from_instance_and_perturb_sentence(instance, sent) for sent in mask_sentences_list]
+#     if return_indexes:
+#         return tmp_instances, results[1]
+#     else:
+#         return tmp_instances
 
 
 def mask_sentence(sentence: str, 

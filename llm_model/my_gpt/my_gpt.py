@@ -68,7 +68,7 @@ class my_gpt:
         self.embedding_tokens += response['usage']['prompt_tokens']
         return embedding
 
-    def query(self, messages, temperature, n, top_p):
+    def query(self, messages, temperature=1, n=1, top_p=1):
         if self.api == 'openai':
             try:
                 response = openai.ChatCompletion.create(
@@ -92,7 +92,7 @@ class my_gpt:
                 return (True, '')
             except Exception as err:
                 print(err)
-                return (False, f'OpenAI API 异常: {err}')
+                return (False, f'OpenAI API Err: {err}')
         else:
             payload = {'messages': messages}
             response = requests.post(self.url, json=payload, headers=self.headers)
