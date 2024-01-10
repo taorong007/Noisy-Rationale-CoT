@@ -21,7 +21,7 @@ class scan_master():
             self.if_in_context = False
         self.prefix_context = prefix_context
         if self.n_noisy_shots > 0:
-            if noise_type != "irrelevant" and noise_type != "minor_error":
+            if noise_type != "irrelevant" and noise_type != "inaccurate":
                 raise ValueError(f"noise type: {noise_type} not supported")
             self.noise_type = noise_type
             self.noise_ratio = noise_ratio
@@ -84,7 +84,7 @@ class scan_master():
         if self.reasoning_type ==  "length":
             train_file_name = "tasks_train_length.txt"
             test_file_name = "tasks_test_length.txt"
-        if self.reasoning_type ==  "simple":
+        elif self.reasoning_type ==  "simple":
             train_file_name = "tasks_train_simple.txt"
             test_file_name = "tasks_test_simple.txt"
         else:
@@ -108,7 +108,11 @@ class scan_master():
     def _prepare_noise_distribution_iteration_state(self, n_thought, noise_ratio, noise_distribution):
         noise_distribution_list = [0] * n_thought
         if noise_distribution == "fixed":
-            noise_count = math.ceil(n_thought * noise_ratio)
+            noise_count = round(n_thought * noise_ratio)
+            if noise_ratio > 0 and noise_count == 0:
+                noise_count = 1
+            # if noise_ratio > 0:
+            #     print(noise_count)
             noise_positions = random.sample(range(n_thought), noise_count)
             for pos in noise_positions:
                 noise_distribution_list[pos] = 1
@@ -155,7 +159,7 @@ class scan_master():
                 return sentence
         return None
     
-    def error_action(self, origin_action):
+    def another_action(self, origin_action):
         actions = ["jump", "run", "walk", "look"]
         while 1:
             random_index = random.randrange(0, len(actions))
@@ -164,12 +168,48 @@ class scan_master():
                 break
         return choose_action
     
-    def error_direction(self, direction):
+    def other_direction(self, direction):
         if direction == "left":
             return "right"
         else:
             return "left"
     
+    def capitalize(self, s):
+        return s[0].upper() + s[1:]
+        
+       
+    def get_inaccurate_thought_of_action(self, action):
+        inaccurate_thought = ""
+        another_action = self.another_action(action)
+        error_action = self.another_action(another_action)
+        inaccurate_thought += f"{another_action} is I_{error_action.upper()}"
+        return inaccurate_thought
+    
+    def get_inaccurate_thought_of_direction(self, direction):
+        inaccurate_thought = ""
+        the_other_direction = self.other_direction(direction)
+        error_direction = direction
+        inaccurate_thought += f"turn {the_other_direction} is I_TURN_{error_direction.upper()}"
+        return inaccurate_thought
+    
+    def get_inaccurate_thought_of_angle(self, angle):
+        inaccurate_thought = ""
+        if angle == "around":
+            inaccurate_thought = f"opposite is I_TURN_LEFT, I_TURN_RIGHT"
+        else:
+            inaccurate_thought = f"around is I_TURN_LEFT, I_TURN_LEFT, I_TURN_LEFT"
+        return inaccurate_thought
+
+    def get_inaccurate_thought_of_times(self, times_phrase):
+        if times_phrase == "twice":
+            another_phrase = "thrice"
+            times = 3
+        else:
+            another_phrase = "twice"
+            times = 2
+        err_times =  times + random.randrange(1,5,1)
+        inaccurate_thought =  f"{another_phrase} is {err_times} times"
+        return inaccurate_thought
     
     def _get_answer(self, in_content, ir_noise_distrib_state=None, mn_noise_distrib_state=None):
         answer = ""
@@ -236,16 +276,13 @@ class scan_master():
                           
             if this_direction == "":
                 once_action = []
-                noisy_once_action = []
-                n_mn_pos += 1
                 once_action.append(f"I_{this_action.upper()}")
-                if not self._should_add_noise(mn_noise_distrib_state):
-                    noisy_once_action.append(f"I_{this_action.upper()}")
-                    answer += "\"{}\" means the agent needs to {}. So, in action sequence is {}. ".format(this_action, this_action, " ".join(once_action))
-                else:
-                    error_action = self.error_action(this_action)
-                    noisy_once_action.append(f"I_{error_action.upper()}")
-                    answer += "\"{}\" means the agent needs to {}. So, in action sequence is {}. ".format(this_action, error_action, " ".join(noisy_once_action))
+                
+                answer += "\"{}\" means the agent needs to {}. So, in action sequence is {}. ".format(this_action, this_action, " ".join(once_action))
+                
+                n_mn_pos += 1
+                if self._should_add_noise(mn_noise_distrib_state):
+                    answer += self.capitalize(self.get_inaccurate_thought_of_action(this_action) + ". ")
                 
                 n_ir_pos += 1
                 if self._should_add_noise(ir_noise_distrib_state):
@@ -254,71 +291,49 @@ class scan_master():
                     
             elif this_angle == "":
                 once_action = []
-                noisy_once_action = []
-                n_mn_pos += 1
                 once_action.append(f"I_TURN_{this_direction.upper()}")
-                if not self._should_add_noise(mn_noise_distrib_state):
-                    answer += f"\"{this_action} {this_direction}\" means the agent needs to turn {this_direction}"
-                    noisy_once_action.append(f"I_TURN_{this_direction.upper()}")
-                else:
-                    error_direction = self.error_direction(this_direction)
-                    answer += f"\"{this_action} {this_direction}\" means the agent needs to turn {error_direction}"
-                    noisy_once_action.append(f"I_TURN_{error_direction.upper()}")
+                answer += f"\"{this_action} {this_direction}\" means the agent needs to turn {this_direction}"
                 
-                n_mn_pos += 1
                 if this_action_kind == 2:
                     once_action.append(f"I_{this_action.upper()}")
-                if not self._should_add_noise(mn_noise_distrib_state):  
-                    if this_action_kind == 2:
-                        answer += f" and {this_action}"
-                        noisy_once_action.append(f"I_{this_action.upper()}")
-                else:
-                    error_action = self.error_action(this_action)
-                    answer += f" and {error_action}"
-                    noisy_once_action.append(f"I_{error_action.upper()}")
+                    answer += f" and {this_action}"
                 answer += ". "
                 
+                this_noise = []
                 n_ir_pos += 1
                 if self._should_add_noise(ir_noise_distrib_state):
                     noise_fact = self.get_random_fact(this_direction, selected_set)
                     answer += noise_fact
+                
+                n_mn_pos += 1
+                if self._should_add_noise(mn_noise_distrib_state):
+                    this_noise.append(self.get_inaccurate_thought_of_direction(this_direction))
                 
                 if this_action_kind == 2:
                     n_ir_pos += 1
                     if self._should_add_noise(ir_noise_distrib_state):
                         noise_fact = self.get_random_fact(this_action, selected_set)
                         answer += noise_fact
+                    n_mn_pos += 1
+                    if self._should_add_noise(mn_noise_distrib_state):
+                        this_noise.append(self.get_inaccurate_thought_of_action(this_action))
                 
-                answer += "So, in action sequence is {}. ".format(" ".join(noisy_once_action))
+                if len(this_noise) > 0:
+                    answer += self.capitalize(", ".join(this_noise) + ". ")
+                answer += "So, in action sequence is {}. ".format(" ".join(once_action))
             else:
                 once_action = []
-                noisy_once_action = []
                 if this_angle == "opposite":
                     answer += f"\"{this_action} {this_angle} {this_direction}\" means the agent needs to turn {this_direction} twice"
-                    n_mn_pos += 1
                     once_action.append(f"I_TURN_{this_direction.upper()}")
                     once_action.append(f"I_TURN_{this_direction.upper()}")
-                    if not self._should_add_noise(mn_noise_distrib_state):
-                        noisy_once_action.append(f"I_TURN_{this_direction.upper()}")
-                        noisy_once_action.append(f"I_TURN_{this_direction.upper()}")
-                    else:
-                        noisy_once_action.append(f"I_TURN_{this_direction.upper()}")
-                        error_direction = self.error_direction(this_direction)
-                        noisy_once_action.append(f"I_TURN_{error_direction.upper()}")
-                        
-                    n_mn_pos += 1
+
                     if this_action_kind == 2:
                         once_action.append(f"I_{this_action.upper()}")
-                    if not self._should_add_noise(mn_noise_distrib_state):    
-                        if this_action_kind == 2:
-                            answer += f" before {this_action}"
-                            noisy_once_action.append(f"I_{this_action.upper()}")
-                    else:
-                        error_action = self.error_action(this_action)
-                        answer += f" before {error_action}"
-                        noisy_once_action.append(f"I_{error_action.upper()}")
-                    answer += ". "
-                        
+                        answer += f" before {this_action}"
+
+                    answer += ". "                    
+                    
                     if this_action_kind == 2:
                         n_ir_pos += 1
                         if self._should_add_noise(ir_noise_distrib_state):
@@ -334,38 +349,35 @@ class scan_master():
                     if self._should_add_noise(ir_noise_distrib_state):
                         noise_fact = self.get_random_fact(this_direction, selected_set)
                         answer += noise_fact
-                elif this_angle == "around":
-                    answer += f"\"{this_action} {this_angle} {this_direction}\" means the agent needs to turn {this_direction}"
+
+                    this_noise = []
                     
                     n_mn_pos += 1
-                    once_action.append(f"I_TURN_{this_direction.upper()}")
-                    if not self._should_add_noise(mn_noise_distrib_state):
-                        noisy_once_action.append(f"I_TURN_{this_direction.upper()}")
-                    else:
-                        error_direction = self.error_direction(this_direction)
-                        noisy_once_action.append(f"I_TURN_{error_direction.upper()}")
-                        
+                    if self._should_add_noise(mn_noise_distrib_state):
+                        this_noise.append(self.get_inaccurate_thought_of_angle(this_angle))
+                    
                     if this_action_kind == 2:
                         n_mn_pos += 1
-                        once_action.append(f"I_{this_action.upper()}")
-                        if not self._should_add_noise(mn_noise_distrib_state):
-                            answer += f" and {this_action}"
-                            noisy_once_action.append(f"I_{this_action.upper()}")
-                        else:
-                            error_action = self.error_action(this_action)
-                            answer += f" and {error_action}"
-                            noisy_once_action.append(f"I_{error_action.upper()}")
-                            
+                        if self._should_add_noise(mn_noise_distrib_state):
+                            this_noise.append(self.get_inaccurate_thought_of_action(this_action))
+                    
                     n_mn_pos += 1
+                    if self._should_add_noise(mn_noise_distrib_state):
+                        this_noise.append(self.get_inaccurate_thought_of_direction(this_direction))
+                    if len(this_noise) > 0:
+                        answer += self.capitalize(", ".join(this_noise) + ". ")
+                        
+                elif this_angle == "around":
+                    answer += f"\"{this_action} {this_angle} {this_direction}\" means the agent needs to turn {this_direction}"
+                    once_action.append(f"I_TURN_{this_direction.upper()}")
+                        
+                    if this_action_kind == 2:
+                        once_action.append(f"I_{this_action.upper()}")
+                        answer += f" and {this_action}"
+                        
                     once_action = 4 * once_action
-                    if not self._should_add_noise(mn_noise_distrib_state):
-                        angle_times = 4
-                    else:
-                        angle_times = 3
-                    noisy_once_action = noisy_once_action * angle_times
                     answer += ", and repeat this action sequence four times to complete a 360-degree loop"
                     answer += ". "
-                    
                     
                     if this_action_kind == 2:
                         n_ir_pos += 1
@@ -382,31 +394,45 @@ class scan_master():
                     if self._should_add_noise(ir_noise_distrib_state):
                         noise_fact = self.get_random_fact(this_direction, selected_set)
                         answer += noise_fact
-                answer += "So, in action sequence is {}. ".format(" ".join(noisy_once_action))
+
+                    this_noise = []
+                    
+                    n_mn_pos += 1
+                    if self._should_add_noise(mn_noise_distrib_state):
+                        this_noise.append(self.get_inaccurate_thought_of_angle(this_angle))
+                        
+                    if this_action_kind == 2:
+                        n_mn_pos += 1
+                        if self._should_add_noise(mn_noise_distrib_state):
+                            this_noise.append(self.get_inaccurate_thought_of_action(this_action))
+
+                    n_mn_pos += 1
+                    if self._should_add_noise(mn_noise_distrib_state):
+                        this_noise.append(self.get_inaccurate_thought_of_direction(this_direction))
+    
+                    if len(this_noise) > 0:
+                        answer += self.capitalize(", ".join(this_noise) + ". ")
+                answer += "So, in action sequence is {}. ".format(" ".join(once_action))
                 
             if this_times != "":
                 if this_times == "twice":
-                    n_mn_pos += 1
                     sub_action_sequence = once_action * 2
-                    if not self._should_add_noise(mn_noise_distrib_state):
-                        action_times = 2
-                    else:
-                        action_times = 3
+                    action_times = 2
                 if this_times == "thrice":
-                    n_mn_pos += 1
                     sub_action_sequence = once_action * 3
-                    if not self._should_add_noise(mn_noise_distrib_state): 
-                        action_times = 3
-                    else:
-                        action_times = 2
+                    action_times = 3
                 answer += f"Since we need do {this_times} in command \"{actions_str}\",  this entire sequence is repeated {action_times} times. "
-                noisy_sub_action_sequence = once_action * action_times
                 
                 n_ir_pos += 1
                 if self._should_add_noise(ir_noise_distrib_state):
                     noise_fact = self.get_random_fact(this_times, selected_set)
                     answer += noise_fact
-                answer += "So the action sequence to \"{}\" is :{}".format(actions_str, " ".join(noisy_sub_action_sequence))
+                    
+                n_mn_pos += 1
+                if self._should_add_noise(mn_noise_distrib_state):
+                    answer += self.capitalize(self.get_inaccurate_thought_of_times(this_times) + ". ")
+
+                answer += "So the action sequence to \"{}\" is :{}".format(actions_str, " ".join(sub_action_sequence))
             else:
                 sub_action_sequence = once_action
             answer += "\n"
@@ -414,7 +440,7 @@ class scan_master():
             action_sequence = action_sequence + sub_action_sequence
         
         answer += "Above all -- So, final answer is OUT:{}".format(" ".join(action_sequence))
-    
+        
         return answer, action_sequence, n_ir_pos, n_mn_pos
     
     def get_answer(self, raw_data, if_noise):
@@ -431,7 +457,7 @@ class scan_master():
             ir_noise_p = 0
             mn_noise_p = self.noise_ratio
         ir_noise_distrib_state = self._prepare_noise_distribution_iteration_state(n_ir_pos, ir_noise_p, self.noise_distribution) 
-        mn_noise_distrib_state = self._prepare_noise_distribution_iteration_state(n_mn_pos, mn_noise_p, self.noise_distribution)                 
+        mn_noise_distrib_state = self._prepare_noise_distribution_iteration_state(n_mn_pos, mn_noise_p, self.noise_distribution)               
         answer,action_sequence, _, _ = self._get_answer(in_content, ir_noise_distrib_state, mn_noise_distrib_state)
         
         # print(action_sequence)

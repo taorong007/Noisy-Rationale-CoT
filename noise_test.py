@@ -151,7 +151,7 @@ class noise_test:
                                                                       n_shots=self._n_shots,
                                                                       n_noisy_shots=self._n_noisy_shots,
                                                                       noise_type=self._noise_type,
-                                                                      noisy_level=self._noisy_level,
+                                                                      noise_ratio=self._noise_ratio,
                                                                       prefix_context=self._prefix_context,
                                                                       config=processor_config)
             self._dataset_config = self._dataset_processor.get_config()

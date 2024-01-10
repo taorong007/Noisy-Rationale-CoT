@@ -20,7 +20,7 @@ class bbh():
             self.if_in_context = False
         self.prefix_context = prefix_context
         if self.n_noisy_shots > 0:
-            if noise_type != "irrelevant" and noise_type != "minor_error":
+            if noise_type != "irrelevant" and noise_type != "inaccurate":
                 raise ValueError(f"noise type: {noise_type} not supported")
             self.noise_type = noise_type
             self.noise_ratio = noise_ratio
