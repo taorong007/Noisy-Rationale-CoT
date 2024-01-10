@@ -116,7 +116,7 @@ class base_math:
     def _generate_noise_distribution_list(self, n_thought, noise_ratio, noise_distribution):
         noise_distribution_list = [0] * n_thought
         if noise_distribution == "fixed":
-            noise_count = math.ceil(n_thought * noise_ratio)
+            noise_count = round(n_thought * noise_ratio)
             noise_positions = random.sample(range(n_thought), noise_count)
             for pos in noise_positions:
                 noise_distribution_list[pos] = 1
@@ -203,61 +203,130 @@ class base_math:
             randomnum = random.randrange(-3, 3, 1)
         return randomnum
     
-    def minor_error_answer(self, expr):
-        
-        noise_distribution_list = self._generate_noise_distribution_list(n_thought=16, noise_ratio=self.noise_ratio, noise_distribution=self.noise_distribution)
-        
+    def inaccurate_answer(self, expr):
         digits = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
         base = self.base
         lhs, rhs = expr.split("+")
         lt, lo = lhs  # tens, ones
         rt, ro = rhs
-        ones_sum_base10 = int(lo) + int(ro)
-        digit_one = np.base_repr(ones_sum_base10 % base, base)
-        carry_over =  int(ones_sum_base10/base)
-        tens_sum_base10 = int(lt) + int(rt) + carry_over
-        digit_ten =  np.base_repr((tens_sum_base10 + self._get_random_error()) % base, base)
-        tens_carry_over = int(tens_sum_base10 / base)
+        ones_sum = self.get_label(f"{lo}+{ro}")
+        carry_over = len(ones_sum) > 1
+        tens_sum_wo_carry = self.get_label(f"{lt}+{rt}")
         
+        noise_distribution_list = self._generate_noise_distribution_list(n_thought=5, noise_ratio=self.noise_ratio, noise_distribution=self.noise_distribution)
         
-        if tens_carry_over > 0:
-            result = str(tens_carry_over) + digit_ten + digit_one
+        if carry_over:
+            ones_carry_digit = 1
+            assert ones_sum[0] == "1"
+            tens_sum_w_carry = self.get_label(f"{tens_sum_wo_carry}+1")
         else:
-            result = digit_ten + digit_one
-            
-        explaination = f"Since we're in base-{base}, that exceeds the maximum value of {digits[base-1]} for a single digit." if carry_over >= 1 else f"Since we're in base-{base}, that doesn't exceed the maximum value of {digits[base-1]} for a single digit. "
+            ones_carry_digit = 0
+            tens_sum_w_carry = tens_sum_wo_carry
+        assert self.get_label(expr) == tens_sum_w_carry + ones_sum[-1:]
+        tens_carry_over = len(tens_sum_w_carry) > 1
+        tens_carry_digit = 1 if tens_carry_over else 0
+        explaination = f"Since we're in base-{base}, that exceeds the maximum value of {digits[base-1]} for a single digit." if carry_over == 1 else f"Since we're in base-{base}, that doesn't exceed the maximum value of {digits[base-1]} for a single digit. "
+    
         
         ret = f"In base-{base}, the digits are \"{digits[:base]}\". "
+        if self._should_add_noise(noise_distribution_list):
+            fact = ""
+            randomnum = 0
+            while randomnum == 0: 
+                randomnum = random.randrange(1, 9, 1)
+            fact += f"9 + {randomnum} = {9 + randomnum}"
+            ret += f"{fact}. "
         
-        lo_show = int(lo) + self._get_random_error() if self._should_add_noise(noise_distribution_list) else lo
-        ro_show = int(ro) + self._get_random_error() if self._should_add_noise(noise_distribution_list) else ro
-        ones_sum_base10_show = ones_sum_base10 + self._get_random_error() if self._should_add_noise(noise_distribution_list) else ones_sum_base10
-        ret += f"We have {lo_show} + {ro_show} = {ones_sum_base10_show} in base-10. "
+        ret += f" We have {lo} + {ro} = {int(lo) + int(ro)} in base-10. "
+        if self._should_add_noise(noise_distribution_list):
+            fact = ""
+            randomnum = 0
+            while randomnum == 0: 
+                randomnum = random.randrange(1, 9, 1)
+            fact += f"{int(lo) + int(ro)} + {randomnum} = {int(lo) + int(ro) + randomnum}"
+            ret += f"{fact}. "
+         
+        ret += explaination + f"{int(lo) + int(ro)} mod {base} = {ones_sum[-1]}, so the digit is {ones_sum[-1]} and the carry is {ones_carry_digit}. "
+        if self._should_add_noise(noise_distribution_list):
+            fact = ""
+            randomnum = 0
+            fact += f"{int(ones_sum[-1])} + 9 = {int(ones_sum[-1]) + 9}"
+            ret += f"{fact}. "
         
-        digit_one_show = int(digit_one) + self._get_random_error() if self._should_add_noise(noise_distribution_list) else digit_one
-        ones_sum_base10_show = ones_sum_base10 + self._get_random_error() if self._should_add_noise(noise_distribution_list) else ones_sum_base10
-        ret += explaination + f"{ones_sum_base10_show} mod {base} = {digit_one_show}, "
+        ret += f"We have {lt} + {rt} + {ones_carry_digit} = {int(lt) + int(rt) + ones_carry_digit} in base 10. " 
+        if self._should_add_noise(noise_distribution_list):
+            fact = ""
+            randomnum = 0
+            while randomnum == 0: 
+                randomnum = random.randrange(1, 9, 1)
+            fact += f"{int(lt) + int(rt) + ones_carry_digit} + {randomnum} = {int(lt) + int(rt) + ones_carry_digit + randomnum}"
+            ret += f"{fact}. "
         
-        digit_one_show = int(digit_one) + self._get_random_error() if self._should_add_noise(noise_distribution_list) else digit_one
-        carry_over_show = carry_over + self._get_random_error() if self._should_add_noise(noise_distribution_list) else carry_over
-        ret += f"so the digit is {digit_one_show} and the carry is {carry_over_show}." 
+        ret += f"{int(lt) + int(rt) + ones_carry_digit} mod {base} = {tens_sum_w_carry[-1]}, so the digit is {tens_sum_w_carry[-1]} and the carry is {tens_carry_digit}. A leading digit {tens_carry_digit}. "
+        if self._should_add_noise(noise_distribution_list):
+            fact = ""
+            fact += f"{int(tens_sum_w_carry[-1])} + 9 = {int(tens_sum_w_carry[-1]) + 9}"
+            ret += f"{fact}. "
+            
+        ret += f"So the answer is {self.get_label(expr)}. Answer:\\box{{{self.get_label(expr)}}}"
         
-        lt_show = int(lt) + self._get_random_error() if self._should_add_noise(noise_distribution_list) else lt
-        rt_show = int(rt) + self._get_random_error() if self._should_add_noise(noise_distribution_list) else rt
-        carry_over_show = carry_over + self._get_random_error() if self._should_add_noise(noise_distribution_list) else carry_over
-        tens_sum_base10_show = tens_sum_base10 + self._get_random_error() if self._should_add_noise(noise_distribution_list) else tens_sum_base10
-        ret += f"We have {lt_show} + {rt_show} + {carry_over_show} = {tens_sum_base10_show} in base 10. "
+        return ret
+    
+    # def inaccurate_answer(self, expr):
         
-        tens_sum_base10_show = tens_sum_base10 + self._get_random_error() if self._should_add_noise(noise_distribution_list) else tens_sum_base10
-        digit_ten_show = int(digit_ten) + self._get_random_error() if self._should_add_noise(noise_distribution_list) else digit_ten
-        ret += f"{tens_sum_base10} mod {base} = {digit_ten_show}, "
+    #     noise_distribution_list = self._generate_noise_distribution_list(n_thought=16, noise_ratio=self.noise_ratio, noise_distribution=self.noise_distribution)
         
-        digit_ten_show = int(digit_ten) + self._get_random_error() if self._should_add_noise(noise_distribution_list) else digit_ten
-        tens_carry_over_show = tens_carry_over + self._get_random_error() if self._should_add_noise(noise_distribution_list) else tens_carry_over
-        ret += f"so the digit is {digit_ten_show} and the carry is {tens_carry_over_show}. "
+    #     digits = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    #     base = self.base
+    #     lhs, rhs = expr.split("+")
+    #     lt, lo = lhs  # tens, ones
+    #     rt, ro = rhs
+    #     ones_sum_base10 = int(lo) + int(ro)
+    #     digit_one = np.base_repr(ones_sum_base10 % base, base)
+    #     carry_over =  int(ones_sum_base10/base)
+    #     tens_sum_base10 = int(lt) + int(rt) + carry_over
+    #     digit_ten =  np.base_repr((tens_sum_base10 + self._get_random_error()) % base, base)
+    #     tens_carry_over = int(tens_sum_base10 / base)
         
-        tens_carry_over_show = tens_carry_over + self._get_random_error() if self._should_add_noise(noise_distribution_list) else tens_carry_over
-        ret += f"A leading digit {tens_carry_over}. So the answer is {result}. Answer:\\box{{{result}}}"
+        
+    #     if tens_carry_over > 0:
+    #         result = str(tens_carry_over) + digit_ten + digit_one
+    #     else:
+    #         result = digit_ten + digit_one
+            
+    #     explaination = f"Since we're in base-{base}, that exceeds the maximum value of {digits[base-1]} for a single digit." if carry_over >= 1 else f"Since we're in base-{base}, that doesn't exceed the maximum value of {digits[base-1]} for a single digit. "
+        
+    #     ret = f"In base-{base}, the digits are \"{digits[:base]}\". "
+        
+    #     lo_show = int(lo) + self._get_random_error() if self._should_add_noise(noise_distribution_list) else lo
+    #     ro_show = int(ro) + self._get_random_error() if self._should_add_noise(noise_distribution_list) else ro
+    #     ones_sum_base10_show = ones_sum_base10 + self._get_random_error() if self._should_add_noise(noise_distribution_list) else ones_sum_base10
+    #     ret += f"We have {lo_show} + {ro_show} = {ones_sum_base10_show} in base-10. "
+        
+    #     digit_one_show = int(digit_one) + self._get_random_error() if self._should_add_noise(noise_distribution_list) else digit_one
+    #     ones_sum_base10_show = ones_sum_base10 + self._get_random_error() if self._should_add_noise(noise_distribution_list) else ones_sum_base10
+    #     ret += explaination + f"{ones_sum_base10_show} mod {base} = {digit_one_show}, "
+        
+    #     digit_one_show = int(digit_one) + self._get_random_error() if self._should_add_noise(noise_distribution_list) else digit_one
+    #     carry_over_show = carry_over + self._get_random_error() if self._should_add_noise(noise_distribution_list) else carry_over
+    #     ret += f"so the digit is {digit_one_show} and the carry is {carry_over_show}." 
+        
+    #     lt_show = int(lt) + self._get_random_error() if self._should_add_noise(noise_distribution_list) else lt
+    #     rt_show = int(rt) + self._get_random_error() if self._should_add_noise(noise_distribution_list) else rt
+    #     carry_over_show = carry_over + self._get_random_error() if self._should_add_noise(noise_distribution_list) else carry_over
+    #     tens_sum_base10_show = tens_sum_base10 + self._get_random_error() if self._should_add_noise(noise_distribution_list) else tens_sum_base10
+    #     ret += f"We have {lt_show} + {rt_show} + {carry_over_show} = {tens_sum_base10_show} in base 10. "
+        
+    #     tens_sum_base10_show = tens_sum_base10 + self._get_random_error() if self._should_add_noise(noise_distribution_list) else tens_sum_base10
+    #     digit_ten_show = int(digit_ten) + self._get_random_error() if self._should_add_noise(noise_distribution_list) else digit_ten
+    #     ret += f"{tens_sum_base10} mod {base} = {digit_ten_show}, "
+        
+    #     digit_ten_show = int(digit_ten) + self._get_random_error() if self._should_add_noise(noise_distribution_list) else digit_ten
+    #     tens_carry_over_show = tens_carry_over + self._get_random_error() if self._should_add_noise(noise_distribution_list) else tens_carry_over
+    #     ret += f"so the digit is {digit_ten_show} and the carry is {tens_carry_over_show}. "
+        
+    #     tens_carry_over_show = tens_carry_over + self._get_random_error() if self._should_add_noise(noise_distribution_list) else tens_carry_over
+    #     ret += f"A leading digit {tens_carry_over}. So the answer is {result}. Answer:\\box{{{result}}}"
         
         # if random.random() < noise_p:
         #     ones_sum_base10 += self._get_random_error()
@@ -302,7 +371,7 @@ class base_math:
                 selected_noise_set.add(fact_index)
                 # print(fact_index)
                 break
-        selected_fact = selected_fact[0].lower() + selected_fact[1:]
+        # selected_fact = selected_fact[0] + selected_fact[1:]
         if selected_fact[-1] == ".":
             selected_fact = selected_fact[:-1] 
         return selected_fact
@@ -312,9 +381,9 @@ class base_math:
         base = self.base
         digits = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
         if self.if_in_context:
-            return f"In base-{base}, what is {expr}? end the response with the result in \"Answer:\\boxed{{result}}\"."
+            return f"In base-{base}, what is {expr}? Please reason it step by step. End the response with the result in \"Answer:\\boxed{{result}}\"."
         else:
-            return f"You are a mathematician. Assuming that all numbers are in base-{base} where the digits are \"{digits[:base]}\", what is {expr}? End the response with the result in \"Answer:\\boxed{{result}}\"."
+            return f"You are a mathematician. Assuming that all numbers are in base-{base} where the digits are \"{digits[:base]}\", what is {expr}? Please reason it step by step. End the response with the result in \"Answer:\\boxed{{result}}\"."
         
 
     def get_case(self, expr):
@@ -347,8 +416,8 @@ class base_math:
                 noisy_demos = demos.split(',')[n_shots:n_shots + n_noisy_shot]
                 for demo in noisy_demos:
                     shot_q = self.get_question(demo)
-                    if self.noise_type == "minor_error":
-                        shot_a =  self.minor_error_answer(demo)
+                    if self.noise_type == "inaccurate":
+                        shot_a =  self.inaccurate_answer(demo)
                     elif self.noise_type == "irrelevant":
                         shot_a =  self.irrelevant_answer(demo)
                     else:

@@ -1,33 +1,35 @@
 # noise test
 model: gpt-3.5-turbo-0613 #gpt-3.5-turbo-0613 or llama2
-dataset: base_math # family_relation and base_math and GSM and SCAN
+dataset: SCAN # family_relation and base_math and GSM and SCAN
 start_num: 0
-test_num: 5
-batch_size: 1
+test_num:  300
+batch_size: 5
 
 ## in-context 
 if_in_context: True
-n_shots: 0 # self-made excellent shots
+n_shots: 3 # self-made excellent shots
 # n_weak_shots: 0 # original author's shots 
+prefix_context: False ## prefix
 
 ## noise
-if_noise: True
+if_noise: False
 n_noisy_shots: 3
-noise_type: irrelevant # irrelevant or minor_error
-noise_ratio: 0.5 # 0.3, 0.5 or 0.8
+noise_type: irrelevant # irrelevant or inaccurate
+noise_ratio: 0.8 # 0.3, 0.5 or 0.8
 noise_distribution: fixed #fixed or random
 
-## prefix
-prefix_context: False
 
 # method
-method: both # RV or RAV or both or baseline
-## baseline
+method: baseline # RV or RAV or both or baseline,  smoothllm, selfdenoise, selfdenoise
+
+## baseline, smoothllm
 temperature_reason: 1
 n_reason: 10
+
 ## RV or RAV or both
 temperature_rephrase: 0.75
 n_rephrase: 5
+
 ## RV
 RV_n_reason: 1
 RV_temp_reason: 0.1 # 0.1
@@ -36,6 +38,7 @@ RV_topp_reason: 1 # 1
 RAV_n_reason: 5
 RAV_temp_reason: 1 # 1
 RAV_topp_reason: 0.9 # 0.9
+
 # both
 RV_weight: 0.5
 RAV_weight: 0.5
@@ -47,12 +50,13 @@ base_math:
 
 # SCAN
 SCAN:
-  reasoning_type: "simple"
+  reasoning_type: "length"
 
 family_relation:
   train_set: 5
   reasoning_type: "symbolic"
   hop: 3
+  if_use_processed: False
 
 shuffled_obj:
   obj_num: 7
@@ -68,3 +72,6 @@ llama2:
   tokenizer_path: /vol/home/lanlong/xuanli/code/llama-main/tokenizer.model
   max_seq_len: 4000
   max_batch_size: 10
+
+BBH:
+  reasoning_type: formal_fallacies
