@@ -378,6 +378,7 @@ class noise_test:
             contrastive_question += "Don't offer anything else."
             contrastive_case["question"] = contrastive_question
             contrastive_queries.append(contrastive_case)
+        self._log(contrastive_queries)
         self._model.query_batch(contrastive_queries, temperature_rephrase, n_rephrase)
         n_shot_list = []
         for shot, query in zip(in_context, contrastive_queries):
@@ -442,18 +443,21 @@ class noise_test:
             if self._dataset_name == "base_math":
                 token_limit = 5
                 phrase_limit = 20
+                # remove over-short response
+                if len(heuristic_selected_index) > 1 and len(raw_answer) < token_limit:
+                    heuristic_selected_index.remove(i)
+                # remove over-long response
+                import re
+                pattern = r'[.,?!]'
+                phrases = re.split(pattern, raw_answer)
+                if len(heuristic_selected_index) > 1 and len(phrases) > phrase_limit:
+                    heuristic_selected_index.remove(i)
             elif self._dataset_name == "SCAN":
                 token_limit = 20
-                phrase_limit = 30  # need to be changed
-            # remove over-short response
-            if len(heuristic_selected_index) > 1 and len(raw_answer) < token_limit:
-                heuristic_selected_index.remove(i)
-            # remove over-long response
-            import re
-            pattern = r'[.,?!]'
-            phrases = re.split(pattern, raw_answer)
-            if len(heuristic_selected_index) > 1 and len(phrases) > phrase_limit:
-                heuristic_selected_index.remove(i)
+                # phrase_limit = 30  # need to be changed
+                # remove over-short response
+                if len(heuristic_selected_index) > 1 and len(raw_answer) < token_limit:
+                    heuristic_selected_index.remove(i)
 
         # 3. rank responses by similarity
         if len(heuristic_selected_index) == 1:
@@ -537,6 +541,60 @@ class noise_test:
                 SC_right_count += 1
 
         self._log("SC_correct_num:{}, vaild_num:{}, SC_correct_rate:{}".format(SC_right_count, valid_count,
+                                                                               SC_right_count / valid_count))
+        return SC_right_count, valid_count
+
+
+    def COT_RAV_SC_correct_rate(self, answers_list):
+        from collections import Counter
+        valid_count = 0
+        SC_right_count = 0
+        RV_length = self.RV_n_reason * self.n_rephrase
+        for answers in answers_list:
+            RAV_answers = [sublist for sublist in answers[RV_length:] if isinstance(sublist, list)]  # clean answers
+            if len(RAV_answers) == 0:
+                continue
+            else:
+                valid_count += 1
+
+            second_elements_are_1 = [sublist[1] == 1 for sublist in RAV_answers]
+            any_second_element_is_1 = any(second_elements_are_1)
+            if not any_second_element_is_1:
+                continue
+            true_answer = next((sublist[0] for sublist in RAV_answers if sublist[1] == 1), None)
+            counter = Counter(sublist[0] for sublist in RAV_answers)
+            guess_value, _ = counter.most_common(1)[0]
+            if guess_value == true_answer:
+                SC_right_count += 1
+
+        self._log("RAV_correct_num:{}, vaild_num:{}, RAV_correct_rate:{}".format(SC_right_count, valid_count,
+                                                                               SC_right_count / valid_count))
+        return SC_right_count, valid_count
+
+    def COT_RV_SC_correct_rate(self, answers_list):
+        from collections import Counter
+        valid_count = 0
+        SC_right_count = 0
+        RV_length = self.RV_n_reason * self.n_rephrase
+        for answers in answers_list:
+            RV_answers = [sublist for sublist in answers[:RV_length] if isinstance(sublist, list)]
+            # answers = [sublist for sublist in answers if isinstance(sublist, list)]  # clean answers
+            if len(RV_answers) == 0:
+                continue
+            else:
+                valid_count += 1
+
+            second_elements_are_1 = [sublist[1] == 1 for sublist in RV_answers]
+            any_second_element_is_1 = any(second_elements_are_1)
+            if not any_second_element_is_1:
+                continue
+            true_answer = next((sublist[0] for sublist in RV_answers if sublist[1] == 1), None)
+            counter = Counter(sublist[0] for sublist in RV_answers)
+            guess_value, _ = counter.most_common(1)[0]
+            if guess_value == true_answer:
+                SC_right_count += 1
+
+        self._log("RV_correct_num:{}, vaild_num:{}, RV_correct_rate:{}".format(SC_right_count, valid_count,
                                                                                SC_right_count / valid_count))
         return SC_right_count, valid_count
 

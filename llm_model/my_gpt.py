@@ -139,7 +139,7 @@ class my_gpt:
             if retval[0]:
                 return
             err_count += 1
-            if err_count == 100:
+            if err_count == 10:
                 messages.append({'role': "assistant", 'content': f"error:{retval}"})
                 break
             time.sleep(1)
