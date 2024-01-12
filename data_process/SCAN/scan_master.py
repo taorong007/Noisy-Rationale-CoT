@@ -140,11 +140,11 @@ class scan_master():
     def get_label(self, raw_data):
         return str(raw_data[1])
         
-    def get_random_fact(self, rephrase, selected_set):
-        facts = self.noise_facts[rephrase]
+    def get_random_fact(self, phrase, selected_set):
+        facts = self.noise_facts[phrase]
         while(1):
             random_index = random.randrange(0, len(facts))
-            selected = f"{rephrase}_{random_index}"
+            selected = f"{phrase}_{random_index}"
             if selected not in selected_set:
                 fact = facts[random_index]
                 selected_set.add(selected)
@@ -182,22 +182,24 @@ class scan_master():
         inaccurate_thought = ""
         another_action = self.another_action(action)
         error_action = self.another_action(another_action)
-        inaccurate_thought += f"{another_action} is I_{error_action.upper()}"
+        inaccurate_thought += f"The term '{another_action}' corresponds to the command I_{error_action.upper()}. "
         return inaccurate_thought
     
     def get_inaccurate_thought_of_direction(self, direction):
         inaccurate_thought = ""
         the_other_direction = self.other_direction(direction)
         error_direction = direction
-        inaccurate_thought += f"turn {the_other_direction} is I_TURN_{error_direction.upper()}"
+        inaccurate_thought += f"The term '{the_other_direction}' translates to  I_TURN_{error_direction.upper()}. "
         return inaccurate_thought
     
     def get_inaccurate_thought_of_angle(self, angle):
         inaccurate_thought = ""
         if angle == "around":
-            inaccurate_thought = f"opposite is I_TURN_LEFT, I_TURN_RIGHT"
+            random_squence = random.choice(["I_TURN_LEFT, I_TURN_RIGHT",  "I_TURN_RIGHT, I_TURN_LEFT", "I_TURN_LEFT", "I_TURN_RIGHT"])
+            inaccurate_thought = f"The term 'opposite' implies a 180-degree turn, which requires {random_squence}. "
         else:
-            inaccurate_thought = f"around is I_TURN_LEFT, I_TURN_LEFT, I_TURN_LEFT"
+            random_squence = random.choice(["I_TURN_LEFT, I_TURN_RIGHT, I_TURN_LEFT, I_TURN_RIGHT",  "I_TURN_LEFT, I_TURN_RIGHT, I_TURN_RIGHT", "I_TURN_RIGHT, I_TURN_RIGHT, I_TURN_RIGHT", "I_TURN_LEFT, I_TURN_LEFT, I_TURN_LEFT"])
+            inaccurate_thought = f"The term 'around' implies a 360-degree loop, which requires {random_squence}. "
         return inaccurate_thought
 
     def get_inaccurate_thought_of_times(self, times_phrase):
@@ -208,7 +210,7 @@ class scan_master():
             another_phrase = "twice"
             times = 2
         err_times =  times + random.randrange(1,5,1)
-        inaccurate_thought =  f"{another_phrase} is {err_times} times"
+        inaccurate_thought =  f"{another_phrase} means the entire sequence is repeated {err_times} times"
         return inaccurate_thought
     
     def _get_answer(self, in_content, ir_noise_distrib_state=None, mn_noise_distrib_state=None):
@@ -221,10 +223,10 @@ class scan_master():
         
         if "and" in in_content.split():
             sub_action_list = [actions.split() for actions in in_content.split("and")]
-            answer += "Since command is {}, we should consider Step1: \"{}\" firstly. \n".format(in_content, " ".join(sub_action_list[0]))
+            answer += "Since command is {}, we should consider Step1: \"{}\" firstly, \n".format(in_content, " ".join(sub_action_list[0]))
         elif "after" in in_content.split():
             sub_action_list = [actions.split() for actions in in_content.split("after")]
-            answer += "Since command is {}, we should consider Step1: \"{}\" firstly. \n".format(in_content, " ".join(sub_action_list[1]))
+            answer += "Since command is {}, we should consider Step1: \"{}\" firstly, \n".format(in_content, " ".join(sub_action_list[1]))
             sub_action_list.reverse()
         else:
             sub_action_list = [in_content.split()]
@@ -236,7 +238,7 @@ class scan_master():
         for i, actions in enumerate(sub_action_list):
             actions_str = " ".join(actions)
             if i > 0:
-                answer += "Now, we consider Step2:\"{}\". ".format(actions_str)
+                answer += "Now, we consider Step2:\"{}\", ".format(actions_str)
             if len(actions) > 4:
                 print(f"err:{actions_str}, length")
                 continue
@@ -278,11 +280,11 @@ class scan_master():
                 once_action = []
                 once_action.append(f"I_{this_action.upper()}")
                 
-                answer += "\"{}\" means the agent needs to {}. So, in action sequence is {}. ".format(this_action, this_action, " ".join(once_action))
+                answer += "\"{}\" means the agent needs to {}, in action sequence is {}. ".format(this_action, this_action, " ".join(once_action))
                 
                 n_mn_pos += 1
                 if self._should_add_noise(mn_noise_distrib_state):
-                    answer += self.capitalize(self.get_inaccurate_thought_of_action(this_action) + ". ")
+                    answer += self.get_inaccurate_thought_of_action(this_action)
                 
                 n_ir_pos += 1
                 if self._should_add_noise(ir_noise_distrib_state):
@@ -293,13 +295,13 @@ class scan_master():
                 once_action = []
                 once_action.append(f"I_TURN_{this_direction.upper()}")
                 answer += f"\"{this_action} {this_direction}\" means the agent needs to turn {this_direction}"
-                
                 if this_action_kind == 2:
                     once_action.append(f"I_{this_action.upper()}")
                     answer += f" and {this_action}"
                 answer += ". "
                 
-                this_noise = []
+                answer += f"The '{this_direction}' corresponds to the command I_TURN_{this_direction.upper()}. "
+                
                 n_ir_pos += 1
                 if self._should_add_noise(ir_noise_distrib_state):
                     noise_fact = self.get_random_fact(this_direction, selected_set)
@@ -307,112 +309,136 @@ class scan_master():
                 
                 n_mn_pos += 1
                 if self._should_add_noise(mn_noise_distrib_state):
-                    this_noise.append(self.get_inaccurate_thought_of_direction(this_direction))
+                    answer += self.get_inaccurate_thought_of_direction(this_direction)
                 
                 if this_action_kind == 2:
+                    answer +=  f"Subsequently, '{this_action}' translates to I_{this_action.upper()}. "
                     n_ir_pos += 1
                     if self._should_add_noise(ir_noise_distrib_state):
                         noise_fact = self.get_random_fact(this_action, selected_set)
                         answer += noise_fact
                     n_mn_pos += 1
                     if self._should_add_noise(mn_noise_distrib_state):
-                        this_noise.append(self.get_inaccurate_thought_of_action(this_action))
+                        answer += self.get_inaccurate_thought_of_action(this_action)
                 
-                if len(this_noise) > 0:
-                    answer += self.capitalize(", ".join(this_noise) + ". ")
-                answer += "So, in action sequence is {}. ".format(" ".join(once_action))
+                answer += "Therefore, the action sequence is {}. ".format(" ".join(once_action))
+                n_ir_pos += 1
+                if self._should_add_noise(ir_noise_distrib_state):
+                    noise_fact = self.get_random_fact("action sequence", selected_set)
+                    answer += noise_fact
+                n_mn_pos += 1
+                if self._should_add_noise(mn_noise_distrib_state):
+                    answer += self.get_inaccurate_thought_of_action(this_direction)
             else:
                 once_action = []
                 if this_angle == "opposite":
+                    
                     answer += f"\"{this_action} {this_angle} {this_direction}\" means the agent needs to turn {this_direction} twice"
                     once_action.append(f"I_TURN_{this_direction.upper()}")
                     once_action.append(f"I_TURN_{this_direction.upper()}")
-
                     if this_action_kind == 2:
                         once_action.append(f"I_{this_action.upper()}")
                         answer += f" before {this_action}"
-
-                    answer += ". "                    
-                    
-                    if this_action_kind == 2:
-                        n_ir_pos += 1
-                        if self._should_add_noise(ir_noise_distrib_state):
-                            noise_fact = self.get_random_fact(this_action, selected_set)
-                            answer += noise_fact
-                    
+                    answer += ". "       
                     n_ir_pos += 1
                     if self._should_add_noise(ir_noise_distrib_state):
                         noise_fact = self.get_random_fact("opposite", selected_set)
                         answer += noise_fact
+                    n_mn_pos += 1
+                    if self._should_add_noise(mn_noise_distrib_state):
+                        answer += self.get_inaccurate_thought_of_angle(this_angle)
                     
+                    
+                    answer += f"'{this_direction}' corresponds to the command I_TURN_{this_direction.upper()}. "
                     n_ir_pos += 1
                     if self._should_add_noise(ir_noise_distrib_state):
                         noise_fact = self.get_random_fact(this_direction, selected_set)
                         answer += noise_fact
-
-                    this_noise = []
-                    
                     n_mn_pos += 1
                     if self._should_add_noise(mn_noise_distrib_state):
-                        this_noise.append(self.get_inaccurate_thought_of_angle(this_angle))
+                        answer += self.get_inaccurate_thought_of_direction(this_direction)
+                    
                     
                     if this_action_kind == 2:
-                        n_mn_pos += 1
-                        if self._should_add_noise(mn_noise_distrib_state):
-                            this_noise.append(self.get_inaccurate_thought_of_action(this_action))
-                    
-                    n_mn_pos += 1
-                    if self._should_add_noise(mn_noise_distrib_state):
-                        this_noise.append(self.get_inaccurate_thought_of_direction(this_direction))
-                    if len(this_noise) > 0:
-                        answer += self.capitalize(", ".join(this_noise) + ". ")
-                        
-                elif this_angle == "around":
-                    answer += f"\"{this_action} {this_angle} {this_direction}\" means the agent needs to turn {this_direction}"
-                    once_action.append(f"I_TURN_{this_direction.upper()}")
-                        
-                    if this_action_kind == 2:
-                        once_action.append(f"I_{this_action.upper()}")
-                        answer += f" and {this_action}"
-                        
-                    once_action = 4 * once_action
-                    answer += ", and repeat this action sequence four times to complete a 360-degree loop"
-                    answer += ". "
-                    
-                    if this_action_kind == 2:
+                        answer += f"'{this_action}' translates to I_{this_action.upper()}. "
                         n_ir_pos += 1
                         if self._should_add_noise(ir_noise_distrib_state):
                             noise_fact = self.get_random_fact(this_action, selected_set)
                             answer += noise_fact
+                        n_mn_pos += 1
+                        if self._should_add_noise(mn_noise_distrib_state):
+                            answer += self.get_inaccurate_thought_of_action(this_action)
                     
+                    
+                    if this_action_kind == 2:    
+                        answer += f"The term 'opposite' implies a 180-degree turn, which requires the agent to perform the turn {this_direction} twice before {this_action}. " 
+                    else:
+                        answer += f"The term 'opposite' implies a 180-degree turn, which requires the agent to perform the turn {this_direction} twice. " 
+                    n_ir_pos += 1
+                    if self._should_add_noise(ir_noise_distrib_state):
+                        noise_fact = self.get_random_fact("opposite", selected_set)
+                        answer += noise_fact
+                    n_mn_pos += 1
+                    if self._should_add_noise(mn_noise_distrib_state):
+                        answer += self.get_inaccurate_thought_of_angle(this_angle)
+                        
+                elif this_angle == "around":
+                    answer += f"\"{this_action} {this_angle} {this_direction}\" means the agent needs to turn {this_direction}"
+                    once_action.append(f"I_TURN_{this_direction.upper()}")
+                    if this_action_kind == 2:
+                        once_action.append(f"I_{this_action.upper()}")
+                        answer += f" and {this_action}"            
+                    once_action = 4 * once_action
+                    answer += ", and repeat this action sequence four times. "
                     n_ir_pos += 1
                     if self._should_add_noise(ir_noise_distrib_state):
                         noise_fact = self.get_random_fact("around", selected_set)
                         answer += noise_fact
-                    
+                    n_mn_pos += 1
+                    if self._should_add_noise(mn_noise_distrib_state):
+                        answer += self.get_inaccurate_thought_of_angle(this_angle)
+            
+                    answer += f"'{this_direction}' corresponds to the command I_TURN_{this_direction.upper()}. "
                     n_ir_pos += 1
                     if self._should_add_noise(ir_noise_distrib_state):
                         noise_fact = self.get_random_fact(this_direction, selected_set)
                         answer += noise_fact
-
-                    this_noise = []
-                    
                     n_mn_pos += 1
                     if self._should_add_noise(mn_noise_distrib_state):
-                        this_noise.append(self.get_inaccurate_thought_of_angle(this_angle))
-                        
+                        answer += self.get_inaccurate_thought_of_direction(this_direction)     
+                    
                     if this_action_kind == 2:
+                        answer += f"'{this_action}' translates to I_{this_action.upper()}. "
+                        n_ir_pos += 1
+                        if self._should_add_noise(ir_noise_distrib_state):
+                            noise_fact = self.get_random_fact(this_action, selected_set)
+                            answer += noise_fact
                         n_mn_pos += 1
                         if self._should_add_noise(mn_noise_distrib_state):
-                            this_noise.append(self.get_inaccurate_thought_of_action(this_action))
+                            answer += self.get_inaccurate_thought_of_action(this_action)
 
+                    
+                    if this_action_kind == 2:
+                        answer += f"The term 'around' implies to complete a 360-degree loop by repeating the sequence of I_TURN_{this_direction.upper()}, I_{this_action.upper()} four times. "     
+                    else:
+                        answer += f"The term 'around' implies to complete a 360-degree loop by repeating the sequence of I_TURN_{this_direction.upper()} four times. "  
+                    n_ir_pos += 1
+                    if self._should_add_noise(ir_noise_distrib_state):
+                        noise_fact = self.get_random_fact("around", selected_set)
+                        answer += noise_fact
                     n_mn_pos += 1
                     if self._should_add_noise(mn_noise_distrib_state):
-                        this_noise.append(self.get_inaccurate_thought_of_direction(this_direction))
-    
-                    if len(this_noise) > 0:
-                        answer += self.capitalize(", ".join(this_noise) + ". ")
-                answer += "So, in action sequence is {}. ".format(" ".join(once_action))
+                        answer += self.get_inaccurate_thought_of_angle(this_angle)
+
+                    
+                answer += "Therefore, the action sequence is {}. ".format(" ".join(once_action))
+                n_ir_pos += 1
+                if self._should_add_noise(ir_noise_distrib_state):
+                    noise_fact = self.get_random_fact("action sequence", selected_set)
+                    answer += noise_fact
+                n_mn_pos += 1
+                if self._should_add_noise(mn_noise_distrib_state):
+                    answer += self.get_inaccurate_thought_of_angle(this_angle)
                 
             if this_times != "":
                 if this_times == "twice":
@@ -421,8 +447,8 @@ class scan_master():
                 if this_times == "thrice":
                     sub_action_sequence = once_action * 3
                     action_times = 3
-                answer += f"Since we need do {this_times} in command \"{actions_str}\",  this entire sequence is repeated {action_times} times. "
-                
+                answer += f"Since we need do {this_times} in command \"{actions_str}\",  this entire sequence is repeated {action_times} times, "
+                answer += "so the action sequence to \"{}\" is :{}. ".format(actions_str, " ".join(sub_action_sequence))
                 n_ir_pos += 1
                 if self._should_add_noise(ir_noise_distrib_state):
                     noise_fact = self.get_random_fact(this_times, selected_set)
@@ -431,8 +457,6 @@ class scan_master():
                 n_mn_pos += 1
                 if self._should_add_noise(mn_noise_distrib_state):
                     answer += self.capitalize(self.get_inaccurate_thought_of_times(this_times) + ". ")
-
-                answer += "So the action sequence to \"{}\" is :{}".format(actions_str, " ".join(sub_action_sequence))
             else:
                 sub_action_sequence = once_action
             answer += "\n"
@@ -464,12 +488,19 @@ class scan_master():
         assert str(action_sequence) == str(label)
         return answer
 
-    def get_random_demos(self, num):
+    def get_random_demos(self, num, index_list = None):
         assert len(self.trainset) > num
-        demos = random.sample(self.trainset, num)
+        indexed_trainset = list(enumerate(self.trainset))
+        selected_samples = random.sample(indexed_trainset, num)
+        if index_list is not None:
+            index_list.extend([index for index, _ in selected_samples])
+        demos = [demo for _, demo in selected_samples]
         return demos
     
-    def get_case(self, raw_data):
+    def get_demos_by_index_list(num, index_list):
+        pass
+    
+    def get_case(self, raw_data, if_generate_info=False, ICL_index_list=None):
         case = dict()
         qustion  = self.get_question(raw_data)
         label = self.get_label(raw_data)
@@ -485,7 +516,10 @@ class scan_master():
                 # demos = demos[:n_total_shots]
                 # for demo in demos:
                 #     shots.append([demo["question"], demo["answer"]])
-                demos = self.get_random_demos(num=n_total_shots)
+                if ICL_index_list is None:
+                    demos = self.get_random_demos(num=n_total_shots)
+                else:
+                    demos = self.get_demos_by_index_list(ICL_index_list)
                 normal_demos = demos[:n_shots]
                 noise_demos = demos[n_shots:]
                 for demo in normal_demos:

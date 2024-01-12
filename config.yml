@@ -1,23 +1,32 @@
 # noise test
 model: gpt-3.5-turbo-0613 #gpt-3.5-turbo-0613 or llama2
-dataset: SCAN # family_relation and base_math and GSM and SCAN
+dataset: base_math # family_relation and base_math and GSM and SCAN
 start_num: 0
 test_num:  300
 batch_size: 5
 
-## in-context 
-if_in_context: True
-n_shots: 3 # self-made excellent shots
-# n_weak_shots: 0 # original author's shots 
+# use_processed_dataset or use raw dataset
+use_processed_dataset: False
+
+processed_dataset_options:
+  processed_dataset_path: default-easy # processed dataset path or one of ["default-zeroshot"， "default-clean", "default-(irrelevant|inaccurate)-(easy|medium|hard)"]
+  n_shots: 3
+
+raw_dataset_options:
+  ## in-context 
+  if_in_context: True
+  n_shots: 0 # self-made excellent shots
+  # n_weak_shots: 0
+
+  ## noise
+  if_noise: True
+  n_noisy_shots: 10
+  noise_type: inaccurate # irrelevant or inaccurate
+  noise_ratio: 0.8 # 0.3, 0.5 or 0.8
+  noise_distribution: fixed #fixed or random
+
+# ICL format
 prefix_context: False ## prefix
-
-## noise
-if_noise: False
-n_noisy_shots: 3
-noise_type: irrelevant # irrelevant or inaccurate
-noise_ratio: 0.8 # 0.3, 0.5 or 0.8
-noise_distribution: fixed #fixed or random
-
 
 # method
 method: baseline # RV or RAV or both or baseline,  smoothllm, selfdenoise, selfdenoise
@@ -47,7 +56,7 @@ RAV_weight: 0.5
 
 # math base
 base_math:
-  base: 9
+  reasoning_type: base-9
 
 # SCAN
 SCAN:

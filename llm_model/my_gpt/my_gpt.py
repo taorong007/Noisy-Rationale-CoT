@@ -6,7 +6,7 @@ import time
 
 
 class my_gpt:
-    def __init__(self, model='gpt-3.5-turbo', config: dict = None, api="openai", temperature=1, run_times=1) -> None:
+    def __init__(self, model='gpt-3.5-turbo', config: dict = None, api="openai") -> None:
         if config != None:
             api = config["api"] if "api" in config else api
             # temperature = config["temperature"] if "temperature" in config else temperature
