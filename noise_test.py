@@ -18,6 +18,7 @@ from datetime import datetime
 import copy
 import string
 import argparse
+import zipfile
 
 def wr_log(obj, log_file):
     print(obj)
@@ -27,6 +28,7 @@ def wr_log(obj, log_file):
 
 class noise_test:
     def __init__(self, args) -> None:
+        self.config = args
         self._model_name = args["model"]
         self._dataset_name = args["dataset"]
         self._start_num = args["start_num"]
@@ -36,27 +38,53 @@ class noise_test:
         assert self._test_num / self._batch_size == int(
             self._test_num / self._batch_size), "test_num / batch_size should be a positive integer"
 
-        self._if_in_context = args["if_in_context"] if "if_in_context" in args else False
+        self.use_processed_dataset =  args["use_processed_dataset"]
+        if(self.use_processed_dataset):
+            processed_dataset_options = args["processed_dataset_options"]
+            processed_dataset_path = processed_dataset_options["processed_dataset_path"]
+            if processed_dataset_path.startswith("default-"):
+                dataset_label = processed_dataset_path.split("-")
+                self.processed_dataset_path = self._get_default_processed_dataset_name(dataset_label)
+            else:
+                self.processed_dataset_path = processed_dataset_path
+            with open(self.processed_dataset_path, "r", encoding="utf-8") as f:
+                config = json.load(f)["config"]
+            if dataset_label[1] == "zeroshot":
+                config["if_in_context"] = False
+            else:
+                config["if_in_context"] = True
+                assert processed_dataset_options["n_shots"] <= config["n_max_shots"]
+                if config["if_noise"] == True:
+                    config["n_shots"] = 0
+                    config["n_noisy_shots"] = processed_dataset_options["n_shots"]
+                else:
+                    config["n_shots"] = processed_dataset_options["n_shots"]
+                    config["n_noisy_shots"] = 0
+                
+        else:
+            config = args["raw_dataset_options"]
+        
+        self._if_in_context = config["if_in_context"] if "if_in_context" in config else False
         if self._if_in_context:
-            self._if_noise = args["if_noise"] if "if_noise" in args else False
-            self._n_shots = args["n_shots"] if "n_shots" in args else 1
-            self._n_weak_shots = args["n_weak_shots"] if "n_weak_shots" in args else 0
+            self._if_noise = config["if_noise"] if "if_noise" in config else False
+            self._n_shots = config["n_shots"] if "n_shots" in config else 1
+            self._n_weak_shots = config["n_weak_shots"] if "n_weak_shots" in config else 0
         else:
             self._if_noise = False
             self._n_shots = 0
             self._n_weak_shots = 0
 
         if self._if_noise:
-            self._n_noisy_shots = args["n_noisy_shots"] if "n_noisy_shots" in args else 0
+            self._n_noisy_shots = config["n_noisy_shots"] if "n_noisy_shots" in config else 0
             if self._n_noisy_shots == 0:
                 self._if_noise = False
                 self._noise_type = None
                 self._noise_ratio = 0
                 self._noise_distribution = None
             else:
-                self._noise_type = args["noise_type"]
-                self._noise_ratio = args["noise_ratio"]
-                self._noise_distribution = args["noise_distribution"]
+                self._noise_type = config["noise_type"]
+                self._noise_ratio = config["noise_ratio"]
+                self._noise_distribution = config["noise_distribution"]
         else:
             self._n_noisy_shots = 0
             self._noise_type = None
@@ -65,7 +93,122 @@ class noise_test:
         
         self._prefix_context = args["prefix_context"] if "prefix_context" in args else False
 
-        self.method = args["method"]
+        
+        random.seed(time.time())
+
+        self._init_model()
+        self._init_dataset()
+        self._init_method()
+        log_name = args["log_name"] if "log_name" in args else self._get_log_file_name()
+        self._log_file = open(log_name, 'w', encoding='utf-8')
+        dirname = os.path.dirname(log_name)
+        basename = os.path.basename(log_name)
+        name_without_ext = os.path.splitext(basename)[0]
+        self._pickle_name = os.path.join(dirname, name_without_ext + '.pkl')
+        self._log(args)
+
+        self._correct_num = 0
+        self._error_num = 0
+        self._not_match_num = 0
+        self._case_list = []
+        self._answers_list = []
+        self._contents_list = []
+        self._noise_test_result = None
+
+        return
+
+    def _unzip_default_processed_dataset(self, file_dir):
+        file_path = os.path.join(file_dir, "processed.zip")
+        if os.path.exists(file_path):
+            with zipfile.ZipFile(file_path, 'r') as zip_ref:
+                zip_ref.extractall(file_dir)
+            print(f"processed_dataset has been extracted to {file_dir}")
+            
+    def _get_default_processed_dataset_name(self, dataset_label):
+        args = self.config
+        noise_type = ["zoreshot","clean", "irrelevant", "inaccurate"]
+        noise_difficulty = ["easy", "medium", "hard"]
+        type = dataset_label[1]
+        assert type in noise_type
+        if type in ["irrelevant", "inaccurate"]:
+            file_name =  f"{type}"
+            difficulty = dataset_label[2]
+            distribution = dataset_label[3]
+            assert difficulty in noise_difficulty
+            file_name += f"_{difficulty}_{distribution}.json"
+        else:
+            file_name = "clean.json"
+        if self._dataset_name == "base_math":
+            reasoning_type = args[self._dataset_name]["reasoning_type"]
+            dataset_dir = os.path.join("data", "base_math") 
+            processed_dataset_dir = os.path.join("data", "base_math", "processed",  reasoning_type) 
+        elif self._dataset_name == "family_relation":
+            dataset_dir = os.path.join("data", "data_emnlp_final")
+            processed_dataset_dir = os.path.join("data", "data_emnlp_final", "processed") 
+        elif self._dataset_name == "SCAN":
+            reasoning_type = args[self._dataset_name]["reasoning_type"]
+            dataset_dir = os.path.join("data", "SCAN-master")
+            processed_dataset_dir = os.path.join("data", "SCAN-master", "processed", reasoning_type) 
+        else:
+            raise ValueError(f"dataset {self._dataset_name} are not supported in default")
+        if not os.path.exists(os.path.join(processed_dataset_dir, file_name)):
+            self._unzip_default_processed_dataset(dataset_dir)
+        if not os.path.exists(os.path.join(processed_dataset_dir, file_name)):
+            raise ValueError(f"default file {os.path.join(processed_dataset_dir, file_name)} not exist")
+        return os.path.join(processed_dataset_dir, file_name)
+
+    def _init_model(self):
+        if self._model_name == "llama2":
+            from llm_model.llama.my_llama import my_llama
+            model_config = self.config["llama2"] if "llama2" in self.config else None
+            self._model = my_llama(config=model_config)
+        elif self._model_name.split("-")[0] == "gpt":
+            from llm_model.my_gpt.my_gpt import my_gpt
+            model_config = self.config["gpt"] if "gpt" in self.config else None
+            self._model = my_gpt(model=self._model_name, config=model_config)
+        else:
+            raise ValueError("Unsupported model {}".format(self._model_name))
+
+    def _load_processed_dataset(self):
+        with open(self.processed_dataset_path, "r", encoding="utf-8") as f:
+            dataset = json.load(f)["content"]
+        return dataset
+
+    def _init_dataset(self):
+        processor_config = self.config[self._dataset_name] if self._dataset_name in self.config else None
+        if self._dataset_name == "base_math":
+            self._dataset_processor = base_math.base_math(n_shots=self._n_shots,
+                                                            n_noisy_shots=self._n_noisy_shots,
+                                                            noise_type=self._noise_type, noise_ratio=self._noise_ratio, noise_distribution=self._noise_distribution,
+                                                            prefix_context=self._prefix_context, config=processor_config)
+        elif self._dataset_name == "family_relation":
+            self._dataset_processor = family_relation.family_relation(if_in_context=self._if_in_context,
+                                                                      n_shots=self._n_shots,
+                                                                      n_noisy_shots=self._n_noisy_shots,
+                                                                      noise_type=self._noise_type,
+                                                                      noise_ratio=self._noise_ratio,
+                                                                      prefix_context=self._prefix_context,
+                                                                      config=processor_config)
+            self._dataset_config = self._dataset_processor.get_config()
+        elif self._dataset_name == "GSM":
+            self._dataset_processor = GSM.GSM(n_shots=self._n_shots, n_noisy_shots=self._n_noisy_shots, noise_type=self._noise_type,  noisy_level=self._noisy_level, prefix_context=self._prefix_context)
+        elif self._dataset_name == "SCAN":
+            self._dataset_processor = scan_master.scan_master(n_shots=self._n_shots, n_noisy_shots=self._n_noisy_shots, noise_type=self._noise_type,  noise_ratio=self._noise_ratio, noise_distribution=self._noise_distribution, prefix_context=self._prefix_context, config = processor_config)
+        elif self._dataset_name == "BBH":
+            self._dataset_processor = bbh.bbh(n_shots=self._n_shots, n_noisy_shots=self._n_noisy_shots, noise_type=self._noise_type,  noise_ratio=self._noise_ratio, noise_distribution=self._noise_distribution, prefix_context=self._prefix_context, config = processor_config)
+        elif self._dataset_name == "shuffled_obj":
+            self._dataset_processor = shuffled_obj.tracking_shuffled_objects(n_shots=self._n_shots, n_noisy_shots=self._n_noisy_shots, noise_type=self._noise_type,  noise_ratio=self._noise_ratio, noise_distribution=self._noise_distribution, prefix_context=self._prefix_context, config = processor_config)
+        else:
+            raise ValueError("Unsupported dataset {}".format(self._dataset_name))
+        if not self.use_processed_dataset:
+            self._dataset = self._dataset_processor.load_data()
+        else:
+            self._dataset =  self._load_processed_dataset()
+        assert len(self._dataset) >= self._test_num
+
+    def _init_method(self):
+        self.method = self.config["method"]
+        args = self.config
         if self.method == "baseline":
             self.temperature_reason = args["temperature_reason"] if "temperature_reason" in args else 1
             self.n_reason = args["n_reason"] if "n_reason" in args else 1
@@ -100,77 +243,15 @@ class noise_test:
             from method.SelfDenoise_main.baseline_test import SelfDenoise
             self.temperature_reason = args["temperature_reason"] if "temperature_reason" in args else 1
             self.n_reason = args["n_reason"] if "n_reason" in args else 1
-        random.seed(time.time())
-
-        self._init_model()
-        self._init_dataset()
             
         if self.method == "smoothllm":
             self.smoothllm = SmoothLLM(self._model, self._dataset_processor, "RandomSwapPerturbation", 10, self.n_reason)
         elif self.method == "selfdenoise":
             self.SelfDenoise = SelfDenoise(n_reason=self.n_reason)
-        log_name = args["log_name"] if "log_name" in args else self._get_log_file_name()
-        self._log_file = open(log_name, 'w', encoding='utf-8')
-        dirname = os.path.dirname(log_name)
-        basename = os.path.basename(log_name)
-        name_without_ext = os.path.splitext(basename)[0]
-        self._pickle_name = os.path.join(dirname, name_without_ext + '.pkl')
-        self._log(args)
-
-        self._correct_num = 0
-        self._error_num = 0
-        self._not_match_num = 0
-        self._case_list = []
-        self._answers_list = []
-        self._contents_list = []
-        self._noise_test_result = None
-
-        return
-
-    def _init_model(self):
-        if self._model_name == "llama2":
-            from llm_model.llama.my_llama import my_llama
-            model_config = config["llama2"] if "llama2" in config else None
-            self._model = my_llama(config=model_config)
-        elif self._model_name.split("-")[0] == "gpt":
-            from llm_model.my_gpt.my_gpt import my_gpt
-            model_config = config["gpt"] if "gpt" in config else None
-            self._model = my_gpt(model=self._model_name, config=model_config)
-        else:
-            raise ValueError("Unsupported model {}".format(self._model_name))
-
-    def _init_dataset(self):
-        processor_config = config[self._dataset_name] if self._dataset_name in config else None
-        if self._dataset_name == "base_math":
-            self._dataset_processor = base_math.base_math(n_shots=self._n_shots,
-                                                          n_noisy_shots=self._n_noisy_shots,
-                                                          noise_type=self._noise_type, noise_ratio=self._noise_ratio, noise_distribution=self._noise_distribution,
-                                                          prefix_context=self._prefix_context, config=processor_config)
-        elif self._dataset_name == "family_relation":
-            self._dataset_processor = family_relation.family_relation(if_in_context=self._if_in_context,
-                                                                      n_shots=self._n_shots,
-                                                                      n_noisy_shots=self._n_noisy_shots,
-                                                                      noise_type=self._noise_type,
-                                                                      noise_ratio=self._noise_ratio,
-                                                                      prefix_context=self._prefix_context,
-                                                                      config=processor_config)
-            self._dataset_config = self._dataset_processor.get_config()
-        elif self._dataset_name == "GSM":
-            self._dataset_processor = GSM.GSM(n_shots=self._n_shots, n_noisy_shots=self._n_noisy_shots, noise_type=self._noise_type,  noisy_level=self._noisy_level, prefix_context=self._prefix_context)
-        elif self._dataset_name == "SCAN":
-            self._dataset_processor = scan_master.scan_master(n_shots=self._n_shots, n_noisy_shots=self._n_noisy_shots, noise_type=self._noise_type,  noise_ratio=self._noise_ratio, noise_distribution=self._noise_distribution, prefix_context=self._prefix_context, config = processor_config)
-        elif self._dataset_name == "BBH":
-            self._dataset_processor = bbh.bbh(n_shots=self._n_shots, n_noisy_shots=self._n_noisy_shots, noise_type=self._noise_type,  noise_ratio=self._noise_ratio, noise_distribution=self._noise_distribution, prefix_context=self._prefix_context, config = processor_config)
-        elif self._dataset_name == "shuffled_obj":
-            self._dataset_processor = shuffled_obj.tracking_shuffled_objects(n_shots=self._n_shots, n_noisy_shots=self._n_noisy_shots, noise_type=self._noise_type,  noise_ratio=self._noise_ratio, noise_distribution=self._noise_distribution, prefix_context=self._prefix_context, config = processor_config)
-        else:
-            raise ValueError("Unsupported dataset {}".format(self._dataset_name))
-        self._dataset = self._dataset_processor.load_data()
-        assert len(self._dataset) >= self._test_num
 
     def _get_log_file_name(self):
         log_path = os.path.join("result", self._dataset_name)
-        dataset_config = config[self._dataset_name] if self._dataset_name in config else None
+        dataset_config = self.config[self._dataset_name] if self._dataset_name in self.config else None
         if dataset_config != None:
             if "reasoning_type" in dataset_config:
                 log_path = os.path.join(log_path, dataset_config["reasoning_type"])
@@ -351,9 +432,21 @@ class noise_test:
                                for i in range(0, len(self._contents_list), case_n)]
 
     def _question_insert(self, raw_data):
-        processed_case = self._dataset_processor.get_case(raw_data)
-        self._case_list.append(processed_case)
-
+        if not self.use_processed_dataset:
+            processed_case = self._dataset_processor.get_case(raw_data)
+            self._case_list.append(processed_case)
+        else:
+            case = dict()
+            case["question"] = raw_data["question"]
+            case["label"] = raw_data["label"]
+            demos = []
+            for i in range(self._n_shots + self._n_noisy_shots):
+                demo = []
+                demo.append(raw_data["CoT_demos"][i]["question"])
+                demo.append(raw_data["CoT_demos"][i]["answer"])
+                demos.append(demo)
+            case["in-context"] = demos
+            self._case_list.append(case)
     def _save_result(self):
         with open(self._pickle_name, 'wb') as f:
             pickle.dump(self._noise_test_result, f)
@@ -673,7 +766,9 @@ class noise_test:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-config', type=str, default='config.yml', help='Path to the config file')
-    with open('config.yml', 'r') as f:
+    args = parser.parse_args()
+    config_path = args.config
+    with open(config_path, 'r', encoding='utf-8') as f:
         config = yaml.safe_load(f)
     test = noise_test(args=config)
     [correct_num, error_num, answer_list, answer_cotents] = test.run()

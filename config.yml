@@ -1,23 +1,51 @@
 # noise test
 model: gpt-3.5-turbo-0613 #gpt-3.5-turbo-0613 or llama2
-dataset: SCAN # family_relation and base_math and GSM and SCAN
+dataset: base_math # family_relation and base_math and GSM and SCAN
 start_num: 0
 test_num:  300
 batch_size: 5
 
-## in-context 
-if_in_context: True
-n_shots: 3 # self-made excellent shots
-# n_weak_shots: 0 # original author's shots 
+# subtask
+## base cal
+base_math:
+  reasoning_type: base-11
+
+## SCAN
+SCAN:
+  reasoning_type: length
+
+## family rel
+family_relation:
+  reasoning_type: symbolic
+  # train_set: 5
+  # hop: 3
+
+# use_processed_dataset or use raw dataset
+use_processed_dataset: True
+
+## when use_processed_dataset is True
+processed_dataset_options:
+  processed_dataset_path: default-inaccurate-hard-fixed # processed dataset path or one of ["default-zeroshot"， "default-clean", "default-(irrelevant|inaccurate)-(easy|medium|hard)-(fixed|random)"]
+  # processed_dataset_path: default-zeroshot
+  # processed_dataset_path: default-clean
+  n_shots: 3
+
+## when use_processed_dataset is False
+raw_dataset_options:
+  ## in-context 
+  if_in_context: True
+  n_shots: 0 # self-made excellent shots
+  # n_weak_shots: 0
+
+  ## noise
+  if_noise: True
+  n_noisy_shots: 10
+  noise_type: inaccurate # irrelevant or inaccurate
+  noise_ratio: 0.8 # 0.3, 0.5 or 0.8
+  noise_distribution: fixed #fixed or random
+
+# ICL format
 prefix_context: False ## prefix
-
-## noise
-if_noise: False
-n_noisy_shots: 3
-noise_type: irrelevant # irrelevant or inaccurate
-noise_ratio: 0.8 # 0.3, 0.5 or 0.8
-noise_distribution: fixed #fixed or random
-
 
 # method
 method: baseline # RV or RAV or both or baseline,  smoothllm, selfdenoise, selfdenoise
@@ -39,39 +67,19 @@ RAV_n_reason: 5
 RAV_temp_reason: 1 # 1
 RAV_topp_reason: 0.9 # 0.9
 
-# both
+## both
 RV_weight: 0.5
 RAV_weight: 0.5
 
-
-# math base
-base_math:
-  base: 9
-
-# SCAN
-SCAN:
-  reasoning_type: "length"
-
-family_relation:
-  train_set: 5
-  reasoning_type: "symbolic"
-  hop: 3
-  if_use_processed: False
-
-shuffled_obj:
-  obj_num: 7
-
-# gpt
+# model
+## gpt
 gpt:
   api: openai  # openai or hkbu
   # api_base: "https://openkey.cloud/v1"
 
-# llama2 
+## llama2 
 llama2:
   ckpt_dir: /vol/home/lanlong/xuanli/code/llama-main/llama-2-7b-chat/
   tokenizer_path: /vol/home/lanlong/xuanli/code/llama-main/tokenizer.model
   max_seq_len: 4000
   max_batch_size: 10
-
-BBH:
-  reasoning_type: formal_fallacies

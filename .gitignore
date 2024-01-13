@@ -2,6 +2,7 @@ result/*
 *key.yml
 **/__pycache__/
 data/**/unzip_data/*
+data/**/processed/*
 test.ipynb
 test.json
 .vscode/

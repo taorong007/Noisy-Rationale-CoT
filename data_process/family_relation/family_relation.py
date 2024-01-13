@@ -196,10 +196,9 @@ class family_relation():
                     dataset = step2_set
                 else:
                     raise ValueError(f"hop {self.hop} not support")
-
-                train_num = int(len(dataset) * 0.5)
-                self.trainset = dataset[:train_num]
-                testset = dataset[train_num:]
+                
+                self.trainset = dataset
+                testset = dataset
             
             with open(os.path.join(unzip_path, "example_set.json"), "r") as f:
                 self.example = json.load(f)
@@ -303,7 +302,7 @@ class family_relation():
     def _prepare_noise_distribution_iteration_state(self, n_thought, noise_ratio, noise_distribution):
         noise_distribution_list = [0] * n_thought
         if noise_distribution == "fixed":
-            noise_count = math.round(n_thought * noise_ratio)
+            noise_count = round(n_thought * noise_ratio)
             noise_positions = random.sample(range(n_thought), noise_count)
             for pos in noise_positions:
                 noise_distribution_list[pos] = 1
@@ -443,7 +442,7 @@ class family_relation():
             # else:
             #     answer += f"For {r1}'s {r2}, we have {r1}'s {r2} is {self.get_random_relation(r_mix)}. "
             n_mn_pos+=1
-            if self._should_add_noise(ir_noise_distrib_state):
+            if self._should_add_noise(mn_noise_distrib_state):
                 noise_fact = self.get_random_inaccurate_thought(r_mix)
                 answer += noise_fact
             
@@ -456,7 +455,7 @@ class family_relation():
             answer += f"So the relations path are reduced to {relation_str}. "
             
             n_mn_pos+=1
-            if self._should_add_noise(ir_noise_distrib_state):
+            if self._should_add_noise(mn_noise_distrib_state):
                 noise_fact = self.get_random_inaccurate_thought(r_mix)
                 answer += noise_fact
                     
@@ -478,51 +477,59 @@ class family_relation():
     
     def get_answer(self, raw_data, if_noise):
         answer = ""
-        story = raw_data["story"]
-        proofs =  ast.literal_eval(raw_data["proof_state"])
-        selected_noise_set = set()
+        # story = raw_data["story"]
+        # proofs =  ast.literal_eval(raw_data["proof_state"])
+        # selected_noise_set = set()
         
-        if (self.reasoning_type != "symbolic"):
-            for proof in reversed(proofs): 
-                for conclusion, reasons in proof.items():
-                    explaination = "Since "
-                    for i, reason in enumerate(reasons):
-                        head = reason[0]
-                        relation = reason[1]
-                        tail = reason[2]
-                        sentence  = self.find_sentence_containing_strings(story, head, tail)
-                        if sentence:
-                            answer += f"Based on the sentence \"{sentence}\", we can infer that "
-                        answer += f"{tail} is {head}'s {relation}."
-                        if i > 0:
-                            explaination += " and "
-                        explaination += f"{tail} is {head}'s {relation}"
+        # if (self.reasoning_type != "symbolic"):
+        #     for proof in reversed(proofs): 
+        #         for conclusion, reasons in proof.items():
+        #             explaination = "Since "
+        #             for i, reason in enumerate(reasons):
+        #                 head = reason[0]
+        #                 relation = reason[1]
+        #                 tail = reason[2]
+        #                 sentence  = self.find_sentence_containing_strings(story, head, tail)
+        #                 if sentence:
+        #                     answer += f"Based on the sentence \"{sentence}\", we can infer that "
+        #                 answer += f"{tail} is {head}'s {relation}."
+        #                 if i > 0:
+        #                     explaination += " and "
+        #                 explaination += f"{tail} is {head}'s {relation}"
                             
-                        if(if_noise and count>0):
-                            noise_fact = self.get_random_fact(relation, selected_noise_set).replace("[name1]", head).replace("[name2]", tail)
-                            answer += noise_fact
-                            count -= 1
-                    head = conclusion[0]
-                    relation = conclusion[1]
-                    tail = conclusion[2]
-                    answer += f"{explaination}, {tail} is {head}'s {relation}. \n"
-            answer += f"Answer:{relation_mix}\n"  
+        #                 if(if_noise and count>0):
+        #                     noise_fact = self.get_random_fact(relation, selected_noise_set).replace("[name1]", head).replace("[name2]", tail)
+        #                     answer += noise_fact
+        #                     count -= 1
+        #             head = conclusion[0]
+        #             relation = conclusion[1]
+        #             tail = conclusion[2]
+        #             answer += f"{explaination}, {tail} is {head}'s {relation}. \n"
+        #     answer += f"Answer:{relation_mix}\n"  
+        # else:
+        _, n_ir_pos, n_mn_pos = self.get_symbolic_relation_reason(raw_data)
+        if self.noise_type == "irrelevant":
+            ir_noise_p = self.noise_ratio
+            mn_noise_p = 0
         else:
-            _, n_ir_pos, n_mn_pos = self.get_symbolic_relation_reason(raw_data)
-            if self.noise_type == "irrelevant":
-                ir_noise_p = self.noise_ratio
-                mn_noise_p = 0
-            else:
-                ir_noise_p = 0
-                mn_noise_p = self.noise_ratio
-            ir_noise_distrib_state = self._prepare_noise_distribution_iteration_state(n_ir_pos, ir_noise_p, self.noise_distribution) 
-            mn_noise_distrib_state = self._prepare_noise_distribution_iteration_state(n_mn_pos, mn_noise_p, self.noise_distribution)                 
-            answer, _, _ = self.get_symbolic_relation_reason(raw_data, ir_noise_distrib_state, mn_noise_distrib_state)
+            ir_noise_p = 0
+            mn_noise_p = self.noise_ratio
+        ir_noise_distrib_state = self._prepare_noise_distribution_iteration_state(n_ir_pos, ir_noise_p, self.noise_distribution) 
+        mn_noise_distrib_state = self._prepare_noise_distribution_iteration_state(n_mn_pos, mn_noise_p, self.noise_distribution)                 
+        answer, _, _ = self.get_symbolic_relation_reason(raw_data, ir_noise_distrib_state, mn_noise_distrib_state)
         return answer
     
-    def get_random_demos(self, num):
-        assert len(self.trainset) > num
-        demos = self.trainset.sample(n=num)
+    def get_random_demos(self, num, expr=None, index_list = None):
+        if expr is not None:
+            assert len(self.trainset) > num - 1
+            expr_edge_types = expr["edge_types"]
+            mask = self.trainset["edge_types"] == expr_edge_types
+            trainset = self.trainset[~mask]
+            demos = trainset.sample(n=num)
+        else:
+            demos = self.trainset.sample(n=num)
+        if index_list is not None:
+            index_list.extend(demos.index.tolist())
         return demos
     
     
@@ -542,7 +549,7 @@ class family_relation():
                 # for demo in demos:
                 #     shots.append([demo["question"], demo["answer"]])
                 if demos == None:
-                    demos = self.get_random_demos(num=n_total_shots)
+                    demos = self.get_random_demos(num=n_total_shots, expr=raw_data)
                 normal_demos = demos.iloc[:n_shots]
                 noise_demos = demos.iloc[n_shots:]
                 for _, demo in normal_demos.iterrows():
