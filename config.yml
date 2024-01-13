@@ -6,23 +6,25 @@ test_num:  300
 batch_size: 5
 
 # use_processed_dataset or use raw dataset
-use_processed_dataset: False
+use_processed_dataset: True
 
 processed_dataset_options:
-  processed_dataset_path: default-easy # processed dataset path or one of ["default-zeroshot"， "default-clean", "default-(irrelevant|inaccurate)-(easy|medium|hard)"]
+  processed_dataset_path: default-inaccurate-hard-fixed # processed dataset path or one of ["default-zeroshot"， "default-clean", "default-(irrelevant|inaccurate)-(easy|medium|hard)-(fixed|random)"]
+  # processed_dataset_path: default-zeroshot
+  # processed_dataset_path: default-clean
   n_shots: 3
 
 raw_dataset_options:
   ## in-context 
   if_in_context: True
-  n_shots: 0 # self-made excellent shots
+  n_shots: 10 # self-made excellent shots
   # n_weak_shots: 0
 
   ## noise
-  if_noise: True
+  if_noise: False
   n_noisy_shots: 10
   noise_type: inaccurate # irrelevant or inaccurate
-  noise_ratio: 0.8 # 0.3, 0.5 or 0.8
+  noise_ratio: 0.3 # 0.3, 0.5 or 0.8
   noise_distribution: fixed #fixed or random
 
 # ICL format

@@ -230,7 +230,7 @@ class scan_master():
             sub_action_list.reverse()
         else:
             sub_action_list = [in_content.split()]
-            answer += "Let's consider {}. \n".format(" ".join(sub_action_list[0]))
+            answer += "Let's consider {}, \n".format(" ".join(sub_action_list[0]))
         
         n_ir_pos = 0
         n_mn_pos = 0
@@ -523,9 +523,16 @@ class scan_master():
                 normal_demos = demos[:n_shots]
                 noise_demos = demos[n_shots:]
                 for demo in normal_demos:
+                    if if_generate_info:
+                        generate_info = dict()
+                    else:
+                        generate_info = None
                     shot_q = self.get_question(demo)
                     shot_a = self.get_answer(demo, if_noise=False)
-                    shots.append([shot_q, shot_a])
+                    if if_generate_info:
+                        shots.append([shot_q, shot_a, generate_info])
+                    else:
+                        shots.append([shot_q, shot_a])
                 for demo in noise_demos:
                     shot_q = self.get_question(demo)
                     shot_a = self.get_answer(demo, if_noise=True)

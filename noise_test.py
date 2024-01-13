@@ -39,14 +39,27 @@ class noise_test:
 
         self.use_processed_dataset =  args["use_processed_dataset"]
         if(self.use_processed_dataset):
-            processed_dataset_path = args["processed_dataset_path"]
+            processed_dataset_options = args["processed_dataset_options"]
+            processed_dataset_path = processed_dataset_options["processed_dataset_path"]
             if processed_dataset_path.startswith("default-"):
-                dataset_label = self.processed_dataset_path.split("-")
+                dataset_label = processed_dataset_path.split("-")
                 self.processed_dataset_path = self._get_default_processed_dataset_name(dataset_label)
             else:
                 self.processed_dataset_path = processed_dataset_path
             with open(self.processed_dataset_path, "r", encoding="utf-8") as f:
                 config = json.load(f)["config"]
+            if dataset_label[1] == "zeroshot":
+                config["if_in_context"] = False
+            else:
+                config["if_in_context"] = True
+                assert processed_dataset_options["n_shots"] <= config["n_max_shots"]
+                if config["if_noise"] == True:
+                    config["n_shots"] = 0
+                    config["n_noisy_shots"] = processed_dataset_options["n_shots"]
+                else:
+                    config["n_shots"] = processed_dataset_options["n_shots"]
+                    config["n_noisy_shots"] = 0
+                
         else:
             config = args["raw_dataset_options"]
         
@@ -104,26 +117,32 @@ class noise_test:
         return
 
     def _get_default_processed_dataset_name(self, dataset_label):
+        args = self.config
         noise_type = ["zoreshot","clean", "irrelevant", "inaccurate"]
         noise_difficulty = ["easy", "medium", "hard"]
         type = dataset_label[1]
         assert type in noise_type
-        file_name =  f"{type}"
         if type in ["irrelevant", "inaccurate"]:
+            file_name =  f"{type}"
             difficulty = dataset_label[2]
+            distribution = dataset_label[3]
             assert difficulty in noise_difficulty
-            file_name += f"_{difficulty}"
+            file_name += f"_{difficulty}_{distribution}.json"
+        else:
+            file_name = "clean.json"
         if self._dataset_name == "base_math":
             reasoning_type = args[self._dataset_name]["reasoning_type"]
-            data_path = os.path("data", "base_math", "processed",  reasoning_type) 
+            file_dir = os.path.join("data", "base_math", "processed",  reasoning_type) 
         elif self._dataset_name == "family_relation":
-            data_path = os.path("data", "data_emnlp_final", "processed") 
+            file_dir = os.path.join("data", "data_emnlp_final", "processed") 
         elif self._dataset_name == "SCAN":
             reasoning_type = args[self._dataset_name]["reasoning_type"]
-            data_path = os.path("data", "SCAN-master", "processed", reasoning_type) 
+            file_dir = os.path.join("data", "SCAN-master", "processed", reasoning_type) 
         else:
-            raise ValueError(f"dataset {self._dataset_name} are not supported")
-        return os.path(data_path, file_name)
+            raise ValueError(f"dataset {self._dataset_name} are not supported in default")
+        if not os.path.exists(file_dir):
+            raise ValueError(f"default file {os.path.join(file_dir, file_name)} not exist")
+        return os.path.join(file_dir, file_name)
 
     def _init_model(self):
         if self._model_name == "llama2":
@@ -137,16 +156,18 @@ class noise_test:
         else:
             raise ValueError("Unsupported model {}".format(self._model_name))
 
+    def _load_processed_dataset(self):
+        with open(self.processed_dataset_path, "r", encoding="utf-8") as f:
+            dataset = json.load(f)["content"]
+        return dataset
+
     def _init_dataset(self):
         processor_config = self.config[self._dataset_name] if self._dataset_name in self.config else None
         if self._dataset_name == "base_math":
-            if not self.use_processed_dataset:
-                self._dataset_processor = base_math.base_math(n_shots=self._n_shots,
+            self._dataset_processor = base_math.base_math(n_shots=self._n_shots,
                                                             n_noisy_shots=self._n_noisy_shots,
                                                             noise_type=self._noise_type, noise_ratio=self._noise_ratio, noise_distribution=self._noise_distribution,
                                                             prefix_context=self._prefix_context, config=processor_config)
-            else:
-                self._dataset_processor
         elif self._dataset_name == "family_relation":
             self._dataset_processor = family_relation.family_relation(if_in_context=self._if_in_context,
                                                                       n_shots=self._n_shots,
@@ -166,7 +187,10 @@ class noise_test:
             self._dataset_processor = shuffled_obj.tracking_shuffled_objects(n_shots=self._n_shots, n_noisy_shots=self._n_noisy_shots, noise_type=self._noise_type,  noise_ratio=self._noise_ratio, noise_distribution=self._noise_distribution, prefix_context=self._prefix_context, config = processor_config)
         else:
             raise ValueError("Unsupported dataset {}".format(self._dataset_name))
-        self._dataset = self._dataset_processor.load_data()
+        if not self.use_processed_dataset:
+            self._dataset = self._dataset_processor.load_data()
+        else:
+            self._dataset =  self._load_processed_dataset()
         assert len(self._dataset) >= self._test_num
 
     def _init_method(self):
@@ -395,10 +419,21 @@ class noise_test:
                                for i in range(0, len(self._contents_list), case_n)]
 
     def _question_insert(self, raw_data):
-    
-        processed_case = self._dataset_processor.get_case(raw_data)
-        self._case_list.append(processed_case)
-
+        if not self.use_processed_dataset:
+            processed_case = self._dataset_processor.get_case(raw_data)
+            self._case_list.append(processed_case)
+        else:
+            case = dict()
+            case["question"] = raw_data["question"]
+            case["label"] = raw_data["label"]
+            demos = []
+            for i in range(self._n_shots + self._n_noisy_shots):
+                demo = []
+                demo.append(raw_data["CoT_demos"][i]["question"])
+                demo.append(raw_data["CoT_demos"][i]["answer"])
+                demos.append(demo)
+            case["in-context"] = demos
+            self._case_list.append(case)
     def _save_result(self):
         with open(self._pickle_name, 'wb') as f:
             pickle.dump(self._noise_test_result, f)

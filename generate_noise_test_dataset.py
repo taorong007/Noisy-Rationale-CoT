@@ -144,6 +144,7 @@ class generate_test:
         dataset_config["noise_type"] = self._noise_type
         dataset_config["noise_ratio"] = self._noise_ratio
         dataset_config["noise_distribution"] = self._noise_distribution
+        dataset_config["n_max_shots"] = self._n_noisy_shots + self._n_shots
         dataset["config"] = dataset_config
         
         dataset_content = []
