@@ -34,11 +34,11 @@ processed_dataset_options:
 raw_dataset_options:
   ## in-context 
   if_in_context: True
-  n_shots: 0 # self-made excellent shots
+  n_shots: 10 # self-made excellent shots
   # n_weak_shots: 0
 
   ## noise
-  if_noise: True
+  if_noise: False
   n_noisy_shots: 10
   noise_type: inaccurate # irrelevant or inaccurate
   noise_ratio: 0.3 # 0.3, 0.5 or 0.8
