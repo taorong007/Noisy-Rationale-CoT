@@ -463,27 +463,46 @@ class scan_master():
 
             action_sequence = action_sequence + sub_action_sequence
         
-        answer += "Above all -- So, final answer is OUT:{}".format(" ".join(action_sequence))
+        answer += "Above all -- So, final answer is OUT:{}. ".format(" ".join(action_sequence))
         
         return answer, action_sequence, n_ir_pos, n_mn_pos
     
-    def get_answer(self, raw_data, if_noise):
+    def get_generation_config(self, noise_distribution_state, generate_info):
+        noise_distribution_list = noise_distribution_state[0]
+        generate_info["total_thought"] = len(noise_distribution_list) + noise_distribution_list.count(1)
+        generate_info["noise_thought"] = noise_distribution_list.count(1)
+        generate_info["sentences_with_noise"] = []
+        for if_noise in noise_distribution_list:
+            generate_info["sentences_with_noise"].append(0)
+            if if_noise:
+                generate_info["sentences_with_noise"].append(1)
+        generate_info["sentences_with_noise"].append(0)
+    
+    def get_answer(self, raw_data, generate_info = None):
         in_content = raw_data[0]
         label = raw_data[1]
         
         _, _, n_ir_pos, n_mn_pos = self._get_answer(in_content)
-        
-        
         if self.noise_type == "irrelevant":
             ir_noise_p = self.noise_ratio
             mn_noise_p = 0
-        else:
+        elif self.noise_type == "inaccurate":
             ir_noise_p = 0
             mn_noise_p = self.noise_ratio
+        else:
+            ir_noise_p = 0
+            mn_noise_p = 0
         ir_noise_distrib_state = self._prepare_noise_distribution_iteration_state(n_ir_pos, ir_noise_p, self.noise_distribution) 
-        mn_noise_distrib_state = self._prepare_noise_distribution_iteration_state(n_mn_pos, mn_noise_p, self.noise_distribution)               
-        answer,action_sequence, _, _ = self._get_answer(in_content, ir_noise_distrib_state, mn_noise_distrib_state)
+        mn_noise_distrib_state = self._prepare_noise_distribution_iteration_state(n_mn_pos, mn_noise_p, self.noise_distribution) 
+        if generate_info is not None:          
+            if(self.noise_type == "irrelevant"):
+                self.get_generation_config(ir_noise_distrib_state, generate_info)
+            elif(self.noise_type == "inaccurate"):
+                self.get_generation_config(mn_noise_distrib_state, generate_info)
+            else:
+                self.get_generation_config(ir_noise_distrib_state, generate_info)
         
+        answer,action_sequence, _, _ = self._get_answer(in_content, ir_noise_distrib_state, mn_noise_distrib_state)
         # print(action_sequence)
         assert str(action_sequence) == str(label)
         return answer
@@ -497,8 +516,12 @@ class scan_master():
         demos = [demo for _, demo in selected_samples]
         return demos
     
-    def get_demos_by_index_list(num, index_list):
-        pass
+    def get_demos_by_index_list(self, num, index_list):
+        demos = []
+        for i in range(num):
+            index = index_list[i]
+            demos.append(self.trainset[index])
+        return demos
     
     def get_case(self, raw_data, if_generate_info=False, ICL_index_list=None):
         case = dict()
@@ -519,24 +542,22 @@ class scan_master():
                 if ICL_index_list is None:
                     demos = self.get_random_demos(num=n_total_shots)
                 else:
-                    demos = self.get_demos_by_index_list(ICL_index_list)
-                normal_demos = demos[:n_shots]
-                noise_demos = demos[n_shots:]
-                for demo in normal_demos:
+                    demos = self.get_demos_by_index_list(num=n_total_shots, index_list= ICL_index_list)
+                for demo in demos:
                     if if_generate_info:
                         generate_info = dict()
                     else:
                         generate_info = None
                     shot_q = self.get_question(demo)
-                    shot_a = self.get_answer(demo, if_noise=False)
+                    shot_a = self.get_answer(demo, generate_info)
                     if if_generate_info:
                         shots.append([shot_q, shot_a, generate_info])
                     else:
                         shots.append([shot_q, shot_a])
-                for demo in noise_demos:
-                    shot_q = self.get_question(demo)
-                    shot_a = self.get_answer(demo, if_noise=True)
-                    shots.append([shot_q, shot_a])
+                # for demo in noise_demos:
+                #     shot_q = self.get_question(demo)
+                #     shot_a = self.get_answer(demo)
+                #     shots.append([shot_q, shot_a])
                 if self.prefix_context:
                     prefix += prefix
                     for shot in shots:

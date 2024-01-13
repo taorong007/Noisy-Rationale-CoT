@@ -140,13 +140,7 @@ class generate_test:
         dataset_config["dataset"] = self._dataset_name
         if self._dataset != "family_relation":
             dataset_config["reasoning_type"] = self.config[self._dataset_name]["reasoning_type"]
-        dataset_config["if_noise"] = self._if_noise
-        dataset_config["noise_type"] = self._noise_type
-        dataset_config["noise_ratio"] = self._noise_ratio
-        dataset_config["noise_distribution"] = self._noise_distribution
-        dataset_config["n_max_shots"] = self._n_noisy_shots + self._n_shots
-        dataset["config"] = dataset_config
-        
+            
         dataset_content = []
         if isinstance(self._dataset, pd.DataFrame):
             data_iter = self._dataset.iterrows()
@@ -161,8 +155,18 @@ class generate_test:
                 with open(ICL_index_file_path, "r") as f:
                     ICL_index_lists = json.load(f)
                 for (count, raw_data), ICL_index_list in zip(data_iter, ICL_index_lists):
-                    self._question_insert(raw_data, ICL_index_list)
+                    self._question_insert(raw_data, ICL_index_list["ICL_shots_index"])
         cases = self._case_list
+        
+        dataset_config["question_num"] = len(cases)
+        dataset_config["if_noise"] = self._if_noise
+        dataset_config["noise_type"] = self._noise_type
+        dataset_config["noise_ratio"] = self._noise_ratio
+        dataset_config["noise_distribution"] = self._noise_distribution
+        dataset_config["n_max_shots"] = self._n_noisy_shots + self._n_shots
+        
+        n_thoughts = 0 
+        n_noisy_thoughts = 0
         for case in cases:
             case_store = dict()
             case_store["question"] = case["question"]
@@ -174,12 +178,20 @@ class generate_test:
                 demo["question"] = shot[0]
                 demo["answer"] = shot[1]
                 demo["n_total_thought"] = shot[2]["total_thought"]
+                n_thoughts += demo["n_total_thought"]
                 demo["n_noise_thought"] = shot[2]["noise_thought"]
+                n_noisy_thoughts += demo["n_noise_thought"]
                 demo["sentences_with_noise"] = ','.join(map(str, shot[2]["sentences_with_noise"]))
                 CoT_demos.append(demo)
             case_store["CoT_demos"] = CoT_demos
             dataset_content.append(case_store)
+        
+        dataset_config["avg_demo_thought"] = n_thoughts / (dataset_config["n_max_shots"] * dataset_config["question_num"])
+        dataset_config["avg_demo_noisy_thought"] = n_noisy_thoughts / (dataset_config["n_max_shots"] * dataset_config["question_num"])
+            
+        dataset["config"] = dataset_config
         dataset["content"] = dataset_content    
+        
         file_dir = os.path.join(self._dataset_processor.file_path, "processed")
         if self._dataset_name != "family_relation":
             reasoning_type = self.args[self._dataset_name]["reasoning_type"]
@@ -213,4 +225,5 @@ if __name__ == "__main__":
     with open(config_path, 'r', encoding="utf-8") as f:
         config = yaml.safe_load(f)
     test = generate_test(args=config)
+    # test.generate_shot_index()
     test.generate_dataset()

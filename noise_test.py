@@ -18,6 +18,7 @@ from datetime import datetime
 import copy
 import string
 import argparse
+import zipfile
 
 def wr_log(obj, log_file):
     print(obj)
@@ -116,6 +117,13 @@ class noise_test:
 
         return
 
+    def _unzip_default_processed_dataset(self, file_dir):
+        file_path = os.path.join(file_dir, "processed.zip")
+        if os.path.exists(file_path):
+            with zipfile.ZipFile(file_path, 'r') as zip_ref:
+                zip_ref.extractall(file_dir)
+            print(f"processed_dataset has been extracted to {file_dir}")
+            
     def _get_default_processed_dataset_name(self, dataset_label):
         args = self.config
         noise_type = ["zoreshot","clean", "irrelevant", "inaccurate"]
@@ -132,17 +140,22 @@ class noise_test:
             file_name = "clean.json"
         if self._dataset_name == "base_math":
             reasoning_type = args[self._dataset_name]["reasoning_type"]
-            file_dir = os.path.join("data", "base_math", "processed",  reasoning_type) 
+            dataset_dir = os.path.join("data", "base_math") 
+            processed_dataset_dir = os.path.join("data", "base_math", "processed",  reasoning_type) 
         elif self._dataset_name == "family_relation":
-            file_dir = os.path.join("data", "data_emnlp_final", "processed") 
+            dataset_dir = os.path.join("data", "data_emnlp_final")
+            processed_dataset_dir = os.path.join("data", "data_emnlp_final", "processed") 
         elif self._dataset_name == "SCAN":
             reasoning_type = args[self._dataset_name]["reasoning_type"]
-            file_dir = os.path.join("data", "SCAN-master", "processed", reasoning_type) 
+            dataset_dir = os.path.join("data", "SCAN-master")
+            processed_dataset_dir = os.path.join("data", "SCAN-master", "processed", reasoning_type) 
         else:
             raise ValueError(f"dataset {self._dataset_name} are not supported in default")
-        if not os.path.exists(file_dir):
-            raise ValueError(f"default file {os.path.join(file_dir, file_name)} not exist")
-        return os.path.join(file_dir, file_name)
+        if not os.path.exists(os.path.join(processed_dataset_dir, file_name)):
+            self._unzip_default_processed_dataset(dataset_dir)
+        if not os.path.exists(os.path.join(processed_dataset_dir, file_name)):
+            raise ValueError(f"default file {os.path.join(processed_dataset_dir, file_name)} not exist")
+        return os.path.join(processed_dataset_dir, file_name)
 
     def _init_model(self):
         if self._model_name == "llama2":
