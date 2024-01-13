@@ -24,11 +24,10 @@ class family_relation():
             self.noise_ratio = 0
             self.noise_distribution = None
         if config is not None:
-            self.trainset = config["train_set"]
+            self.trainset = config["train_set"] if "train_set" in config else trainset
             # self.testset = config["test_set"]
             self.reasoning_type = config["reasoning_type"]
-            self.hop = config["hop"]
-            self.if_use_processed = config["if_use_processed"] if "if_use_processed" in config else False
+            self.hop = config["hop"] if "hop" in config else hop
         else:
             self.trainset = trainset
             self.testset = testset
@@ -155,54 +154,52 @@ class family_relation():
         # trainset_file_name = f"{self.trainset}.2,{self.trainset}.3_train.csv"
         # testset_file_name = f"{self.testset}_test.csv"
         # self.trainset = pd.read_csv(os.path.join(unzip_path, trainset_file_name))
-        
-        if self.if_use_processed == True:
-            processed_path = os.path.join(self.file_path, "processed")
-            file_name = f"{self.reasoning_type}_{self.hop}hop"
+    
+        if self.reasoning_type !=  "symbolic":
+            file_name = f"{self.trainset}.2,{self.trainset}.3_train.csv"
+            raw_dataset = pd.read_csv(os.path.join(unzip_path, file_name))
+            self.relation_list = list(set(raw_dataset["target"]))
             
+            step3_set = raw_dataset[raw_dataset['query_edge'] == "(0, 3)"]
+            step2_set = raw_dataset[raw_dataset['query_edge'] == "(0, 2)"]
+
+            train_num = int(len(step3_set) * 0.5)
+            step3_train = step3_set.iloc[:train_num]
+            step3_test = step3_set.iloc[train_num:]
+
+            train_num = int(len(step2_set) * 0.5)
+            step2_train = step2_set.iloc[:train_num]
+            step2_test = step2_set.iloc[train_num:]
+            
+            testset = self.shuffle_dataset(step2_test, step3_test)
+            self.trainset = self.shuffle_dataset(step2_train, step3_train)
         else:
-            if self.reasoning_type !=  "symbolic":
-                file_name = f"{self.trainset}.2,{self.trainset}.3_train.csv"
-                dataset = pd.read_csv(os.path.join(unzip_path, file_name))
-                self.relation_list = list(set(dataset["target"]))
-                
-                step3_set = dataset[dataset['query_edge'] == "(0, 3)"]
-                step2_set = dataset[dataset['query_edge'] == "(0, 2)"]
-
-                train_num = int(len(step3_set) * 0.5)
-                step3_train = step3_set.iloc[:train_num]
-                step3_test = step3_set.iloc[train_num:]
-
-                train_num = int(len(step2_set) * 0.5)
-                step2_train = step2_set.iloc[:train_num]
-                step2_test = step2_set.iloc[train_num:]
-                
-                testset = self.shuffle_dataset(step2_test, step3_test)
-                self.trainset = self.shuffle_dataset(step2_train, step3_train)
-            else:
-                file_name = f"1.2,1.3,1.4_train.csv"
-                dataset = pd.read_csv(os.path.join(unzip_path, file_name))
-                self.relation_list = list(set(dataset["target"]))
-                
-                step2_set = dataset[dataset['query_edge'] == "(0, 2)"]
-                step3_set = dataset[dataset['query_edge'] == "(0, 3)"]
-                step4_set = dataset[dataset['query_edge'] == "(0, 4)"]
-                
-                if self.hop == 3:
-                    dataset = step3_set
-                elif self.hop == 4:
-                    dataset = step4_set
-                elif self.hop == 2:
-                    dataset = step2_set
-                else:
-                    raise ValueError(f"hop {self.hop} not support")
-                
-                self.trainset = dataset
-                testset = dataset
+            file_name = f"1.2,1.3,1.4_train.csv"
+            raw_dataset = pd.read_csv(os.path.join(unzip_path, file_name))
+            self.relation_list = list(set(raw_dataset["target"]))
             
-            with open(os.path.join(unzip_path, "example_set.json"), "r") as f:
-                self.example = json.load(f)
+            step2_set = raw_dataset[raw_dataset['query_edge'] == "(0, 2)"]
+            step3_set = raw_dataset[raw_dataset['query_edge'] == "(0, 3)"]
+            step4_set = raw_dataset[raw_dataset['query_edge'] == "(0, 4)"]
+            
+            if self.hop == 3:
+                dataset = step3_set
+            elif self.hop == 4:
+                dataset = step4_set
+            elif self.hop == 2:
+                dataset = step2_set
+            else:
+                raise ValueError(f"hop {self.hop} not support")
+            
+            mask = dataset['edge_types'].apply(lambda x: len(ast.literal_eval(x)) == 3)
+            dataset = dataset[mask]
+            dataset = dataset.reset_index(drop=True)
+            self.trainset = dataset
+            testset = dataset
         
+        with open(os.path.join(unzip_path, "example_set.json"), "r") as f:
+            self.example = json.load(f)
+    
             # self.generate_json(testset, 1)
         
         return testset
@@ -248,15 +245,17 @@ class family_relation():
         while(1):
             random_index = random.randrange(0, len(facts))
             selected = f"{relation}_{random_index}"
+            fact = facts[random_index] + " "
             if selected not in selected_set:
-                fact = facts[random_index] + " "
                 selected_set.add(selected)
                 break
+            go_on_random = 0
             for i in range(len(facts)):
                 key = f"{relation}_{i}"
                 if key not in selected_set:
-                    continue
-            break
+                    go_on_random = 1
+            if go_on_random == 0:
+                break
         return fact
     
     def _search_relation_in_path(self, relation_path, r1, r2):
@@ -302,7 +301,13 @@ class family_relation():
     def _prepare_noise_distribution_iteration_state(self, n_thought, noise_ratio, noise_distribution):
         noise_distribution_list = [0] * n_thought
         if noise_distribution == "fixed":
-            noise_count = round(n_thought * noise_ratio)
+            noise_thoughts = n_thought * noise_ratio
+            integer_part = int(noise_thoughts)
+            decimal_part = noise_thoughts - integer_part
+            if decimal_part == 0.5:
+                noise_count = math.ceil(n_thought * noise_ratio)
+            else:
+                noise_count = round(n_thought * noise_ratio)
             noise_positions = random.sample(range(n_thought), noise_count)
             for pos in noise_positions:
                 noise_distribution_list[pos] = 1
@@ -407,13 +412,24 @@ class family_relation():
         query = ast.literal_eval(raw_data["query"])
         head_name = query[0]
         tail_name = query[1]
-        relation_mix = None
-        answer = ""
-        answer += f"{tail_name} is {head_name}'s {relation_desciption}, so the relations path is {relation_path_str}. "
         
-        try_count = 0
         n_ir_pos = 0
         n_mn_pos = 0
+        selected_noise_set = set()
+        
+        answer = ""
+        answer += f"{tail_name} is {head_name}'s {relation_desciption}, so the relations path is {relation_path_str}. "
+        n_mn_pos+=1
+        
+        if self._should_add_noise(mn_noise_distrib_state):
+            noise_fact = self.get_random_inaccurate_thought(relation_path[-1])
+            answer += noise_fact
+            
+        n_ir_pos += 1
+        if self._should_add_noise(ir_noise_distrib_state):
+            noise_fact = self.get_random_relation_fact("family relation", selected_noise_set)
+            answer += noise_fact
+        
         # if_replace = False
         noise_type = self.noise_type      
         proof_chain = []
@@ -426,7 +442,6 @@ class family_relation():
         
         reasoning_relation_path = copy.deepcopy(relation_path)
         r_mix = None
-        selected_noise_set = set()
         for proof in new_proof_chain:
             r1 = proof[0]
             r2 = proof[1]
@@ -443,12 +458,12 @@ class family_relation():
             #     answer += f"For {r1}'s {r2}, we have {r1}'s {r2} is {self.get_random_relation(r_mix)}. "
             n_mn_pos+=1
             if self._should_add_noise(mn_noise_distrib_state):
-                noise_fact = self.get_random_inaccurate_thought(r_mix)
+                noise_fact = self.get_random_inaccurate_thought(r2)
                 answer += noise_fact
             
             n_ir_pos += 1
             if self._should_add_noise(ir_noise_distrib_state):
-                noise_fact = self.get_random_relation_fact(r_mix, selected_noise_set)
+                noise_fact = self.get_random_relation_fact(r2, selected_noise_set)
                 answer += noise_fact
             
             relation_str = ", ".join(reasoning_relation_path)
@@ -464,8 +479,7 @@ class family_relation():
                 noise_fact = self.get_random_relation_fact(r_mix, selected_noise_set)
                 answer += noise_fact
                 
-        answer += f"Therefore, the answer is {r_mix}. \n"
-        answer += f"Answer:{r_mix}\n"  
+        answer += f"Therefore, Answer: {r_mix}. \n"
         return answer, n_ir_pos, n_mn_pos
     
     def find_sentence_containing_strings(self, text, name1, name2):
@@ -475,7 +489,18 @@ class family_relation():
                 return sentence
         return None
     
-    def get_answer(self, raw_data, if_noise):
+    def get_generation_config(self, noise_distribution_state, generate_info):
+        noise_distribution_list = noise_distribution_state[0]
+        generate_info["total_thought"] = len(noise_distribution_list) + noise_distribution_list.count(1)
+        generate_info["noise_thought"] = noise_distribution_list.count(1)
+        generate_info["sentences_with_noise"] = []
+        for if_noise in noise_distribution_list:
+            generate_info["sentences_with_noise"].append(0)
+            if if_noise:
+                generate_info["sentences_with_noise"].append(1)
+        generate_info["sentences_with_noise"].append(0)
+    
+    def get_answer(self, raw_data, generate_info = None):
         answer = ""
         # story = raw_data["story"]
         # proofs =  ast.literal_eval(raw_data["proof_state"])
@@ -515,7 +540,14 @@ class family_relation():
             ir_noise_p = 0
             mn_noise_p = self.noise_ratio
         ir_noise_distrib_state = self._prepare_noise_distribution_iteration_state(n_ir_pos, ir_noise_p, self.noise_distribution) 
-        mn_noise_distrib_state = self._prepare_noise_distribution_iteration_state(n_mn_pos, mn_noise_p, self.noise_distribution)                 
+        mn_noise_distrib_state = self._prepare_noise_distribution_iteration_state(n_mn_pos, mn_noise_p, self.noise_distribution)
+        if generate_info is not None:          
+            if(self.noise_type == "irrelevant"):
+                self.get_generation_config(ir_noise_distrib_state, generate_info)
+            elif(self.noise_type == "inaccurate"):
+                self.get_generation_config(mn_noise_distrib_state, generate_info)
+            else:
+                self.get_generation_config(ir_noise_distrib_state, generate_info)                 
         answer, _, _ = self.get_symbolic_relation_reason(raw_data, ir_noise_distrib_state, mn_noise_distrib_state)
         return answer
     
@@ -532,8 +564,15 @@ class family_relation():
             index_list.extend(demos.index.tolist())
         return demos
     
+    def get_demos_by_index_list(self, num, index_list):
+        # demos = []
+        # for i in range(num):
+        #     index = index_list[i]
+        #     demos.append(self.trainset[index])
+        demos = self.trainset.loc[index_list[:num]]
+        return demos
     
-    def get_case(self, raw_data, demos=None):
+    def get_case(self, raw_data, if_generate_info=None, ICL_index_list=None):
         case = dict()
         qustion  = self.get_question(raw_data)
         label = self.get_label(raw_data)
@@ -544,22 +583,26 @@ class family_relation():
             n_noisy_shots = self.n_noisy_shots
             n_total_shots = n_shots + n_noisy_shots
             if n_total_shots:
-                # demos = self.example
-                # demos = demos[:n_total_shots]
-                # for demo in demos:
-                #     shots.append([demo["question"], demo["answer"]])
-                if demos == None:
+                if ICL_index_list is None:
                     demos = self.get_random_demos(num=n_total_shots, expr=raw_data)
-                normal_demos = demos.iloc[:n_shots]
-                noise_demos = demos.iloc[n_shots:]
-                for _, demo in normal_demos.iterrows():
+                else:
+                    demos = self.get_demos_by_index_list(num=n_total_shots, index_list=ICL_index_list)
+                # noise_demos = demos.iloc[n_shots:]
+                for _, demo in demos.iterrows():
+                    if if_generate_info:
+                        generate_info = dict()
+                    else:
+                        generate_info = None
                     shot_q = self.get_question(demo)
-                    shot_a = self.get_answer(demo, if_noise=False)
-                    shots.append([shot_q, shot_a])
-                for _, demo in noise_demos.iterrows():
-                    shot_q = self.get_question(demo)
-                    shot_a = self.get_answer(demo, if_noise=True)
-                    shots.append([shot_q, shot_a])
+                    shot_a = self.get_answer(demo, generate_info)
+                    if if_generate_info:
+                        shots.append([shot_q, shot_a, generate_info])
+                    else:
+                        shots.append([shot_q, shot_a])
+                # for _, demo in noise_demos.iterrows():
+                #     shot_q = self.get_question(demo)
+                #     shot_a = self.get_answer(demo)
+                #     shots.append([shot_q, shot_a])
                 if self.prefix_context:
                     for shot in shots:
                         prefix += "user:{}\nassistant:{}\n".format(shot[0], shot[1])

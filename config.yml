@@ -8,7 +8,7 @@ batch_size: 5
 # subtask
 ## base cal
 base_math:
-  reasoning_type: base-11
+  reasoning_type: base-9
 
 ## SCAN
 SCAN:
@@ -41,7 +41,7 @@ raw_dataset_options:
   if_noise: True
   n_noisy_shots: 10
   noise_type: inaccurate # irrelevant or inaccurate
-  noise_ratio: 0.8 # 0.3, 0.5 or 0.8
+  noise_ratio: 0.3 # 0.3, 0.5 or 0.8
   noise_distribution: fixed #fixed or random
 
 # ICL format

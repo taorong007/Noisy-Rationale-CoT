@@ -138,7 +138,7 @@ class generate_test:
         
         dataset_config = dict()
         dataset_config["dataset"] = self._dataset_name
-        if self._dataset != "family_relation":
+        if self._dataset_name != "family_relation":
             dataset_config["reasoning_type"] = self.config[self._dataset_name]["reasoning_type"]
             
         dataset_content = []
