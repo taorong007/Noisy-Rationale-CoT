@@ -119,10 +119,10 @@ class noise_test:
 
     def _unzip_default_processed_dataset(self, file_dir):
         file_path = os.path.join(file_dir, "processed.zip")
-        if os.path.exists(file_path):
-            with zipfile.ZipFile(file_path, 'r') as zip_ref:
-                zip_ref.extractall(file_dir)
-            print(f"processed_dataset has been extracted to {file_dir}")
+        # if os.path.exists(file_path):
+        with zipfile.ZipFile(file_path, 'r') as zip_ref:
+            zip_ref.extractall(file_dir)
+        print(f"processed_dataset has been extracted to {file_dir}")
             
     def _get_default_processed_dataset_name(self, dataset_label):
         args = self.config

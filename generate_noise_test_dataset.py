@@ -133,7 +133,6 @@ class generate_test:
         return file_path
 
     def generate_dataset(self, set_file_path=None):
-        self._init_dataset()
         dataset = dict()
         
         dataset_config = dict()
@@ -146,16 +145,16 @@ class generate_test:
             data_iter = self._dataset.iterrows()
         else:
             data_iter = enumerate(self._dataset)
-        
-        for count, raw_data in data_iter:
-            if self._dataset_name == "base_math":
+            
+        if self._dataset_name == "base_math":
+            for count, raw_data in data_iter:
                 self._question_insert(raw_data)
-            else:
-                ICL_index_file_path = self.get_shot_index_file_path()
-                with open(ICL_index_file_path, "r") as f:
-                    ICL_index_lists = json.load(f)
-                for (count, raw_data), ICL_index_list in zip(data_iter, ICL_index_lists):
-                    self._question_insert(raw_data, ICL_index_list["ICL_shots_index"])
+        else:
+            ICL_index_file_path = self.get_shot_index_file_path()
+            with open(ICL_index_file_path, "r") as f:
+                ICL_index_lists = json.load(f)
+            for (count, raw_data), ICL_index_list in zip(data_iter, ICL_index_lists):
+                self._question_insert(raw_data, ICL_index_list["ICL_shots_index"])
         cases = self._case_list
         
         dataset_config["question_num"] = len(cases)

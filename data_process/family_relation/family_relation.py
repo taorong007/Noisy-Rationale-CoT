@@ -193,7 +193,10 @@ class family_relation():
             
             mask = dataset['edge_types'].apply(lambda x: len(ast.literal_eval(x)) == 3)
             dataset = dataset[mask]
-            dataset = dataset.reset_index(drop=True)
+            dataset = dataset.sample(frac=1).reset_index(drop=True)
+            unnamed_cols = [col for col in dataset.columns if col.startswith('Unnamed')]
+            if unnamed_cols:
+                dataset = dataset.drop(unnamed_cols, axis=1)
             self.trainset = dataset
             testset = dataset
         
