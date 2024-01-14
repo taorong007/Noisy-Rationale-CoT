@@ -55,7 +55,7 @@ temperature_reason: 1
 n_reason: 10
 
 ## RV or RAV or both
-temperature_rephrase: 0.75
+temperature_rephrase: 1
 n_rephrase: 5
 
 ## RV
