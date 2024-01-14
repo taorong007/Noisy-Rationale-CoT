@@ -190,6 +190,8 @@ class generate_test:
         dataset_config["avg_demo_noisy_thought"] = n_noisy_thoughts / (dataset_config["n_max_shots"] * dataset_config["question_num"])
             
         dataset["config"] = dataset_config
+        if "system-prompt" in cases[0]:
+            dataset["system-prompt"] = cases[0]["system-prompt"]
         dataset["content"] = dataset_content    
         
         file_dir = os.path.join(self._dataset_processor.file_path, "processed")
