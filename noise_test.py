@@ -171,8 +171,13 @@ class noise_test:
 
     def _load_processed_dataset(self):
         with open(self.processed_dataset_path, "r", encoding="utf-8") as f:
-            dataset = json.load(f)["content"]
-        return dataset
+            dataset = json.load(f)
+            dataset_content = dataset["content"]
+            if "system-prompt" in dataset:
+                self._dataset_system_prompt = dataset["system-prompt"]
+            else:
+                self._dataset_system_prompt = None
+        return dataset_content
 
     def _init_dataset(self):
         processor_config = self.config[self._dataset_name] if self._dataset_name in self.config else None
@@ -446,6 +451,8 @@ class noise_test:
                 demo.append(raw_data["CoT_demos"][i]["answer"])
                 demos.append(demo)
             case["in-context"] = demos
+            if self._dataset_system_prompt != None:
+                case["system-prompt"] = self._dataset_system_prompt
             self._case_list.append(case)
     def _save_result(self):
         with open(self._pickle_name, 'wb') as f:

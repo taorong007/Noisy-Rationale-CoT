@@ -57,12 +57,13 @@ class base_math:
         lhs_base10 = int(lhs, base)
         rhs_base10 = int(rhs, base)
         sum_base10 = lhs_base10 + rhs_base10
-        return np.base_repr(sum_base10, base)    
+        return np.base_repr(sum_base10, base)
+    
     def get_answer(self, expr, generate_info = None):
         if generate_info!=None:
             generate_info["total_thought"] = 8
             generate_info["noise_thought"] = 0
-            generate_info["sentences_with_noise"] = [0] * 8
+            generate_info["sentences_with_noise"] = [0] * 9
         digits = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
         base = self.base
         lhs, rhs = expr.split("+")
