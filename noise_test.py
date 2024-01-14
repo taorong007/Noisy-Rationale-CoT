@@ -126,12 +126,12 @@ class noise_test:
             
     def _get_default_processed_dataset_name(self, dataset_label):
         args = self.config
-        noise_type = ["zoreshot","clean", "irrelevant", "inaccurate"]
+        noise_type = ["zeroshot","clean", "irrelevant", "inaccurate"]
         noise_difficulty = ["easy", "medium", "hard"]
         type = dataset_label[1]
         assert type in noise_type
         if type in ["irrelevant", "inaccurate"]:
-            file_name =  f"{type}"
+            file_name = f"{type}"
             difficulty = dataset_label[2]
             distribution = dataset_label[3]
             assert difficulty in noise_difficulty
@@ -773,7 +773,7 @@ if __name__ == "__main__":
     test = noise_test(args=config)
     [correct_num, error_num, answer_list, answer_cotents] = test.run()
     
-    # with open('./result/base_math/gpt-3.5-turbo-0613/temperature1/rephrase/log_ICL_0_noise_3irrelevant_level3.pkl', 'rb') as f:
+    # with open('./pre_result/base_math/gpt-3.5-turbo-0613/temperature1/rephrase/log_ICL_0_noise_3irrelevant_level3.pkl', 'rb') as f:
     #     lists = pickle.load(f)
 
     # [correct_num, error_num, answer_list, answer_cotents]  = lists

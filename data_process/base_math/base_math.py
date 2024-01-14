@@ -306,9 +306,9 @@ class base_math:
         
         
     #     if tens_carry_over > 0:
-    #         result = str(tens_carry_over) + digit_ten + digit_one
+    #         pre_result = str(tens_carry_over) + digit_ten + digit_one
     #     else:
-    #         result = digit_ten + digit_one
+    #         pre_result = digit_ten + digit_one
             
     #     explaination = f"Since we're in base-{base}, that exceeds the maximum value of {digits[base-1]} for a single digit." if carry_over >= 1 else f"Since we're in base-{base}, that doesn't exceed the maximum value of {digits[base-1]} for a single digit. "
         
@@ -342,7 +342,7 @@ class base_math:
     #     ret += f"so the digit is {digit_ten_show} and the carry is {tens_carry_over_show}. "
         
     #     tens_carry_over_show = tens_carry_over + self._get_random_error() if self._should_add_noise(noise_distribution_list) else tens_carry_over
-    #     ret += f"A leading digit {tens_carry_over}. So the answer is {result}. Answer:\\box{{{result}}}"
+    #     ret += f"A leading digit {tens_carry_over}. So the answer is {pre_result}. Answer:\\box{{{pre_result}}}"
         
         # if random.random() < noise_p:
         #     ones_sum_base10 += self._get_random_error()

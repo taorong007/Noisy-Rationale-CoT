@@ -44,7 +44,7 @@ class chatgpt_denoiser:
         for choice in chat_completion.choices:
             result += choice.message.content
         # print(sentence)
-        # print(result)
+        # print(pre_result)
         return result
     
     def get_batch_response_by_model(self, sentences, model, n_reasoning):
