@@ -244,15 +244,20 @@ class noise_test:
             from method.smooth_llm_main.lib.defenses import SmoothLLM
             self.temperature_reason = args["temperature_reason"] if "temperature_reason" in args else 1
             self.n_reason = args["n_reason"] if "n_reason" in args else 1
+            self.smoothllm = SmoothLLM(self._model, self._dataset_processor, "RandomSwapPerturbation", 10, self.n_reason)
         elif self.method == "selfdenoise":
             from method.SelfDenoise_main.baseline_test import SelfDenoise
             self.temperature_reason = args["temperature_reason"] if "temperature_reason" in args else 1
             self.n_reason = args["n_reason"] if "n_reason" in args else 1
-            
-        if self.method == "smoothllm":
-            self.smoothllm = SmoothLLM(self._model, self._dataset_processor, "RandomSwapPerturbation", 10, self.n_reason)
-        elif self.method == "selfdenoise":
             self.SelfDenoise = SelfDenoise(n_reason=self.n_reason)
+        elif self.method == "contrastivecot":
+            self.temperature_reason = args["temperature_reason"] if "temperature_reason" in args else 1
+            self.n_reason = args["n_reason"] if "n_reason" in args else 1
+            
+        # if self.method == "smoothllm":
+        #     self.smoothllm = SmoothLLM(self._model, self._dataset_processor, "RandomSwapPerturbation", 10, self.n_reason)
+        # elif self.method == "selfdenoise":
+        #     self.SelfDenoise = SelfDenoise(n_reason=self.n_reason)
 
     def _get_log_file_name(self):
         log_path = os.path.join("result", self._dataset_name)
@@ -425,6 +430,22 @@ class noise_test:
                 case_n = 1
             elif self.method == "selfdenoise":
                 case_batch = self.SelfDenoise.certify(case_batch, model= self._model)
+                self._response_process(case_batch)
+                case_n = self.n_reason
+            elif self.method == "contrastivecot":
+                if self._dataset_name == "base_math":
+                    expr = "47+58"
+                elif self._dataset_name == "SCAN":
+                    expr = ["walk around right twice after run opposite left",
+                            ["I_TURN_LEFT", "I_TURN_LEFT", "I_RUN", "I_TURN_RIGHT", "I_WALK", "I_TURN_RIGHT", "I_WALK",
+                            "I_TURN_RIGHT", "I_WALK", "I_TURN_RIGHT", "I_WALK", "I_TURN_RIGHT", "I_WALK", "I_TURN_RIGHT",
+                            "I_WALK", "I_TURN_RIGHT", "I_WALK", "I_TURN_RIGHT", "I_WALK"]]
+                postive_QAL = []
+                postive_QAL.append(self._dataset_processor.get_question(expr))
+                postive_QAL.append(self._dataset_processor.get_answer(expr))
+                postive_QAL.append(self._dataset_processor.get_label(expr))
+                from method.Contrastive_CoT.Contrastive_CoT import Contrastive_CoT
+                case_batch = Contrastive_CoT(postive_QAL=postive_QAL, case_batch=case_batch, model=self._model, dataprocessor=self._dataset_processor, n_reason=self.n_reason)
                 self._response_process(case_batch)
                 case_n = self.n_reason
             self._log(

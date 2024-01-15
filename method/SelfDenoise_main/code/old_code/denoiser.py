@@ -15,7 +15,7 @@ class chatgpt_denoiser:
         # os.environ['HTTP_PROXY'] = os.environ['http_proxy'] = PROXY  
         # os.environ['HTTPS_PROXY'] = os.environ['https_proxy'] = PROXY  
         # os.environ['NO_PROXY'] = os.environ['no_proxy'] = '127.0.0.1,localhost,.local'
-        openai.api_key = ""
+        # openai.api_key = ""
         self.prompt = """Fill the masked positions indicated <mask> in the given sentence to make it natural and coherent. Each <mask> should be replace with only one word. The sentence fragment provides enough context to determine what words could fill in the masks. The returned sentence should be of the same length with the given sententence. Give the answer directly. The given sentence is: """
     def set_mask_word(self,mask_word):
         self.prompt = self.prompt.replace("<mask>",mask_word)
@@ -170,8 +170,6 @@ def denoise_instance(instances, args=None, model=None):
             text_b_response_list = chatgpt_cli.get_batch_response(text_b_list)
 
         for text_a_response, instance in zip(text_a_response_list, instances):
-            print(instance.text_a)
-            print(text_a_response)
             instance.text_a = text_a_response
         if text_b_list[0] is not None:
             for text_b_response, instance in zip(text_b_response_list, instances):

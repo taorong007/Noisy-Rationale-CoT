@@ -606,12 +606,12 @@ class family_relation():
                 #     shot_q = self.get_question(demo)
                 #     shot_a = self.get_answer(demo)
                 #     shots.append([shot_q, shot_a])
-                if self.prefix_context:
-                    for shot in shots:
-                        prefix += "user:{}\nassistant:{}\n".format(shot[0], shot[1])
-                    prefix += "user:"
-                else:    
-                    case["in-context"] = shots
+                # if self.prefix_context:
+                #     for shot in shots:
+                #         prefix += "user:{}\nassistant:{}\n".format(shot[0], shot[1])
+                #     prefix += "user:"
+                # else:    
+                case["in-context"] = shots
         case["question"] = prefix + qustion
         case["label"] = label
         

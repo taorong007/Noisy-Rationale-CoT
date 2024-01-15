@@ -2,13 +2,13 @@
 model: gpt-3.5-turbo-0613 #gpt-3.5-turbo-0613 or llama2
 dataset: SCAN # family_relation and base_math and SCAN
 start_num: 0
-test_num:  1000
+test_num:  500
 batch_size: 5
 
 # subtask
 ## base cal
 base_math:
-  reasoning_type: base-11
+  reasoning_type: base-9
 
 ## SCAN
 SCAN:
@@ -21,34 +21,36 @@ family_relation:
   # hop: 3
 
 # use_processed_dataset or use raw dataset
-use_processed_dataset: False
+use_processed_dataset: True
 
 ## when use_processed_dataset is True
 processed_dataset_options:
-  # processed_dataset_path: default-inaccurate-medium-fixed # processed dataset path or one of ["default-zeroshot"， "default-clean", "default-(irrelevant|inaccurate)-(easy|medium|hard)-(fixed|random)"]
+  # processed dataset path or one of ["default-zeroshot"， "default-clean", "default-(irrelevant|inaccurate)-(easy|medium|hard)-(fixed|random)"]
+  # processed_dataset_path: default-inaccurate-hard-fixed
+  # processed_dataset_path: default-inaccurate-hard-fixed
   # processed_dataset_path: default-zeroshot
   processed_dataset_path: default-clean
-  n_shots: 3
+  n_shots: 4
 
 ## when use_processed_dataset is False
-raw_dataset_options:
-  ## in-context 
-  if_in_context: True
-  n_shots: 0 # self-made excellent shots
-  # n_weak_shots: 0
+# raw_dataset_options:
+#   ## in-context 
+#   if_in_context: True
+#   n_shots: 0 # self-made excellent shots
+#   # n_weak_shots: 0
 
-  ## noise
-  if_noise: True
-  n_noisy_shots: 10
-  noise_type: irrelevant # irrelevant or inaccurate
-  noise_ratio: 0.5 # 0.3, 0.5 or 0.8
-  noise_distribution: fixed #fixed or random
+#   ## noise
+#   if_noise: True
+#   n_noisy_shots: 10
+#   noise_type: irrelevant # irrelevant or inaccurate
+#   noise_ratio: 0.5 # 0.3, 0.5 or 0.8
+#   noise_distribution: fixed #fixed or random
 
 # ICL format
 prefix_context: False ## prefix
 
 # method
-method: baseline # RV or RAV or both or baseline,  smoothllm, selfdenoise, selfdenoise
+method: baseline # RV or RAV or both or baseline,  smoothllm, selfdenoise, selfdenoise, contrastivecot
 
 ## baseline, smoothllm
 temperature_reason: 1

@@ -588,14 +588,14 @@ class scan_master():
                 #     shot_q = self.get_question(demo)
                 #     shot_a = self.get_answer(demo)
                 #     shots.append([shot_q, shot_a])
-                if self.prefix_context:
-                    prefix += prefix
-                    for shot in shots:
-                        prefix += "user:{}\nassistant:{}\n".format(shot[0], shot[1])
-                    prefix += "user:"
-                else:    
-                    case["in-context"] = shots
-                    case["system-prompt"] = system_prompt
+                # if self.prefix_context:
+                #     prefix += prefix
+                #     for shot in shots:
+                #         prefix += "user:{}\nassistant:{}\n".format(shot[0], shot[1])
+                #     prefix += "user:"
+                # else:    
+                case["in-context"] = shots
+                case["system-prompt"] = system_prompt
                     
         case["question"] = prefix + qustion
         case["label"] = label
@@ -606,7 +606,7 @@ class scan_master():
         if match:
             squence_str = re.sub(r'[^a-zA-Z0-9_\s]+', '', match.group(1)).strip()
             squence = squence_str.split()
-            print("match: " + str(squence))
+            # print("match: " + str(squence))
             return str(squence)
         else:
             return None
