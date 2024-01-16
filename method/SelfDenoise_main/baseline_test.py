@@ -37,7 +37,7 @@ class SelfDenoise:
                     tmp_sentence = mask_sentence(modifiable_a, args.sparse_mask_rate, self.mask_token, 1, False, random_probs=None)
                     answer = tmp_sentence[0] + tail_a
                     qa_prompts.append(f"User: {shot[0].replace(self.mask_token, args.mask_word)}\n" + f"Assistant: {answer.replace(self.mask_token, args.mask_word)}")
-                sentences_list = chatgpt_cli.get_batch_response_by_model(system_prompt, qa_prompts, model, self.n_reason)
+                sentences_list = chatgpt_cli.get_batch_response_by_model(system_prompt, qa_prompts, model, 1)
                 n_shot_list = []
                 for shot, sentences in zip(shots, sentences_list):
                     n_shot = []
@@ -66,6 +66,6 @@ class SelfDenoise:
                     all_cases += cases
                     
             
-        model.query_case_batch(cases = all_cases, temperature = 1, n = 1)
+        model.query_case_batch(cases = all_cases, temperature = 1, n = self.n_reason)
         return all_cases
           

@@ -503,38 +503,18 @@ class family_relation():
                 generate_info["sentences_with_noise"].append(1)
         generate_info["sentences_with_noise"].append(0)
     
+    def get_correct_answer(self, raw_data):
+        answer = ""
+        _, n_ir_pos, n_mn_pos = self.get_symbolic_relation_reason(raw_data)
+        ir_noise_p = 0
+        mn_noise_p = 0
+        ir_noise_distrib_state = self._prepare_noise_distribution_iteration_state(n_ir_pos, ir_noise_p, self.noise_distribution) 
+        mn_noise_distrib_state = self._prepare_noise_distribution_iteration_state(n_mn_pos, mn_noise_p, self.noise_distribution)
+        answer, _, _ = self.get_symbolic_relation_reason(raw_data, ir_noise_distrib_state, mn_noise_distrib_state)
+        return answer
+        
     def get_answer(self, raw_data, generate_info = None):
         answer = ""
-        # story = raw_data["story"]
-        # proofs =  ast.literal_eval(raw_data["proof_state"])
-        # selected_noise_set = set()
-        
-        # if (self.reasoning_type != "symbolic"):
-        #     for proof in reversed(proofs): 
-        #         for conclusion, reasons in proof.items():
-        #             explaination = "Since "
-        #             for i, reason in enumerate(reasons):
-        #                 head = reason[0]
-        #                 relation = reason[1]
-        #                 tail = reason[2]
-        #                 sentence  = self.find_sentence_containing_strings(story, head, tail)
-        #                 if sentence:
-        #                     answer += f"Based on the sentence \"{sentence}\", we can infer that "
-        #                 answer += f"{tail} is {head}'s {relation}."
-        #                 if i > 0:
-        #                     explaination += " and "
-        #                 explaination += f"{tail} is {head}'s {relation}"
-                            
-        #                 if(if_noise and count>0):
-        #                     noise_fact = self.get_random_fact(relation, selected_noise_set).replace("[name1]", head).replace("[name2]", tail)
-        #                     answer += noise_fact
-        #                     count -= 1
-        #             head = conclusion[0]
-        #             relation = conclusion[1]
-        #             tail = conclusion[2]
-        #             answer += f"{explaination}, {tail} is {head}'s {relation}. \n"
-        #     answer += f"Answer:{relation_mix}\n"  
-        # else:
         _, n_ir_pos, n_mn_pos = self.get_symbolic_relation_reason(raw_data)
         if self.noise_type == "irrelevant":
             ir_noise_p = self.noise_ratio
@@ -553,6 +533,22 @@ class family_relation():
                 self.get_generation_config(ir_noise_distrib_state, generate_info)                 
         answer, _, _ = self.get_symbolic_relation_reason(raw_data, ir_noise_distrib_state, mn_noise_distrib_state)
         return answer
+    
+    # def get_random_contrastive_demo(self, num, case):
+    #     assert case != None
+    #     case[]
+        
+        
+    #     if expr is not None:
+    #         expr_edge_types = expr["edge_types"]
+            
+    #         mask = self.trainset["edge_types"].isin(expr_edge_types)
+    #         trainset = self.trainset[~mask]
+    #     else:
+    #         trainset = self.trainset
+
+    #     demos = trainset.sample(n=num)
+        
     
     def get_random_demos(self, num, expr=None, index_list = None):
         if expr is not None:

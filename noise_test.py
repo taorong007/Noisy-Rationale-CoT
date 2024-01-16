@@ -208,6 +208,7 @@ class noise_test:
         if not self.use_processed_dataset:
             self._dataset = self._dataset_processor.load_data()
         else:
+            self._dataset_processor.load_data()
             self._dataset =  self._load_processed_dataset()
         assert len(self._dataset) >= self._test_num
 
@@ -445,13 +446,16 @@ class noise_test:
                 if self._dataset_name == "base_math":
                     expr = "47+58"
                 elif self._dataset_name == "SCAN":
+                    # expr = self._dataset_processor.get_random_demos(1)[0]
                     expr = ["walk around right twice after run opposite left",
                             ["I_TURN_LEFT", "I_TURN_LEFT", "I_RUN", "I_TURN_RIGHT", "I_WALK", "I_TURN_RIGHT", "I_WALK",
                             "I_TURN_RIGHT", "I_WALK", "I_TURN_RIGHT", "I_WALK", "I_TURN_RIGHT", "I_WALK", "I_TURN_RIGHT",
                             "I_WALK", "I_TURN_RIGHT", "I_WALK", "I_TURN_RIGHT", "I_WALK"]]
+                elif self._dataset_name == "family_relation":
+                    expr = self._dataset_processor.get_random_demos(1).iloc[0]
                 postive_QAL = []
                 postive_QAL.append(self._dataset_processor.get_question(expr))
-                postive_QAL.append(self._dataset_processor.get_answer(expr))
+                postive_QAL.append(self._dataset_processor.get_correct_answer(expr))
                 postive_QAL.append(self._dataset_processor.get_label(expr))
                 from method.Contrastive_CoT.Contrastive_CoT import Contrastive_CoT
                 case_batch = Contrastive_CoT(postive_QAL=postive_QAL, case_batch=case_batch, model=self._model, dataprocessor=self._dataset_processor, n_reason=self.n_reason)
@@ -506,6 +510,8 @@ class noise_test:
                     ["I_TURN_LEFT", "I_TURN_LEFT", "I_RUN", "I_TURN_RIGHT", "I_WALK", "I_TURN_RIGHT", "I_WALK",
                      "I_TURN_RIGHT", "I_WALK", "I_TURN_RIGHT", "I_WALK", "I_TURN_RIGHT", "I_WALK", "I_TURN_RIGHT",
                      "I_WALK", "I_TURN_RIGHT", "I_WALK", "I_TURN_RIGHT", "I_WALK"]]
+        elif self._dataset_name == "family_relation":
+            expr = self._dataset_processor.get_random_demos(1)[0]
         else:
             raise ValueError("dataset type {} not support rephrase".format(self._dataset_name))
         temperature_rephrase = self.temperature_rephrase
@@ -525,12 +531,14 @@ class noise_test:
             contrastive_question += "Good Example:\nQ:"
             contrastive_question += self._dataset_processor.get_question(expr)
             contrastive_question += "\nA:"
-            if self._dataset_name == "base_math":
-                standard_answer = self._dataset_processor.answer(expr)
-                contrastive_question += standard_answer
-            if self._dataset_name == "SCAN":
-                standard_answer = self._dataset_processor.get_answer(expr, False)
-                contrastive_question += standard_answer
+            # if self._dataset_name == "base_math":
+            #     standard_answer = self._dataset_processor.answer(expr)
+                
+            # elif self._dataset_name == "SCAN":
+            #     standard_answer = self._dataset_processor.get_correct_answer(expr)
+            # elif self._dataset_name == "family_relation":
+            standard_answer = self._dataset_processor.get_correct_answer(expr)
+            contrastive_question += standard_answer
             contrastive_question += "\n"
             contrastive_question += "Bad Example:\nQ:"
             contrastive_question += shot[0]

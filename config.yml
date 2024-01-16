@@ -1,6 +1,6 @@
 # noise test
 model: gpt-3.5-turbo-0613 #gpt-3.5-turbo-0613 or llama2
-dataset: base_math # family_relation and base_math and SCAN
+dataset: family_relation # family_relation and base_math and SCAN
 start_num: 0
 test_num:  300
 batch_size: 5
@@ -8,11 +8,11 @@ batch_size: 5
 # subtask
 ## base cal
 base_math:
-  reasoning_type: base-9
+  reasoning_type: base-11
 
 ## SCAN
 SCAN:
-  reasoning_type: simple
+  reasoning_type: length
 
 ## family rel
 family_relation:
@@ -49,7 +49,7 @@ processed_dataset_options:
 prefix_context: False ## prefix
 
 # method
-method: ISC # RV or RAV or both or baseline,  smoothllm, selfdenoise, selfdenoise, contrastivecot, ISC
+method: contrastivecot # RV or RAV or both or baseline,  smoothllm, selfdenoise, selfpolish, contrastivecot, ISC
 
 ## baseline, smoothllm
 temperature_reason: 1

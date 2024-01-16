@@ -58,6 +58,10 @@ class base_math:
         sum_base10 = lhs_base10 + rhs_base10
         return np.base_repr(sum_base10, base)
     
+    
+    def get_correct_answer(self, expr):
+        return self.get_answer(expr)
+    
     def get_answer(self, expr, generate_info = None):
         if generate_info!=None:
             generate_info["total_thought"] = 8
