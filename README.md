@@ -5,7 +5,7 @@
 ``` bash
 conda create -n llm
 conda activate llm
-pip install openai=0.28 requests pandas nltk pyyaml scikit-learn
+pip install openai=0.28 requests pandas nltk pyyaml scikit-learn tiktoken
 ```
 
 ## 配置config文件

@@ -1,8 +1,8 @@
 # noise test
 model: gpt-3.5-turbo-0613 #gpt-3.5-turbo-0613 or llama2
-dataset: SCAN # family_relation and base_math and SCAN
+dataset: base_math # family_relation and base_math and SCAN
 start_num: 0
-test_num:  500
+test_num:  300
 batch_size: 5
 
 # subtask
@@ -26,11 +26,10 @@ use_processed_dataset: True
 ## when use_processed_dataset is True
 processed_dataset_options:
   # processed dataset path or one of ["default-zeroshot"， "default-clean", "default-(irrelevant|inaccurate)-(easy|medium|hard)-(fixed|random)"]
-  # processed_dataset_path: default-inaccurate-hard-fixed
-  # processed_dataset_path: default-inaccurate-hard-fixed
+  processed_dataset_path: default-inaccurate-hard-fixed
   # processed_dataset_path: default-zeroshot
-  processed_dataset_path: default-clean
-  n_shots: 4
+  # processed_dataset_path: default-clean
+  n_shots: 3
 
 ## when use_processed_dataset is False
 # raw_dataset_options:
@@ -50,11 +49,11 @@ processed_dataset_options:
 prefix_context: False ## prefix
 
 # method
-method: baseline # RV or RAV or both or baseline,  smoothllm, selfdenoise, selfdenoise, contrastivecot
+method: ISC # RV or RAV or both or baseline,  smoothllm, selfdenoise, selfdenoise, contrastivecot, ISC
 
 ## baseline, smoothllm
 temperature_reason: 1
-n_reason: 10
+n_reason: 5
 
 ## RV or RAV or both
 temperature_rephrase: 0.75

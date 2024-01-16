@@ -3,10 +3,10 @@ import requests
 import yaml
 import concurrent.futures
 import time
-
+import tiktoken
 
 class my_gpt:
-    def __init__(self, model='gpt-3.5-turbo', config: dict = None, api="openai") -> None:
+    def __init__(self, model='gpt-3.5-turbo-0613', config: dict = None, api="openai") -> None:
         if config != None:
             api = config["api"] if "api" in config else api
             # temperature = config["temperature"] if "temperature" in config else temperature
@@ -17,6 +17,7 @@ class my_gpt:
         self.completion_tokens = 0
         self.embedding_tokens = 0
         self.total_tokens = 0
+        self.max_tokens = 4096
         # self.temperature = temperature
         # self.run_times = run_times
 
@@ -89,10 +90,10 @@ class my_gpt:
                     completion['content'] = message['content']
                     completions.append(completion)
                 messages.append(completions)
-                return (True, '')
+                return (True, ''), messages
             except Exception as err:
                 print(err)
-                return (False, f'OpenAI API Err: {err}')
+                return (False, f'OpenAI API Err: {err}'), messages
         else:
             payload = {'messages': messages}
             response = requests.post(self.url, json=payload, headers=self.headers)
@@ -100,10 +101,10 @@ class my_gpt:
                 data = response.json()
                 # if data['choices'][0]['finish_reason'] == 'stop':
                 #     pass
-                messages.append(data['choices'][0]["message"])
-                return (True, '')
+                messages.append([data['choices'][0]["message"]])
+                return (True, ''), messages
             else:
-                return (False, f'Error: {response}')
+                return (False, f'Error: {response}'), messages
 
     def compute_cost(self):
         input_price = 0.0015
@@ -131,23 +132,94 @@ class my_gpt:
         question = case["question"]
         messages.append({'role': "user", 'content': question})
         case["messages"] = messages
-        return self.query(messages, temperature, n, top_p), messages
+        return self.query(messages, temperature, n, top_p)
 
-    def query_and_append(self, case, temperature, n, top_p):
+    def _query_and_append(self, single_query, temperature, n, top_p):
+        err_count = 0
         while True:
-            retval, messages = self.query_case(case, temperature, n, top_p)
-            err_count = 0
+            if isinstance(single_query, dict): # case
+                retval, messages = self.query_case(single_query, temperature, n, top_p)
+            else:   # messages
+                retval, messages = self.query(single_query, temperature, n, top_p)
             if retval[0]:
                 return
+            tokens = self.num_tokens_from_messages(messages)
+            if tokens >= self.max_tokens:
+                messages.append([{'role': "assistant", 'content': f"error:{retval}"}])
+                break
             err_count += 1
-            if err_count == 100:
-                messages.append({'role': "assistant", 'content': f"error:{retval}"})
+            if err_count == 50:
+                messages.append([{'role': "assistant", 'content': f"error:{retval}"}])
                 break
             time.sleep(1)
 
-    def query_batch(self, cases, temperature = 1, n = 1, top_p = 1):
+    def query_case_batch(self, cases, temperature = 1, n = 1, top_p = 1):
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            future_to_case = {executor.submit(self.query_and_append, case, temperature, n, top_p): case for case in cases}
+            future_to_case = {executor.submit(self._query_and_append, case, temperature, n, top_p): case for case in cases}
             for future in concurrent.futures.as_completed(future_to_case):
                 future.result()
         return
+    
+    def query_messages_batch(self, messages_batch, temperature = 1, n = 1, top_p = 1):
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future_to_case = {executor.submit(self._query_and_append, messages, temperature, n, top_p): messages for messages in messages_batch}
+            for future in concurrent.futures.as_completed(future_to_case):
+                future.result()
+        return
+    
+    def compute_prompt_token_by_case(self, case):
+        messages = []
+        if "system-prompt" in case:
+            system_prompt = case["system-prompt"]
+            messages.append({'role': "system", 'content': system_prompt})
+        if "in-context" in case:
+            IC_list = case["in-context"]
+            for shot in IC_list:
+                shot_q = shot[0]
+                shot_a = shot[1]
+                messages.append({'role': "user", 'content': shot_q})
+                messages.append({'role': "assistant", 'content': shot_a})
+        question = case["question"]
+        messages.append({'role': "user", 'content': question})
+        return self.num_tokens_from_messages(messages)
+
+    def num_tokens_from_messages(self, messages):
+        """Return the number of tokens used by a list of messages."""
+        model = self.model
+        try:
+            encoding = tiktoken.encoding_for_model(model)
+        except KeyError:
+            print("Warning: model not found. Using cl100k_base encoding.")
+            encoding = tiktoken.get_encoding("cl100k_base")
+        if model in {
+            "gpt-3.5-turbo-0613",
+            "gpt-3.5-turbo-16k-0613",
+            "gpt-4-0314",
+            "gpt-4-32k-0314",
+            "gpt-4-0613",
+            "gpt-4-32k-0613",
+        }:
+            tokens_per_message = 3
+            tokens_per_name = 1
+        elif model == "gpt-3.5-turbo-0301":
+            tokens_per_message = 4  # every message follows <|start|>{role/name}\n{content}<|end|>\n
+            tokens_per_name = -1  # if there's a name, the role is omitted
+        elif "gpt-3.5-turbo" in model:
+            # print("Warning: gpt-3.5-turbo may update over time. Returning num tokens assuming gpt-3.5-turbo-0613.")
+            return self.num_tokens_from_messages(messages, model="gpt-3.5-turbo-0613")
+        elif "gpt-4" in model:
+            # print("Warning: gpt-4 may update over time. Returning num tokens assuming gpt-4-0613.")
+            return self.num_tokens_from_messages(messages, model="gpt-4-0613")
+        else:
+            raise NotImplementedError(
+                f"""num_tokens_from_messages() is not implemented for model {model}. See https://github.com/openai/openai-python/blob/main/chatml.md for information on how messages are converted to tokens."""
+            )
+        num_tokens = 0
+        for message in messages:
+            num_tokens += tokens_per_message
+            for key, value in message.items():
+                num_tokens += len(encoding.encode(value))
+                if key == "name":
+                    num_tokens += tokens_per_name
+        num_tokens += 3  # every reply is primed with <|start|>assistant<|message|>
+        return num_tokens

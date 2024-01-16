@@ -253,7 +253,9 @@ class noise_test:
         elif self.method == "contrastivecot":
             self.temperature_reason = args["temperature_reason"] if "temperature_reason" in args else 1
             self.n_reason = args["n_reason"] if "n_reason" in args else 1
-            
+        elif self.method == "ISC":
+            self.temperature_reason = args["temperature_reason"] if "temperature_reason" in args else 1
+            self.n_reason = args["n_reason"] if "n_reason" in args else 1
         # if self.method == "smoothllm":
         #     self.smoothllm = SmoothLLM(self._model, self._dataset_processor, "RandomSwapPerturbation", 10, self.n_reason)
         # elif self.method == "selfdenoise":
@@ -323,7 +325,14 @@ class noise_test:
                 if test_num <= 0:
                     break
             self._query_process()
-            self._noise_test_result = [self._correct_num, self._error_num, self._answers_list, self._contents_list]
+            self._noise_test_result = dict()
+            self._noise_test_result["correct_num"] = self._correct_num
+            self._noise_test_result["error_num"] = self._error_num
+            self._noise_test_result["answers_list"] = self._answers_list
+            self._noise_test_result["contents_list"] = self._contents_list
+            self._noise_test_result["question_list"] = [case["question"] for case in self._case_list]
+            self._noise_test_result["label_list"] = [case["label"] for case in self._case_list]
+            # self._noise_test_result = [self._correct_num, self._error_num, self._answers_list, self._contents_list]
             self._save_result()
             self._log("correct_num:{}, error_num:{}, correate_rate:{}".format(self._correct_num, self._error_num,
                                                                               self._correct_num / (
@@ -398,22 +407,22 @@ class noise_test:
         for index, case_batch in enumerate(case_list):
             if self.method == "baseline":
                 case_n = self.n_reason
-                self._model.query_batch(case_batch, self.temperature_reason, self.n_reason)
+                self._model.query_case_batch(case_batch, self.temperature_reason, self.n_reason)
                 self._response_process(case_batch)
             elif self.method == "RV":
                 case_n = self.n_rephrase * self.RV_n_reason
                 case_batch = self._rephrase(case_batch)
-                self._model.query_batch(case_batch, self.RV_temp_reason, self.RV_n_reason, self.RV_topp_reason)
+                self._model.query_case_batch(case_batch, self.RV_temp_reason, self.RV_n_reason, self.RV_topp_reason)
                 self._response_process(case_batch)
             elif self.method == "RAV":
                 case_n = self.RAV_n_reason
                 case_batch = self._rephrase_aggregate(case_batch)
-                self._model.query_batch(case_batch, self.RAV_temp_reason, self.RAV_n_reason, self.RAV_topp_reason)
+                self._model.query_case_batch(case_batch, self.RAV_temp_reason, self.RAV_n_reason, self.RAV_topp_reason)
                 self._response_process(case_batch)
             elif self.method == "both":
                 RV_case_batch, RAV_case_batch = self._rephrase_both(case_batch)
-                self._model.query_batch(RV_case_batch, self.RV_temp_reason, self.RV_n_reason, self.RV_topp_reason)
-                self._model.query_batch(RAV_case_batch, self.RAV_temp_reason, self.RAV_n_reason, self.RAV_topp_reason)
+                self._model.query_case_batch(RV_case_batch, self.RV_temp_reason, self.RV_n_reason, self.RV_topp_reason)
+                self._model.query_case_batch(RAV_case_batch, self.RAV_temp_reason, self.RAV_n_reason, self.RAV_topp_reason)
                 split_RV_case_batch = [RV_case_batch[i:i + self.n_rephrase] for i in
                                        range(0, len(RV_case_batch), self.n_rephrase)]
                 split_RAV_case_batch = [[RAV_case_batch[i]] for i in range(len(RAV_case_batch))]
@@ -448,15 +457,25 @@ class noise_test:
                 case_batch = Contrastive_CoT(postive_QAL=postive_QAL, case_batch=case_batch, model=self._model, dataprocessor=self._dataset_processor, n_reason=self.n_reason)
                 self._response_process(case_batch)
                 case_n = self.n_reason
-            self._log(
+            elif self.method == "ISC":
+                from method.Intrinsic_Self_Correct.Intrinsic_Self_Correct import Intrinsic_Self_Correct
+                case_batch = Intrinsic_Self_Correct(case_batch=case_batch, model=self._model, dataset_name=self._dataset_name, n_reason=self.n_reason)
+                self._response_process(case_batch)
+                case_n = self.n_reason
+            if self._correct_num + self._error_num == 0:
+                self._log(
                 f"index {index}/{len(case_list) - 1}, correct_num {self._correct_num}, error_num {self._error_num}, "
-                f"accuracy {self._correct_num / (self._correct_num + self._error_num)}")
+                f"accuracy NULL")
+            else:
+                self._log(
+                    f"index {index}/{len(case_list) - 1}, correct_num {self._correct_num}, error_num {self._error_num}, "
+                    f"accuracy {self._correct_num / (self._correct_num + self._error_num)}")
             self._log(self._model.compute_cost())
         self._answers_list = [self._answers_list[i:i + case_n]
                               for i in range(0, len(self._answers_list), case_n)]
         self._contents_list = [self._contents_list[i:i + case_n]
                                for i in range(0, len(self._contents_list), case_n)]
-
+        
     def _question_insert(self, raw_data):
         if not self.use_processed_dataset:
             processed_case = self._dataset_processor.get_case(raw_data)
@@ -523,7 +542,7 @@ class noise_test:
             contrastive_question += "Don't offer anything else."
             contrastive_case["question"] = contrastive_question
             contrastive_queries.append(contrastive_case)
-        self._model.query_batch(contrastive_queries, temperature_rephrase, n_rephrase)
+        self._model.query_case_batch(contrastive_queries, temperature_rephrase, n_rephrase)
         n_shot_list = []
         for shot, query in zip(in_context, contrastive_queries):
             n_shot = []
@@ -741,13 +760,13 @@ if __name__ == "__main__":
     with open(config_path, 'r', encoding='utf-8') as f:
         config = yaml.safe_load(f)
     test = noise_test(args=config)
-    [correct_num, error_num, answer_list, answer_cotents] = test.run()
-    
+    result = test.run()
+    answers_list = result["answers_list"]
     # with open('./result/base_math/gpt-3.5-turbo-0613/temperature1/rephrase/log_ICL_0_noise_3irrelevant_level3.pkl', 'rb') as f:
     #     lists = pickle.load(f)
 
     # [correct_num, error_num, answer_list, answer_cotents]  = lists
     if test.method == "both":
-        test.weighted_SC_correct_rate(answer_list)
+        test.weighted_SC_correct_rate(answers_list)
     else:
-        test.COT_SC_correct_rate(answer_list)
+        test.COT_SC_correct_rate(answers_list)

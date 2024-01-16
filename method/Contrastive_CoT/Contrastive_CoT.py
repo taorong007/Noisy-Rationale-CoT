@@ -26,5 +26,5 @@ def Contrastive_CoT(postive_QAL, case_batch, model, dataprocessor, n_reason):
         new_case["question"] = prompt
         new_case["in-context"] = []
         new_cases.append(new_case)
-    model.query_batch(new_cases, n = n_reason)
+    model.query_case_batch(new_cases, n = n_reason)
     return new_cases

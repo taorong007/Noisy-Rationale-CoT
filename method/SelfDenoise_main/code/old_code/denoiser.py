@@ -47,17 +47,20 @@ class chatgpt_denoiser:
         # print(result)
         return result
     
-    def get_batch_response_by_model(self, sentences, model, n_reasoning):
+    def get_batch_response_by_model(self, system_prompt, sentences, model, n_reasoning):
         # print(sentence)
         while True:
             try:
                 case_batch = []
                 for sentence in sentences:
                     case = dict()
-                    case["system-prompt"] = "You are a helpful assistant."
+                    if system_prompt is not None:
+                        case["system-prompt"] = system_prompt
+                    else:
+                        case["system-prompt"] = "You are a helpful assistant."
                     case["question"] = self.prompt+sentence
                     case_batch.append(case)
-                model.query_batch(case_batch, n=n_reasoning)
+                model.query_case_batch(case_batch, n=n_reasoning)
                 # print(chat_completion.choices[0].message.content)
                 break
             except Exception as e:
