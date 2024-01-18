@@ -98,7 +98,7 @@ class my_llama:
         messages.append({'role':"assistant", 'content':responses[0]["generation"]["content"]})
         return
     
-    def query_batch(self, cases):
+    def query_case_batch(self, cases):
         messages_list = []
         for case in cases:
             messages = []

@@ -508,6 +508,18 @@ class scan_master():
                 generate_info["sentences_with_noise"].append(1)
         generate_info["sentences_with_noise"].append(0)
     
+    def get_correct_answer(self, raw_data):
+        in_content = raw_data[0]
+        label = raw_data[1]
+        _, _, n_ir_pos, n_mn_pos = self._get_answer(in_content) 
+        ir_noise_p = 0
+        mn_noise_p = 0
+        ir_noise_distrib_state = self._prepare_noise_distribution_iteration_state(n_ir_pos, ir_noise_p, self.noise_distribution) 
+        mn_noise_distrib_state = self._prepare_noise_distribution_iteration_state(n_mn_pos, mn_noise_p, self.noise_distribution) 
+        answer,action_sequence, _, _ = self._get_answer(in_content, ir_noise_distrib_state, mn_noise_distrib_state)
+        assert str(action_sequence) == str(label)
+        return answer
+    
     def get_answer(self, raw_data, generate_info = None):
         in_content = raw_data[0]
         label = raw_data[1]
@@ -579,7 +591,7 @@ class scan_master():
                     else:
                         generate_info = None
                     shot_q = self.get_question(demo)
-                    shot_a = self.get_answer(demo, generate_info)
+                    shot_a = self.get_answer(demo, generate_info=generate_info)
                     if if_generate_info:
                         shots.append([shot_q, shot_a, generate_info])
                     else:
@@ -588,14 +600,14 @@ class scan_master():
                 #     shot_q = self.get_question(demo)
                 #     shot_a = self.get_answer(demo)
                 #     shots.append([shot_q, shot_a])
-                if self.prefix_context:
-                    prefix += prefix
-                    for shot in shots:
-                        prefix += "user:{}\nassistant:{}\n".format(shot[0], shot[1])
-                    prefix += "user:"
-                else:    
-                    case["in-context"] = shots
-                    case["system-prompt"] = system_prompt
+                # if self.prefix_context:
+                #     prefix += prefix
+                #     for shot in shots:
+                #         prefix += "user:{}\nassistant:{}\n".format(shot[0], shot[1])
+                #     prefix += "user:"
+                # else:    
+                case["in-context"] = shots
+                case["system-prompt"] = system_prompt
                     
         case["question"] = prefix + qustion
         case["label"] = label
@@ -606,7 +618,7 @@ class scan_master():
         if match:
             squence_str = re.sub(r'[^a-zA-Z0-9_\s]+', '', match.group(1)).strip()
             squence = squence_str.split()
-            print("match: " + str(squence))
+            # print("match: " + str(squence))
             return str(squence)
         else:
             return None

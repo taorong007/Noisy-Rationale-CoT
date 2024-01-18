@@ -208,6 +208,7 @@ class noise_test:
         if not self.use_processed_dataset:
             self._dataset = self._dataset_processor.load_data()
         else:
+            self._dataset_processor.load_data()
             self._dataset =  self._load_processed_dataset()
         assert len(self._dataset) >= self._test_num
 
@@ -244,15 +245,22 @@ class noise_test:
             from method.smooth_llm_main.lib.defenses import SmoothLLM
             self.temperature_reason = args["temperature_reason"] if "temperature_reason" in args else 1
             self.n_reason = args["n_reason"] if "n_reason" in args else 1
+            self.smoothllm = SmoothLLM(self._model, self._dataset_processor, "RandomSwapPerturbation", 10, self.n_reason)
         elif self.method == "selfdenoise":
             from method.SelfDenoise_main.baseline_test import SelfDenoise
             self.temperature_reason = args["temperature_reason"] if "temperature_reason" in args else 1
             self.n_reason = args["n_reason"] if "n_reason" in args else 1
-            
-        if self.method == "smoothllm":
-            self.smoothllm = SmoothLLM(self._model, self._dataset_processor, "RandomSwapPerturbation", 10, self.n_reason)
-        elif self.method == "selfdenoise":
             self.SelfDenoise = SelfDenoise(n_reason=self.n_reason)
+        elif self.method == "contrastivecot":
+            self.temperature_reason = args["temperature_reason"] if "temperature_reason" in args else 1
+            self.n_reason = args["n_reason"] if "n_reason" in args else 1
+        elif self.method == "ISC":
+            self.temperature_reason = args["temperature_reason"] if "temperature_reason" in args else 1
+            self.n_reason = args["n_reason"] if "n_reason" in args else 1
+        # if self.method == "smoothllm":
+        #     self.smoothllm = SmoothLLM(self._model, self._dataset_processor, "RandomSwapPerturbation", 10, self.n_reason)
+        # elif self.method == "selfdenoise":
+        #     self.SelfDenoise = SelfDenoise(n_reason=self.n_reason)
 
     def _get_log_file_name(self):
         log_path = os.path.join("result", self._dataset_name)
@@ -318,7 +326,14 @@ class noise_test:
                 if test_num <= 0:
                     break
             self._query_process()
-            self._noise_test_result = [self._correct_num, self._error_num, self._answers_list, self._contents_list]
+            self._noise_test_result = dict()
+            self._noise_test_result["correct_num"] = self._correct_num
+            self._noise_test_result["error_num"] = self._error_num
+            self._noise_test_result["answers_list"] = self._answers_list
+            self._noise_test_result["contents_list"] = self._contents_list
+            self._noise_test_result["question_list"] = [case["question"] for case in self._case_list]
+            self._noise_test_result["label_list"] = [case["label"] for case in self._case_list]
+            # self._noise_test_result = [self._correct_num, self._error_num, self._answers_list, self._contents_list]
             self._save_result()
             self._log("correct_num:{}, error_num:{}, correate_rate:{}".format(self._correct_num, self._error_num,
                                                                               self._correct_num / (
@@ -393,22 +408,22 @@ class noise_test:
         for index, case_batch in enumerate(case_list):
             if self.method == "baseline":
                 case_n = self.n_reason
-                self._model.query_batch(case_batch, self.temperature_reason, self.n_reason)
+                self._model.query_case_batch(case_batch, self.temperature_reason, self.n_reason)
                 self._response_process(case_batch)
             elif self.method == "RV":
                 case_n = self.n_rephrase * self.RV_n_reason
                 case_batch = self._rephrase(case_batch)
-                self._model.query_batch(case_batch, self.RV_temp_reason, self.RV_n_reason, self.RV_topp_reason)
+                self._model.query_case_batch(case_batch, self.RV_temp_reason, self.RV_n_reason, self.RV_topp_reason)
                 self._response_process(case_batch)
             elif self.method == "RAV":
                 case_n = self.RAV_n_reason
                 case_batch = self._rephrase_aggregate(case_batch)
-                self._model.query_batch(case_batch, self.RAV_temp_reason, self.RAV_n_reason, self.RAV_topp_reason)
+                self._model.query_case_batch(case_batch, self.RAV_temp_reason, self.RAV_n_reason, self.RAV_topp_reason)
                 self._response_process(case_batch)
             elif self.method == "both":
                 RV_case_batch, RAV_case_batch = self._rephrase_both(case_batch)
-                self._model.query_batch(RV_case_batch, self.RV_temp_reason, self.RV_n_reason, self.RV_topp_reason)
-                self._model.query_batch(RAV_case_batch, self.RAV_temp_reason, self.RAV_n_reason, self.RAV_topp_reason)
+                self._model.query_case_batch(RV_case_batch, self.RV_temp_reason, self.RV_n_reason, self.RV_topp_reason)
+                self._model.query_case_batch(RAV_case_batch, self.RAV_temp_reason, self.RAV_n_reason, self.RAV_topp_reason)
                 split_RV_case_batch = [RV_case_batch[i:i + self.n_rephrase] for i in
                                        range(0, len(RV_case_batch), self.n_rephrase)]
                 split_RAV_case_batch = [[RAV_case_batch[i]] for i in range(len(RAV_case_batch))]
@@ -427,15 +442,44 @@ class noise_test:
                 case_batch = self.SelfDenoise.certify(case_batch, model= self._model)
                 self._response_process(case_batch)
                 case_n = self.n_reason
-            self._log(
+            elif self.method == "contrastivecot":
+                if self._dataset_name == "base_math":
+                    expr = "47+58"
+                elif self._dataset_name == "SCAN":
+                    # expr = self._dataset_processor.get_random_demos(1)[0]
+                    expr = ["walk around right twice after run opposite left",
+                            ["I_TURN_LEFT", "I_TURN_LEFT", "I_RUN", "I_TURN_RIGHT", "I_WALK", "I_TURN_RIGHT", "I_WALK",
+                            "I_TURN_RIGHT", "I_WALK", "I_TURN_RIGHT", "I_WALK", "I_TURN_RIGHT", "I_WALK", "I_TURN_RIGHT",
+                            "I_WALK", "I_TURN_RIGHT", "I_WALK", "I_TURN_RIGHT", "I_WALK"]]
+                elif self._dataset_name == "family_relation":
+                    expr = self._dataset_processor.get_random_demos(1).iloc[0]
+                postive_QAL = []
+                postive_QAL.append(self._dataset_processor.get_question(expr))
+                postive_QAL.append(self._dataset_processor.get_correct_answer(expr))
+                postive_QAL.append(self._dataset_processor.get_label(expr))
+                from method.Contrastive_CoT.Contrastive_CoT import Contrastive_CoT
+                case_batch = Contrastive_CoT(postive_QAL=postive_QAL, case_batch=case_batch, model=self._model, dataprocessor=self._dataset_processor, n_reason=self.n_reason)
+                self._response_process(case_batch)
+                case_n = self.n_reason
+            elif self.method == "ISC":
+                from method.Intrinsic_Self_Correct.Intrinsic_Self_Correct import Intrinsic_Self_Correct
+                case_batch = Intrinsic_Self_Correct(case_batch=case_batch, model=self._model, dataset_name=self._dataset_name, n_reason=self.n_reason)
+                self._response_process(case_batch)
+                case_n = self.n_reason
+            if self._correct_num + self._error_num == 0:
+                self._log(
                 f"index {index}/{len(case_list) - 1}, correct_num {self._correct_num}, error_num {self._error_num}, "
-                f"accuracy {self._correct_num / (self._correct_num + self._error_num)}")
+                f"accuracy NULL")
+            else:
+                self._log(
+                    f"index {index}/{len(case_list) - 1}, correct_num {self._correct_num}, error_num {self._error_num}, "
+                    f"accuracy {self._correct_num / (self._correct_num + self._error_num)}")
             self._log(self._model.compute_cost())
         self._answers_list = [self._answers_list[i:i + case_n]
                               for i in range(0, len(self._answers_list), case_n)]
         self._contents_list = [self._contents_list[i:i + case_n]
                                for i in range(0, len(self._contents_list), case_n)]
-
+        
     def _question_insert(self, raw_data):
         if not self.use_processed_dataset:
             processed_case = self._dataset_processor.get_case(raw_data)
@@ -466,6 +510,8 @@ class noise_test:
                     ["I_TURN_LEFT", "I_TURN_LEFT", "I_RUN", "I_TURN_RIGHT", "I_WALK", "I_TURN_RIGHT", "I_WALK",
                      "I_TURN_RIGHT", "I_WALK", "I_TURN_RIGHT", "I_WALK", "I_TURN_RIGHT", "I_WALK", "I_TURN_RIGHT",
                      "I_WALK", "I_TURN_RIGHT", "I_WALK", "I_TURN_RIGHT", "I_WALK"]]
+        elif self._dataset_name == "family_relation":
+            expr = self._dataset_processor.get_random_demos(1)[0]
         else:
             raise ValueError("dataset type {} not support rephrase".format(self._dataset_name))
         temperature_rephrase = self.temperature_rephrase
@@ -485,12 +531,14 @@ class noise_test:
             contrastive_question += "Good Example:\nQ:"
             contrastive_question += self._dataset_processor.get_question(expr)
             contrastive_question += "\nA:"
-            if self._dataset_name == "base_math":
-                standard_answer = self._dataset_processor.answer(expr)
-                contrastive_question += standard_answer
-            if self._dataset_name == "SCAN":
-                standard_answer = self._dataset_processor.get_answer(expr, False)
-                contrastive_question += standard_answer
+            # if self._dataset_name == "base_math":
+            #     standard_answer = self._dataset_processor.answer(expr)
+                
+            # elif self._dataset_name == "SCAN":
+            #     standard_answer = self._dataset_processor.get_correct_answer(expr)
+            # elif self._dataset_name == "family_relation":
+            standard_answer = self._dataset_processor.get_correct_answer(expr)
+            contrastive_question += standard_answer
             contrastive_question += "\n"
             contrastive_question += "Bad Example:\nQ:"
             contrastive_question += shot[0]

@@ -17,7 +17,6 @@ class base_math:
         noise_type: The type of noisy, can be "misunderstanding" or "miscalculation". Default is "miscalculation".
         noise_ratio: The ratio of noise. Each thought has a chance.
         noise_distribution: The method to fill the noise. ( fixed noise num in one shot or random num in one shot )
-        prefix_context: A boolean indicating if prefix context is used. Default is False.
         config: A dictionary containing all the attribute values. If provided, values in the config dictionary will be used to overwrite the following parameters.
         base: The base number for calculations. Default is 9.
         
@@ -58,6 +57,10 @@ class base_math:
         rhs_base10 = int(rhs, base)
         sum_base10 = lhs_base10 + rhs_base10
         return np.base_repr(sum_base10, base)
+    
+    
+    def get_correct_answer(self, expr):
+        return self.get_answer(expr)
     
     def get_answer(self, expr, generate_info = None):
         if generate_info!=None:
@@ -445,11 +448,11 @@ class base_math:
                         noisy_shots.append([shot_q, shot_a, generate_info])
                 shots = shots + noisy_shots
                 # random.shuffle(shots)
-            if self.prefix_context:
-                for shot in shots:
-                    prefix += "user:{}\nassistant:{}\n".format(shot[0], shot[1])
-                prefix += "user:"
-            else:    
+            # if self.prefix_context:
+            #     for shot in shots:
+            #         prefix += "user:{}\nassistant:{}\n".format(shot[0], shot[1])
+            #     prefix += "user:"
+            # else:    
                 case["in-context"] = shots
         question = self.get_question(expr)
         real_answer = self.get_label(expr)
@@ -472,7 +475,6 @@ class base_math:
             answer = match.group(1)
         else:
             answer = None
-        print(answer)
         return answer
 
     @staticmethod

@@ -85,7 +85,7 @@ class SmoothLLM(Defense):
         all_outputs = []
 
         # Run a forward pass through the LLM for each perturbed copy
-        self.target_model.query_batch(cases = all_cases, temperature = 1, n = 1)
+        self.target_model.query_case_batch(cases = all_cases, temperature = 1, n = 1)
 
         for case in all_cases:
             label = case["label"]
