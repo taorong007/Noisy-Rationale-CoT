@@ -8,3 +8,4 @@ test.json
 .vscode/
 .idea/
 test.py
+apikey_manager.json

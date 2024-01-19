@@ -60,7 +60,7 @@ class SelfDenoise:
                         new_case['in-context'] = list(context)
                         if model.model.startswith("gpt"):
                             tokens = model.compute_prompt_token_by_case(new_case) 
-                            if tokens >= model.max_tokens:
+                            if tokens >= model.max_prompt_tokens:
                                 new_cases_pass = 0
                                 break
                             cases.append(new_case)

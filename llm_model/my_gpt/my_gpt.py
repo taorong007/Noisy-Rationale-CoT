@@ -4,6 +4,7 @@ import yaml
 import concurrent.futures
 import time
 import tiktoken
+from .multiple_key import init_api_key_handling
 
 class my_gpt:
     def __init__(self, model='gpt-3.5-turbo-0613', config: dict = None, api="openai") -> None:
@@ -25,7 +26,10 @@ class my_gpt:
         if api == 'openai':
             with open('openai_key.yml', 'r') as f:
                 openai_config = yaml.safe_load(f)
-            openai.api_key = openai_config["key"]
+            # openai.api_key = openai_config["key"]
+            
+            key_list = openai_config["key"]
+            openai.api_key = init_api_key_handling(key_list)
             if "api_base" in openai_config:
                 openai.api_base = openai_config["api_base"]
             # openai.api_base = "https://openkey.cloud/v1"

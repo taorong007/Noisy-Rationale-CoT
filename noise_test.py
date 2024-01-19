@@ -100,6 +100,7 @@ class noise_test:
         self._init_dataset()
         self._init_method()
         log_name = args["log_name"] if "log_name" in args else self._get_log_file_name()
+        print(f"test result is in {log_name}")
         self._log_file = open(log_name, 'w', encoding='utf-8')
         dirname = os.path.dirname(log_name)
         basename = os.path.basename(log_name)
@@ -274,6 +275,9 @@ class noise_test:
                 log_path = os.path.join(log_path, "hop" + str(self._dataset_config["hop"]))
         log_path = os.path.join(log_path, self._model_name)
         log_path = os.path.join(log_path, f"method_{self.method}")
+        if "subfolder_suffix_path" in self.config:
+            if len(self.config["subfolder_suffix_path"]) > 0:
+                log_path = os.path.join(log_path, self.config["subfolder_suffix_path"])        
         if not os.path.exists(log_path):
             os.makedirs(log_path)
         log_file = "log"
