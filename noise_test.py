@@ -513,7 +513,7 @@ class noise_test:
                      "I_TURN_RIGHT", "I_WALK", "I_TURN_RIGHT", "I_WALK", "I_TURN_RIGHT", "I_WALK", "I_TURN_RIGHT",
                      "I_WALK", "I_TURN_RIGHT", "I_WALK", "I_TURN_RIGHT", "I_WALK"]]
         elif self._dataset_name == "family_relation":
-            expr = self._dataset_processor.get_random_demos(1)[0]
+            expr = self._dataset_processor.get_random_demos(1).iloc[0]
         else:
             raise ValueError("dataset type {} not support rephrase".format(self._dataset_name))
         temperature_rephrase = self.temperature_rephrase

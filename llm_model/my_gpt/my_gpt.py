@@ -17,7 +17,8 @@ class my_gpt:
         self.completion_tokens = 0
         self.embedding_tokens = 0
         self.total_tokens = 0
-        self.max_tokens = 4096
+        self.max_prompt_tokens = 4096
+        self.max_response_tokens = 1000
         # self.temperature = temperature
         # self.run_times = run_times
 
@@ -78,6 +79,7 @@ class my_gpt:
                     temperature=temperature,
                     n=n,
                     top_p=top_p,
+                    max_tokens=self.max_response_tokens
                 )
                 self.completion_tokens += response["usage"]["completion_tokens"]
                 self.prompt_tokens += response["usage"]["prompt_tokens"]
@@ -144,7 +146,7 @@ class my_gpt:
             if retval[0]:
                 return
             tokens = self.num_tokens_from_messages(messages)
-            if tokens >= self.max_tokens:
+            if tokens >= self.max_prompt_tokens:
                 messages.append([{'role': "assistant", 'content': f"error:{retval}"}])
                 break
             err_count += 1
