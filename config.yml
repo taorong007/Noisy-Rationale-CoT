@@ -28,7 +28,7 @@ use_processed_dataset: True
 ## when use_processed_dataset is True
 processed_dataset_options:
   # processed dataset path or one of ["default-zeroshot"， "default-clean", "default-(irrelevant|inaccurate)-(easy|medium|hard)-(fixed|random)"]
-  processed_dataset_path: default-inaccurate-easy-fixed
+  processed_dataset_path: default-inaccurate-hard-fixed
   # processed_dataset_path: default-zeroshot
   # processed_dataset_path: default-clean
   n_shots: 3
@@ -51,7 +51,7 @@ processed_dataset_options:
 prefix_context: False ## prefix
 
 # method
-method: baseline # RV or RAV or both or baseline,  smoothllm, selfdenoise, selfpolish, contrastivecot, ISC
+method: selfdenoise # RV or RAV or both or baseline,  smoothllm, selfdenoise, selfpolish, contrastivecot, ISC
 
 ## baseline, smoothllm, selfdenoise, selfpolish, contrastivecot, ISC
 temperature_reason: 1
