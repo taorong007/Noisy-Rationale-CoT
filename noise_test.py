@@ -288,7 +288,7 @@ class noise_test:
         else:
             log_file += "_origin"
 
-        log_file += "_case{}".format(self._test_num - self._start_num)
+        log_file += "_case{}".format(self._test_num)
         if self.method == "baseline":
             log_file += "_temp{}_n{}".format(self.temperature_reason, self.n_reason)
         elif self.method == "RV":
@@ -304,7 +304,8 @@ class noise_test:
             log_file += "_reason_temp_RV{}_RAV{}_n_RV{}_RAV{}".format(self.RV_temp_reason, self.RAV_temp_reason,
                                                                       self.RV_n_reason, self.RAV_n_reason)
             log_file += "_topp_RV{}_RAV{}".format(self.RV_topp_reason, self.RAV_topp_reason)
-
+        else:
+            log_file += "_temp{}_n{}".format(self.temperature_reason, self.n_reason)
         log_file += ".log"
         log_file_path = os.path.join(log_path, log_file)
         return log_file_path
@@ -329,6 +330,7 @@ class noise_test:
             self._noise_test_result = dict()
             self._noise_test_result["correct_num"] = self._correct_num
             self._noise_test_result["error_num"] = self._error_num
+            self._noise_test_result["not_match_num"] = self._not_match_num
             self._noise_test_result["answers_list"] = self._answers_list
             self._noise_test_result["contents_list"] = self._contents_list
             self._noise_test_result["question_list"] = [case["question"] for case in self._case_list]
@@ -473,7 +475,7 @@ class noise_test:
             else:
                 self._log(
                     f"index {index}/{len(case_list) - 1}, correct_num {self._correct_num}, error_num {self._error_num}, "
-                    f"accuracy {self._correct_num / (self._correct_num + self._error_num)}")
+                    f"accuracy {self._correct_num / (self._correct_num + self._error_num)}, " f"correct_num/total_num  {self._correct_num / (self._correct_num + self._error_num + self._not_match_num)}")
             self._log(self._model.compute_cost())
         self._answers_list = [self._answers_list[i:i + case_n]
                               for i in range(0, len(self._answers_list), case_n)]

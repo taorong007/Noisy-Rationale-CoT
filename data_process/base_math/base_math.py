@@ -289,7 +289,7 @@ class base_math:
             fact += f"{number} + {base} = {number + base}"
             ret += f"{fact}. "
         
-        ret += "Answer:\\box{{{self.get_label(expr)}}}. "
+        ret += f"Answer:\\box{{{self.get_label(expr)}}}. "
         return ret
     
     # def inaccurate_answer(self, expr):

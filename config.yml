@@ -1,6 +1,6 @@
 # noise test
 model: gpt-3.5-turbo-0613 #gpt-3.5-turbo-0613 or llama2
-dataset: family_relation # family_relation and base_math and SCAN
+dataset: base_math # family_relation and base_math and SCAN
 start_num: 0
 test_num:  300
 batch_size: 5
@@ -8,7 +8,7 @@ batch_size: 5
 # subtask
 ## base cal
 base_math:
-  reasoning_type: base-11
+  reasoning_type: base-9
 
 ## SCAN
 SCAN:
@@ -26,12 +26,12 @@ use_processed_dataset: True
 ## when use_processed_dataset is True
 processed_dataset_options:
   # processed dataset path or one of ["default-zeroshot"， "default-clean", "default-(irrelevant|inaccurate)-(easy|medium|hard)-(fixed|random)"]
-  processed_dataset_path: default-inaccurate-hard-fixed
+  processed_dataset_path: default-inaccurate-easy-fixed
   # processed_dataset_path: default-zeroshot
   # processed_dataset_path: default-clean
   n_shots: 3
 
-## when use_processed_dataset is False
+# when use_processed_dataset is False
 # raw_dataset_options:
 #   ## in-context 
 #   if_in_context: True
@@ -41,19 +41,19 @@ processed_dataset_options:
 #   ## noise
 #   if_noise: True
 #   n_noisy_shots: 10
-#   noise_type: irrelevant # irrelevant or inaccurate
-#   noise_ratio: 0.5 # 0.3, 0.5 or 0.8
+#   noise_type: inaccurate # irrelevant or inaccurate
+#   noise_ratio: 0.8 # 0.3, 0.5 or 0.8
 #   noise_distribution: fixed #fixed or random
 
 # ICL format
 prefix_context: False ## prefix
 
 # method
-method: contrastivecot # RV or RAV or both or baseline,  smoothllm, selfdenoise, selfpolish, contrastivecot, ISC
+method: baseline # RV or RAV or both or baseline,  smoothllm, selfdenoise, selfpolish, contrastivecot, ISC
 
-## baseline, smoothllm
+## baseline, smoothllm, selfdenoise, selfpolish, contrastivecot, ISC
 temperature_reason: 1
-n_reason: 5
+n_reason: 10
 
 ## RV or RAV or both
 temperature_rephrase: 0.75
