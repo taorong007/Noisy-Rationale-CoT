@@ -102,6 +102,7 @@ class noise_test:
         self._init_dataset()
         self._init_method()
         log_name = args["log_name"] if "log_name" in args else self._get_log_file_name()
+        print(f"test result is in {log_name}")
         self._log_file = open(log_name, 'w', encoding='utf-8')
         dirname = os.path.dirname(log_name)
         basename = os.path.basename(log_name)
@@ -323,6 +324,9 @@ class noise_test:
                 log_path = os.path.join(log_path, "hop" + str(self._dataset_config["hop"]))
         log_path = os.path.join(log_path, self._model_name)
         log_path = os.path.join(log_path, f"method_{self.method}")
+        if "subfolder_suffix_path" in self.config:
+            if len(self.config["subfolder_suffix_path"]) > 0:
+                log_path = os.path.join(log_path, self.config["subfolder_suffix_path"])        
         if not os.path.exists(log_path):
             os.makedirs(log_path)
         log_file = "log"
@@ -338,7 +342,7 @@ class noise_test:
         else:
             log_file += "_origin"
 
-        log_file += "_case{}".format(self._test_num - self._start_num)
+        log_file += "_case{}".format(self._test_num)
         if self.method == "baseline":
             log_file += "_temp{}_n{}".format(self.temperature_reason, self.n_reason)
         elif self.method == "CD-CoT":
@@ -395,6 +399,7 @@ class noise_test:
             self._noise_test_result["correct_num"] = self._correct_num
             self._noise_test_result["error_num"] = self._error_num
             self._noise_test_result["noisy_ICL_correct_list"] = self._noisy_ICL_correct_list
+            self._noise_test_result["not_match_num"] = self._not_match_num
             self._noise_test_result["answers_list"] = self._answers_list
             self._noise_test_result["contents_list"] = self._contents_list
             self._noise_test_result["question_list"] = [case["question"] for case in self._case_list]
@@ -543,7 +548,7 @@ class noise_test:
             else:
                 self._log(
                     f"index {index}/{len(case_list) - 1}, correct_num {self._correct_num}, error_num {self._error_num}, "
-                    f"accuracy {self._correct_num / (self._correct_num + self._error_num)}")
+                    f"accuracy {self._correct_num / (self._correct_num + self._error_num)}, " f"correct_num/total_num  {self._correct_num / (self._correct_num + self._error_num + self._not_match_num)}")
             self._log(self._model.compute_cost())
         self._answers_list = [self._answers_list[i:i + case_n]
                               for i in range(0, len(self._answers_list), case_n)]

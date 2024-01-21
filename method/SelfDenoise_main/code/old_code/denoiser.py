@@ -60,7 +60,7 @@ class chatgpt_denoiser:
                         case["system-prompt"] = "You are a helpful assistant."
                     case["question"] = self.prompt+sentence
                     case_batch.append(case)
-                model.query_case_batch(case_batch, n=n_reasoning)
+                model.query_case_batch(case_batch, n=1)
                 # print(chat_completion.choices[0].message.content)
                 break
             except Exception as e:
@@ -68,11 +68,13 @@ class chatgpt_denoiser:
                 continue
             # print(chat_completion)
         
+        cases_batch = [case_batch[i:i + n_reasoning] for i in range(0, len(case_batch), n_reasoning)]
+        
         new_sentences_list = []
-        for case in case_batch:
-            responses = case["messages"][-1]
+        for cases in cases_batch:
             new_sentences = []
-            for response in responses:
+            for case in cases:
+                response = case["messages"][-1][0]
                 result = response["content"]
                 new_sentences.append(result)
             new_sentences_list.append(new_sentences)

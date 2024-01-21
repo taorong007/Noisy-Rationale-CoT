@@ -20,6 +20,8 @@ family_relation:
   # train_set: 5
   # hop: 3
 
+# subfolder_suffix_path: shot_ablation
+
 # use_processed_dataset or use raw dataset
 use_processed_dataset: True
 
@@ -32,7 +34,7 @@ processed_dataset_options:
   # processed_dataset_path: default-zeroshot
   # processed_dataset_path: default-clean
 
-## when use_processed_dataset is False
+# when use_processed_dataset is False
 # raw_dataset_options:
 #   ## in-context 
 #   if_in_context: True
@@ -42,8 +44,8 @@ processed_dataset_options:
 #   ## noise
 #   if_noise: True
 #   n_noisy_shots: 10
-#   noise_type: irrelevant # irrelevant or inaccurate
-#   noise_ratio: 0.5 # 0.3, 0.5 or 0.8
+#   noise_type: inaccurate # irrelevant or inaccurate
+#   noise_ratio: 0.8 # 0.3, 0.5 or 0.8
 #   noise_distribution: fixed #fixed or random
 
 # ICL format
@@ -52,7 +54,8 @@ prefix_context: False ## prefix
 # method
 method: CD-CoT # CD-CoT or baseline,  smoothllm, selfdenoise, selfpolish, contrastivecot, ISC
 
-## baseline, smoothllm
+
+## baseline, smoothllm, selfdenoise, selfpolish, contrastivecot, ISC
 temperature_reason: 1
 n_reason: 5
 
