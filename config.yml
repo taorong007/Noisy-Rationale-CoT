@@ -1,18 +1,18 @@
 # noise test
 model: gpt-3.5-turbo-0613 #gpt-3.5-turbo-0613 or llama2
-dataset: family_relation # family_relation and base_math and SCAN
+dataset: base_math # family_relation and base_math and SCAN
 start_num: 0
-test_num: 10
-batch_size: 5
+test_num: 300
+batch_size: 1
 
 # subtask
 ## base cal
 base_math:
-  reasoning_type: base-11
+  reasoning_type: base-9
 
 ## SCAN
 SCAN:
-  reasoning_type: length
+  reasoning_type: simple
 
 ## family rel
 family_relation:
@@ -26,10 +26,11 @@ use_processed_dataset: True
 ## when use_processed_dataset is True
 processed_dataset_options:
   # processed dataset path or one of ["default-zeroshot"， "default-clean", "default-(irrelevant|inaccurate)-(easy|medium|hard)-(fixed|random)"]
-  processed_dataset_path: default-inaccurate-hard-fixed
+  processed_dataset_path: default-inaccurate-medium-fixed
+  n_shots: 3
+  # using_subset: False
   # processed_dataset_path: default-zeroshot
   # processed_dataset_path: default-clean
-  n_shots: 3
 
 ## when use_processed_dataset is False
 # raw_dataset_options:
@@ -49,28 +50,37 @@ processed_dataset_options:
 prefix_context: False ## prefix
 
 # method
-method: contrastivecot # RV or RAV or both or baseline,  smoothllm, selfdenoise, selfpolish, contrastivecot, ISC
+method: CD-CoT # CD-CoT or baseline,  smoothllm, selfdenoise, selfpolish, contrastivecot, ISC
 
 ## baseline, smoothllm
 temperature_reason: 1
 n_reason: 5
 
-## RV or RAV or both
-temperature_rephrase: 1
+## CD-CoT
+use_logged_rephrased_result: True
 n_rephrase: 5
+temperature_rephrase: 1
+topp_rephrase: 1
+m_select: 5 # 1 or 2 or 3 or 5
+use_logged_ICL_result: True
+use_clean_shot: False
+# use_noisy_shot: False
+c_reason: [1,1,1,1,1] # [5] or [3,2] or [2,2,1] or [1,1,1,1,1]
+temp_reason: 1
+topp_reason: 1
 
-## RV
-RV_n_reason: 1
-RV_temp_reason: 0.1 # 0.1
-RV_topp_reason: 1 # 1
-## RAV
-RAV_n_reason: 5
-RAV_temp_reason: 1 # 1
-RAV_topp_reason: 0.9 # 0.9
+### RV
+#RV_n_reason: 1
+#RV_temp_reason: 0.1 # 0.1
+#RV_topp_reason: 1 # 1
+### RAV
+#RAV_n_reason: 5
+#RAV_temp_reason: 1 # 1
+#RAV_topp_reason: 0.9 # 0.9
 
-## both
-RV_weight: 0.5
-RAV_weight: 0.5
+### both
+#RV_weight: 0.5
+#RAV_weight: 0.5
 
 # model
 ## gpt

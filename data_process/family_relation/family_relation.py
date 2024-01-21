@@ -200,8 +200,8 @@ class family_relation():
             self.trainset = dataset
             testset = dataset
         
-        with open(os.path.join(unzip_path, "example_set.json"), "r") as f:
-            self.example = json.load(f)
+        # with open(os.path.join(unzip_path, "example_set.json"), "r") as f:
+        #     self.example = json.load(f)
     
             # self.generate_json(testset, 1)
         
