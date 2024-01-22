@@ -7,7 +7,7 @@ import math
 class GSM:
     def __init__(self, n_shots=0,  n_noisy_shots=0, noise_type="irrelevant", noisy_level = 1, prefix_context = False) -> None:
         self.dataset_path = "./data/GSM/"
-        self._suffix_prompt = "\nEnd the response with the result in \"The answer is : {result}\""
+        self._suffix_prompt = "\nEnd the response with the pre_result in \"The answer is : {pre_result}\""
         self.n_shots = n_shots
         self.n_noisy_shots = n_noisy_shots
         self.prefix_context = prefix_context

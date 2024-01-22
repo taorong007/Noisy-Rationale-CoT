@@ -313,7 +313,7 @@ class Classifier:
     #     return result_in_dict
 
     # # for sparse adversarial training with random mask,
-    # # predict() is to get the smoothing result, which is different from evaluate()
+    # # predict() is to get the smoothing pre_result, which is different from evaluate()
     # @torch.no_grad()
     # def predict(self, args: ClassifierArgs, **kwargs):
     #     # self.evaluate(args, is_training=False)
@@ -389,10 +389,10 @@ class Classifier:
     #         results_iterable = attacker.attack_dataset(dataset)
     #         description = tqdm(results_iterable, total=len(choice_instances))
     #         result_statistics = SimplifidResult()
-    #         for result in description:
+    #         for pre_result in description:
     #             try:
-    #                 attacker_log_manager.log_result(result)
-    #                 result_statistics(result)
+    #                 attacker_log_manager.log_result(pre_result)
+    #                 result_statistics(pre_result)
     #                 description.set_description(result_statistics.__str__())
     #             except RuntimeError as e:
     #                 print('error in process')
@@ -418,9 +418,9 @@ class Classifier:
     #     dataset = CustomTextAttackDataset.from_instances(args.dataset_name, dataset_to_aug, self.data_reader.get_labels())
     #     results_iterable = attacker.attack_dataset(dataset)
     #     aug_instances = []
-    #     for result, instance in tqdm(zip(results_iterable, dataset_to_aug), total=len(dataset)):
+    #     for pre_result, instance in tqdm(zip(results_iterable, dataset_to_aug), total=len(dataset)):
     #         try:
-    #             adv_sentence = result.perturbed_text()
+    #             adv_sentence = pre_result.perturbed_text()
     #             aug_instances.append(InputInstance.from_instance_and_perturb_sentence(instance, adv_sentence))
     #         except:
     #             print('one error happend, delete one instance')
@@ -789,9 +789,9 @@ class Classifier:
                 # metric(radius, data_length)
             # print('radius: ',radius,file=log_file,flush=True)
             
-            # result = metric.get_metric()
+            # pre_result = metric.get_metric()
             
-        #     description.set_description("Accu: {:.2f}%, Median: {}".format(result['accuracy'] * 100, result['median']))
+        #     description.set_description("Accu: {:.2f}%, Median: {}".format(pre_result['accuracy'] * 100, pre_result['median']))
         # print("ensemble n",file=log_file,flush=True)
         # print(metric,file=log_file,flush=True)
         # print("not ensemble n*m",file=log_file,flush=True)

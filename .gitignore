@@ -1,4 +1,3 @@
-result/*
 *key.yml
 **/__pycache__/
 data/**/unzip_data/*
@@ -8,4 +7,6 @@ test.json
 .vscode/
 .idea/
 test.py
+/pre_result/
+/result/
 apikey_manager.json

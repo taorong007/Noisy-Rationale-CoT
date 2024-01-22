@@ -6,6 +6,7 @@ import time
 import tiktoken
 from .multiple_key import init_api_key_handling
 
+
 class my_gpt:
     def __init__(self, model='gpt-3.5-turbo-0613', config: dict = None, api="openai") -> None:
         if config != None:
@@ -19,7 +20,7 @@ class my_gpt:
         self.embedding_tokens = 0
         self.total_tokens = 0
         self.max_prompt_tokens = 4096
-        self.max_response_tokens = 800
+        self.max_response_tokens = 1000
         # self.temperature = temperature
         # self.run_times = run_times
 
@@ -145,9 +146,9 @@ class my_gpt:
     def _query_and_append(self, single_query, temperature, n, top_p):
         err_count = 0
         while True:
-            if isinstance(single_query, dict): # case
+            if isinstance(single_query, dict):  # case
                 retval, messages = self.query_case(single_query, temperature, n, top_p)
-            else:   # messages
+            else:  # messages
                 retval, messages = self.query(single_query, temperature, n, top_p)
             if retval[0]:
                 return
@@ -164,20 +165,30 @@ class my_gpt:
                 break
             time.sleep(1)
 
-    def query_case_batch(self, cases, temperature = 1, n = 1, top_p = 1):
+    def query_case_batch(self, cases, temperature=1, n=1, top_p=1):
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            future_to_case = {executor.submit(self._query_and_append, case, temperature, n, top_p): case for case in cases}
+            future_to_case = {executor.submit(self._query_and_append, case, temperature, n, top_p): case for case in
+                              cases}
             for future in concurrent.futures.as_completed(future_to_case):
                 future.result()
         return
-    
-    def query_messages_batch(self, messages_batch, temperature = 1, n = 1, top_p = 1):
+
+    def query_n_case(self, n_case, c_reason, temperature=1, top_p=1):
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            future_to_case = {executor.submit(self._query_and_append, messages, temperature, n, top_p): messages for messages in messages_batch}
+            future_to_case = {executor.submit(self._query_and_append, n_case[i], temperature, c_reason[i], top_p): n_case[i]
+                              for i in range(len(n_case))}
             for future in concurrent.futures.as_completed(future_to_case):
                 future.result()
         return
-    
+
+    def query_messages_batch(self, messages_batch, temperature=1, n=1, top_p=1):
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future_to_case = {executor.submit(self._query_and_append, messages, temperature, n, top_p): messages for
+                              messages in messages_batch}
+            for future in concurrent.futures.as_completed(future_to_case):
+                future.result()
+        return
+
     def compute_prompt_token_by_case(self, case):
         messages = []
         if "system-prompt" in case:
