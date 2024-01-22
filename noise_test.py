@@ -19,6 +19,7 @@ import copy
 import string
 import argparse
 import zipfile
+import ast
 
 def wr_log(obj, log_file):
     print(obj)
@@ -34,7 +35,7 @@ class noise_test:
         self._start_num = args["start_num"]
         self._test_num = args["test_num"]
         self._batch_size = args["batch_size"]
-
+        self.max_token = 0
         assert self._test_num / self._batch_size == int(
             self._test_num / self._batch_size), "test_num / batch_size should be a positive integer"
 
@@ -258,6 +259,15 @@ class noise_test:
         elif self.method == "ISC":
             self.temperature_reason = args["temperature_reason"] if "temperature_reason" in args else 1
             self.n_reason = args["n_reason"] if "n_reason" in args else 1
+        elif self.method == "SCO":
+            self.temperature_reason = args["temperature_reason"] if "temperature_reason" in args else 1
+            self.n_reason = args["n_reason"] if "n_reason" in args else 1
+        elif self.method == "selfpolish":
+            self.temperature_reason = args["temperature_reason"] if "temperature_reason" in args else 1
+            self.n_reason = args["n_reason"] if "n_reason" in args else 1
+        elif self.method == "BT":
+            self.temperature_reason = args["temperature_reason"] if "temperature_reason" in args else 1
+            self.n_reason = args["n_reason"] if "n_reason" in args else 1
         # if self.method == "smoothllm":
         #     self.smoothllm = SmoothLLM(self._model, self._dataset_processor, "RandomSwapPerturbation", 10, self.n_reason)
         # elif self.method == "selfdenoise":
@@ -341,9 +351,9 @@ class noise_test:
             self._noise_test_result["label_list"] = [case["label"] for case in self._case_list]
             # self._noise_test_result = [self._correct_num, self._error_num, self._answers_list, self._contents_list]
             self._save_result()
-            self._log("correct_num:{}, error_num:{}, correate_rate:{}".format(self._correct_num, self._error_num,
+            self._log("correct_num:{}, error_num:{}, Acc:{}".format(self._correct_num, self._error_num,
                                                                               self._correct_num / (
-                                                                                          self._correct_num + self._error_num)))
+                                                                                          self._correct_num + self._error_num + self._not_match_num)))
         self._log("End time: {}".format(datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
         return self._noise_test_result
 
@@ -472,6 +482,24 @@ class noise_test:
                 case_batch = Intrinsic_Self_Correct(case_batch=case_batch, model=self._model, dataset_name=self._dataset_name, n_reason=self.n_reason)
                 self._response_process(case_batch)
                 case_n = self.n_reason
+            elif self.method == "SCO":
+                from method.Intrinsic_Self_Correct.Intrinsic_Self_Correct import Intrinsic_Self_Correct
+                case_batch = Intrinsic_Self_Correct(case_batch=case_batch, model=self._model, dataset_name=self._dataset_name, n_reason=self.n_reason, answer_match_func=self._dataset_processor.match_answer, method="SCO")
+                self._response_process(case_batch)
+                case_n = self.n_reason
+            elif self.method == "selfpolish":
+                from method.SelfPolish.selfpolish import SelfPolish
+                SP = SelfPolish(model=self._model, temp=self.temperature_reason)
+                case_batch = SP.polish_batch(case_batch)
+                self._model.query_case_batch(case_batch, self.temperature_reason, self.n_reason)
+                self._response_process(case_batch)
+                case_n = self.n_reason
+            elif self.method == "BT":
+                from method.backtrace.backtrace import backtrace
+                case_batch = backtrace(case_batch=case_batch, model=self._model)
+                self._model.query_case_batch(case_batch, temperature=self.temperature_reason, n=self.n_reason)
+                self._response_process(case_batch)
+                case_n = self.n_reason
             if self._correct_num + self._error_num == 0:
                 self._log(
                 f"index {index}/{len(case_list) - 1}, correct_num {self._correct_num}, error_num {self._error_num}, "
@@ -479,7 +507,7 @@ class noise_test:
             else:
                 self._log(
                     f"index {index}/{len(case_list) - 1}, correct_num {self._correct_num}, error_num {self._error_num}, "
-                    f"accuracy {self._correct_num / (self._correct_num + self._error_num)}, " f"correct_num/total_num  {self._correct_num / (self._correct_num + self._error_num + self._not_match_num)}")
+                    f"Acc {self._correct_num / (self._correct_num + self._error_num + self._not_match_num)}")
             self._log(self._model.compute_cost())
         self._answers_list = [self._answers_list[i:i + case_n]
                               for i in range(0, len(self._answers_list), case_n)]
@@ -495,12 +523,24 @@ class noise_test:
             case["question"] = raw_data["question"]
             case["label"] = raw_data["label"]
             demos = []
+            if self.method == "BT":
+                case["first_error_position_list"] = []
             for i in range(self._n_shots + self._n_noisy_shots):
                 demo = []
                 demo.append(raw_data["CoT_demos"][i]["question"])
                 demo.append(raw_data["CoT_demos"][i]["answer"])
                 demos.append(demo)
+                if self.method == "BT":
+                    sentence_with_noise_list = ast.literal_eval(raw_data["CoT_demos"][i]["sentences_with_noise"])
+                    if 1 in sentence_with_noise_list:
+                        case["first_error_position_list"].append(sentence_with_noise_list.index(1))
+                    else:
+                        case["first_error_position_list"].append(-1)
             case["in-context"] = demos
+            if self._model_name.startswith("gpt"):
+                max_tokens = self._model.compute_prompt_token_by_case(case)
+                if self.max_token < max_tokens:
+                    self.max_token = max_tokens
             if self._dataset_system_prompt != None:
                 case["system-prompt"] = self._dataset_system_prompt
             self._case_list.append(case)
