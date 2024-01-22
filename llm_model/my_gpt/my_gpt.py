@@ -20,7 +20,7 @@ class my_gpt:
         self.embedding_tokens = 0
         self.total_tokens = 0
         self.max_prompt_tokens = 4096
-        self.max_response_tokens = 1500
+        self.max_response_tokens = 1100
         # self.temperature = temperature
         # self.run_times = run_times
 
