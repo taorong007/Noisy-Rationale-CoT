@@ -1,6 +1,6 @@
 # noise test
 model: gpt-3.5-turbo-0613 #gpt-3.5-turbo-0613 or llama2
-dataset: base_math # family_relation and base_math and SCAN
+dataset: family_relation # family_relation and base_math and SCAN
 start_num: 0
 test_num: 300
 batch_size: 1
@@ -8,7 +8,7 @@ batch_size: 1
 # subtask
 ## base cal
 base_math:
-  reasoning_type: base-9
+  reasoning_type: base-11
 
 ## SCAN
 SCAN:
@@ -28,7 +28,7 @@ use_processed_dataset: True
 ## when use_processed_dataset is True
 processed_dataset_options:
   # processed dataset path or one of ["default-zeroshot"， "default-clean", "default-(irrelevant|inaccurate)-(easy|medium|hard)-(fixed|random)"]
-  processed_dataset_path: default-inaccurate-hard-fixed
+  processed_dataset_path: default-clean
   n_shots: 3
   # using_subset: False
   # processed_dataset_path: default-zeroshot

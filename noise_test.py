@@ -548,7 +548,7 @@ class noise_test:
             else:
                 self._log(
                     f"index {index}/{len(case_list) - 1}, correct_num {self._correct_num}, error_num {self._error_num}, "
-                    f"accuracy {self._correct_num / (self._correct_num + self._error_num)}, " f"correct_num/total_num  {self._correct_num / (self._correct_num + self._error_num + self._not_match_num)}")
+                    f"accuracy {self._correct_num / (self._correct_num + self._error_num + self._not_match_num)} ")
             self._log(self._model.compute_cost())
         self._answers_list = [self._answers_list[i:i + case_n]
                               for i in range(0, len(self._answers_list), case_n)]
@@ -697,7 +697,7 @@ class noise_test:
             else:
                 self._log(
                     f"index {i}/{self._test_num - 1}, correct_num {self._correct_num}, error_num {self._error_num}, "
-                    f"accuracy {self._correct_num / (self._correct_num + self._error_num)}")
+                    f"accuracy {self._correct_num / (self._correct_num + self._error_num + self._not_match_num)} ")
             self._log(self._model.compute_cost())
         with open(self._get_logged_ICL_list_file(), 'w', encoding='utf-8') as ICL_file:
             json.dump({"reason_ICL_list": self._reason_ICL_list}, ICL_file)
@@ -735,7 +735,7 @@ class noise_test:
             else:
                 self._log(
                     f"index {i}/{self._test_num - 1}, correct_num {self._correct_num}, error_num {self._error_num}, "
-                    f"accuracy {self._correct_num / (self._correct_num + self._error_num)}")
+                    f"accuracy {self._correct_num / (self._correct_num + self._error_num + self._not_match_num)} ")
             self._log(self._model.compute_cost())
         self._answers_list = [self._answers_list[i:i + sum(self.c_reason)]
                               for i in range(0, len(self._answers_list), sum(self.c_reason))]
@@ -784,6 +784,7 @@ class noise_test:
         return ICL_list
 
     def COT_SC_correct_rate(self, answers_list):
+
         from collections import Counter
         valid_count = 0
         SC_right_count = 0
@@ -805,7 +806,7 @@ class noise_test:
                 SC_right_count += 1
 
         self._log("SC_correct_num:{}, valid_num:{}, SC_correct_rate:{}".format(SC_right_count, valid_count,
-                                                                               SC_right_count / valid_count))
+                                                                               SC_right_count / len(answers_list)))
         return SC_right_count, valid_count
 
     # def _rephrase(self, case_batch):
