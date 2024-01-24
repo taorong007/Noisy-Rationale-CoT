@@ -29,16 +29,16 @@ class my_gemini:
         
     def generate_content(self, prompt_str, temperature, n, top_p):
         try:
-            # generation_config = GenerationConfig(
-            #     candidate_count=n,  # So far, Only one candidate can be specified (Gemini)
-            #     temperature=temperature,
-            #     top_p=top_p
-            # )
+            generation_config = GenerationConfig(
+                candidate_count=1,  # So far, Only one candidate can be specified (Gemini)
+                temperature=temperature,
+                top_p=top_p
+            )
             # response = self.model.generate_content(prompt_str, generation_config=generation_config)
             
             responses = []
             for _ in range(n):
-                response = self.model.generate_content(prompt_str)
+                response = self.model.generate_content(prompt_str, generation_config)
                 responses.append(response.text)
                 time.sleep(1)
             return (True, f''), responses

@@ -29,11 +29,11 @@ use_processed_dataset: True
 ## when use_processed_dataset is True
 processed_dataset_options:
   # processed dataset path or one of ["default-zeroshot"， "default-clean", "default-(irrelevant|inaccurate)-(easy|medium|hard)-(fixed|random)"]
-  # processed_dataset_path: default-inaccurate-hard-fixed
+  processed_dataset_path: default-inaccurate-hard-fixed
   n_shots: 3
   # using_subset: False
   # processed_dataset_path: default-zeroshot
-  processed_dataset_path: default-clean
+  # processed_dataset_path: default-clean
 
 # when use_processed_datset is False
 # raw_dataset_options:
