@@ -4,7 +4,7 @@ import yaml
 import concurrent.futures
 import time
 import tiktoken
-from .multiple_key import init_api_key_handling
+from ..multiple_key import init_api_key_handling
 
 
 class my_gpt:

@@ -172,6 +172,10 @@ class noise_test:
             from llm_model.my_gpt.my_gpt import my_gpt
             model_config = self.config["gpt"] if "gpt" in self.config else None
             self._model = my_gpt(model=self._model_name, config=model_config)
+        elif self._model_name == "gemini-pro":
+            from llm_model.Gemini.my_gemini import my_gemini
+            model_config = self.config["gemini"] if "gemini" in self.config else None
+            self._model = my_gemini(config=model_config)
         else:
             raise ValueError("Unsupported model {}".format(self._model_name))
 
@@ -359,6 +363,8 @@ class noise_test:
             log_file += "_n{}_t{}_p{}".format(self.n_rephrase, self.temperature_rephrase, self.topp_rephrase)
             log_file += "_m{}_clean_{}".format(self.m_select, self.use_clean_shot)
             log_file += "_c{}_t{}_p_{}".format(len(self.c_reason), self.temp_reason, self.topp_reason)
+        else:
+            log_file += "_temp{}_n{}".format(self.temperature_reason, self.n_reason)
         # elif self.method == "RV":
         #     log_file += "_rephrase_temp{}_n{}".format(self.temperature_rephrase, self.n_rephrase)
         #     log_file += "_reason_temp{}_n{}".format(self.RV_temp_reason, self.RV_n_reason)
@@ -415,9 +421,7 @@ class noise_test:
             self._noise_test_result["label_list"] = [case["label"] for case in self._case_list]
             # self._noise_test_result = [self._correct_num, self._error_num, self._answers_list, self._contents_list]
             self._save_result()
-            self._log("correct_num:{}, error_num:{}, Acc:{}".format(self._correct_num, self._error_num,
-                                                                              self._correct_num / (
-                                                                                          self._correct_num + self._error_num + self._not_match_num)))
+            self._log("correct_num:{}, error_num:{}, Acc:{}".format(self._correct_num, self._error_num, self._correct_num / (self._correct_num + self._error_num + self._not_match_num)))
         self._log("End time: {}".format(datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
         return self._noise_test_result
 
@@ -585,15 +589,16 @@ class noise_test:
                 self._model.query_case_batch(case_batch, temperature=self.temperature_reason, n=self.n_reason)
                 self._response_process(case_batch)
                 case_n = self.n_reason
-            if self._correct_num + self._error_num == 0:
-                self._log(
-                    f"index {index}/{len(case_list) - 1}, correct_num {self._correct_num}, error_num {self._error_num}, "
-                    f"accuracy NULL")
-            else:
-                self._log(
+            # if self._correct_num + self._error_num == 0:
+            #     self._log(
+            #         f"index {index}/{len(case_list) - 1}, correct_num {self._correct_num}, error_num {self._error_num}, "
+            #         f"accuracy NULL")
+            # else:
+            self._log(
                     f"index {index}/{len(case_list) - 1}, correct_num {self._correct_num}, error_num {self._error_num}, "
                     f"Acc {self._correct_num / (self._correct_num + self._error_num + self._not_match_num)}")
-            self._log(self._model.compute_cost())
+            if self._model_name.split("-")[0] == "gpt":
+                self._log(self._model.compute_cost())
         self._answers_list = [self._answers_list[i:i + case_n]
                               for i in range(0, len(self._answers_list), case_n)]
         self._contents_list = [self._contents_list[i:i + case_n]
@@ -742,14 +747,14 @@ class noise_test:
                 n_case.append(new_case)
             self._model.query_n_case(n_case, self.c_reason, self.temp_reason, self.topp_reason)
             self._response_process(n_case)
-            if self._correct_num + self._error_num == 0:
-                self._log(
-                    f"index {i}/{len(self._test_num) - 1}, correct_num {self._correct_num}, error_num {self._error_num}, "
-                    f"accuracy NULL")
-            else:
-                self._log(
+            # if self._correct_num + self._error_num == 0:
+            #     self._log(
+            #         f"index {i}/{len(self._test_num) - 1}, correct_num {self._correct_num}, error_num {self._error_num}, "
+            #         f"accuracy NULL")
+            # else:
+            self._log(
                     f"index {i}/{self._test_num - 1}, correct_num {self._correct_num}, error_num {self._error_num}, "
-                    f"accuracy {self._correct_num / (self._correct_num + self._error_num)}")
+                    f"Acc {self._correct_num / (self._correct_num + self._error_num + self._not_match_num)}")
             self._log(self._model.compute_cost())
         with open(self._get_logged_ICL_list_file(), 'w', encoding='utf-8') as ICL_file:
             json.dump({"reason_ICL_list": self._reason_ICL_list}, ICL_file)
@@ -780,14 +785,14 @@ class noise_test:
                 n_case.append(new_case)
             self._model.query_n_case(n_case, self.c_reason, self.temp_reason, self.topp_reason)
             self._response_process(n_case)
-            if self._correct_num + self._error_num == 0:
-                self._log(
-                    f"index {i}/{len(self._test_num) - 1}, correct_num {self._correct_num}, error_num {self._error_num}, "
-                    f"accuracy NULL")
-            else:
-                self._log(
+            # if self._correct_num + self._error_num == 0:
+            #     self._log(
+            #         f"index {i}/{len(self._test_num) - 1}, correct_num {self._correct_num}, error_num {self._error_num}, "
+            #         f"accuracy NULL")
+            # else:
+            self._log(
                     f"index {i}/{self._test_num - 1}, correct_num {self._correct_num}, error_num {self._error_num}, "
-                    f"accuracy {self._correct_num / (self._correct_num + self._error_num)}")
+                    f"Acc {self._correct_num / (self._correct_num + self._error_num + self._not_match_num)}")
             self._log(self._model.compute_cost())
         self._answers_list = [self._answers_list[i:i + sum(self.c_reason)]
                               for i in range(0, len(self._answers_list), sum(self.c_reason))]
@@ -838,9 +843,11 @@ class noise_test:
     def COT_SC_correct_rate(self, answers_list):
         from collections import Counter
         valid_count = 0
+        all_count = 0
         SC_right_count = 0
         for answers in answers_list:
             answers = [sublist for sublist in answers if isinstance(sublist, list)]  # clean answers
+            all_count += 1
             if len(answers) == 0:
                 continue
             else:
@@ -856,9 +863,9 @@ class noise_test:
             if guess_value == true_answer:
                 SC_right_count += 1
 
-        self._log("SC_correct_num:{}, valid_num:{}, SC_correct_rate:{}".format(SC_right_count, valid_count,
-                                                                               SC_right_count / valid_count))
-        return SC_right_count, valid_count
+        self._log("SC_correct_num:{}, valid_num:{}, SC_correct_rate:{}".format(SC_right_count, all_count,
+                                                                               SC_right_count / all_count))
+        return SC_right_count, valid_count, all_count
 
     # def _rephrase(self, case_batch):
     #     n_case_batch = []
