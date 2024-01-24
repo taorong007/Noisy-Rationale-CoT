@@ -1,6 +1,6 @@
 # noise test
-model: gpt-3.5-turbo-0613 #gpt-3.5-turbo-0613 or llama2
-dataset: family_relation # family_relation and base_math and SCAN
+model: gemini-pro #gpt-3.5-turbo-0613 or llama2 or gemini-pro
+dataset:  SCAN # family_relation and base_math and SCAN
 start_num: 0
 test_num: 300
 batch_size: 1
@@ -12,7 +12,7 @@ base_math:
 
 ## SCAN
 SCAN:
-  reasoning_type: simple
+  reasoning_type: simple # simple or length
 
 ## family rel
 family_relation:
@@ -20,7 +20,8 @@ family_relation:
   # train_set: 5
   # hop: 3
 
-# subfolder_suffix_path: shot_ablation
+# use subfolder_suffix
+# subfolder_suffix_path: ablation_study
 
 # use_processed_dataset or use raw dataset
 use_processed_dataset: True
@@ -32,9 +33,8 @@ processed_dataset_options:
   n_shots: 3
   # using_subset: False
   # processed_dataset_path: default-zeroshot
-  # processed_dataset_path: default-clean
 
-# when use_processed_dataset is False
+# when use_processed_datset is False
 # raw_dataset_options:
 #   ## in-context 
 #   if_in_context: True
@@ -52,7 +52,7 @@ processed_dataset_options:
 prefix_context: False ## prefix
 
 # method
-method: CD-CoT # CD-CoT or baseline,  smoothllm, selfdenoise, selfpolish, contrastivecot, ISC
+method: baseline  # CD-CoT or baseline,  smoothllm, selfdenoise, selfpolish, contrastivecot, ISC, SCO, BT
 
 
 ## baseline, smoothllm, selfdenoise, selfpolish, contrastivecot, ISC

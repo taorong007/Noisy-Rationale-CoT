@@ -618,7 +618,7 @@ class scan_master():
         if match:
             squence_str = re.sub(r'[^a-zA-Z0-9_\s]+', '', match.group(1)).strip()
             squence = squence_str.split()
-            # print("match: " + str(squence))
+            print("match: " + str(squence))
             return str(squence)
         else:
             return None

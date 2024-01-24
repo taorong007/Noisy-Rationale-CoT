@@ -4,7 +4,7 @@ import yaml
 import concurrent.futures
 import time
 import tiktoken
-from .multiple_key import init_api_key_handling
+from ..multiple_key import init_api_key_handling
 
 
 class my_gpt:
@@ -20,7 +20,7 @@ class my_gpt:
         self.embedding_tokens = 0
         self.total_tokens = 0
         self.max_prompt_tokens = 4096
-        self.max_response_tokens = 1100
+        self.max_response_tokens = 1000
         # self.temperature = temperature
         # self.run_times = run_times
 
@@ -156,8 +156,11 @@ class my_gpt:
             if tokens >= self.max_prompt_tokens:
                 messages.append([{'role': "assistant", 'content': f"error:{retval}"}])
                 break
+            if "This model's maximum context length is 4097 tokens. However, your messages resulted" in retval[1]:
+                messages.append([{'role': "assistant", 'content': f"error:{retval}"}])
+                break
             err_count += 1
-            if err_count == 50:
+            if err_count == 10:
                 messages.append([{'role': "assistant", 'content': f"error:{retval}"}])
                 break
             time.sleep(1)

@@ -47,8 +47,9 @@ def init_key_management(key_list):
     with open(apikey_manager_name, 'w') as file:
         json.dump(keys, file, indent=4)
     
-def init_api_key_handling(key_list):
+def init_api_key_handling(key_list, json_name = "apikey_manager.json"):
     global api_key
+    global apikey_manager_name
 
     def handle_exit():
         print("Exiting: Releasing API key...")
@@ -59,6 +60,7 @@ def init_api_key_handling(key_list):
         release_key()
         raise KeyboardInterrupt
 
+    apikey_manager_name = json_name
     if not os.path.exists(apikey_manager_name):
         init_key_management(key_list)
 

@@ -470,7 +470,7 @@ class base_math:
     
     @staticmethod
     def match_answer(answer_str):
-        match = re.search(r'[Aa]nswer:.*?(-?[\da-fA-F]+)(?!.*[\da-fA-F])', answer_str)
+        match = re.search(r'[Aa]nswer:\s*\n?.*?(-?[\da-fA-F]+)(?!.*[\da-fA-F])', answer_str)
         if match:
             answer = match.group(1)
         else:
