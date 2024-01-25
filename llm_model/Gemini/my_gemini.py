@@ -26,8 +26,6 @@ class my_gemini:
         else:
             genai.configure(api_key=gemini_config["key"])
         
-        
-        
     def generate_content(self, prompt_str, temperature, n, top_p):
         try:
             generation_config = GenerationConfig(
