@@ -93,3 +93,11 @@ class my_gemini:
                 for future in concurrent.futures.as_completed(future_to_case):
                     future.result()
         return
+    
+    def query_n_case(self, n_case, c_reason, temperature=1, top_p=1):
+        for i in range(len(n_case)):
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future_to_case = {executor.submit(self._query_and_append, n_case[i], temperature, c_reason[i], top_p)}
+                for future in concurrent.futures.as_completed(future_to_case):
+                    future.result()
+        return
