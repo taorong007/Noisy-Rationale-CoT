@@ -707,7 +707,8 @@ class noise_test:
                     noisy_shot_correct_object["corrected_responses"].append(None)
         self._log("noisy_ICL_correct_process:\n")
         self._log(noisy_ICL_correct_object)
-        self._log(self._model.compute_cost())
+        if self._model_name.split("-")[0] == "gpt":
+            self._log(self._model.compute_cost())
         self._noisy_ICL_correct_list.append(noisy_ICL_correct_object)
         self._clean_shot = clean_shot
 
@@ -755,7 +756,8 @@ class noise_test:
             self._log(
                     f"index {i}/{self._test_num - 1}, correct_num {self._correct_num}, error_num {self._error_num}, "
                     f"Acc {self._correct_num / (self._correct_num + self._error_num + self._not_match_num)}")
-            self._log(self._model.compute_cost())
+            if self._model_name.split("-")[0] == "gpt":
+                self._log(self._model.compute_cost())
         with open(self._get_logged_ICL_list_file(), 'w', encoding='utf-8') as ICL_file:
             json.dump({"reason_ICL_list": self._reason_ICL_list}, ICL_file)
             ICL_file.close()
@@ -793,7 +795,8 @@ class noise_test:
             self._log(
                     f"index {i}/{self._test_num - 1}, correct_num {self._correct_num}, error_num {self._error_num}, "
                     f"Acc {self._correct_num / (self._correct_num + self._error_num + self._not_match_num)}")
-            self._log(self._model.compute_cost())
+            if self._model_name.split("-")[0] == "gpt":
+                self._log(self._model.compute_cost())
         self._answers_list = [self._answers_list[i:i + sum(self.c_reason)]
                               for i in range(0, len(self._answers_list), sum(self.c_reason))]
         self._contents_list = [self._contents_list[i:i + sum(self.c_reason)]
