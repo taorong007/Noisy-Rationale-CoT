@@ -16,8 +16,8 @@ class my_gemini:
         with open('gemini_key.yml', 'r') as f:
             gemini_config = yaml.safe_load(f)
             
-        os.environ['https_proxy'] = 'http://127.0.0.1:10809'
-        os.environ['http_proxy'] = 'http://127.0.0.1:10809'
+        # os.environ['https_proxy'] = 'http://127.0.0.1:10809'
+        # os.environ['http_proxy'] = 'http://127.0.0.1:10809'
         
         if isinstance(gemini_config["key"], list):   
             key_list = gemini_config["key"]
@@ -38,7 +38,7 @@ class my_gemini:
             
             responses = []
             for _ in range(n):
-                response = self.model.generate_content(prompt_str, generation_config)
+                response = self.model.generate_content(prompt_str, generation_config=generation_config)
                 responses.append(response.text)
                 time.sleep(1)
             return (True, f''), responses
