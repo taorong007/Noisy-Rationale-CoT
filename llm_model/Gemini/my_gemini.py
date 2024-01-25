@@ -16,8 +16,8 @@ class my_gemini:
         with open('gemini_key.yml', 'r') as f:
             gemini_config = yaml.safe_load(f)
             
-        os.environ['https_proxy'] = 'http://127.0.0.1:10809'
-        os.environ['http_proxy'] = 'http://127.0.0.1:10809'
+        os.environ['https_proxy'] = 'http://127.0.0.1:7890'
+        os.environ['http_proxy'] = 'http://127.0.0.1:7890'
         
         if isinstance(gemini_config["key"], list):   
             key_list = gemini_config["key"]
