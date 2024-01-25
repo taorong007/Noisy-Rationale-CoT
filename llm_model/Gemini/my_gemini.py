@@ -15,10 +15,16 @@ class my_gemini:
             raise ValueError(f"{model} is not supported")
         with open('gemini_key.yml', 'r') as f:
             gemini_config = yaml.safe_load(f)
+<<<<<<< HEAD
 
         os.environ['https_proxy'] = 'http://127.0.0.1:7890'
         os.environ['http_proxy'] = 'http://127.0.0.1:7890'
 
+=======
+            
+        os.environ['https_proxy'] = 'http://127.0.0.1:10809'
+        os.environ['http_proxy'] = 'http://127.0.0.1:10809'
+>>>>>>> origin
         
         if isinstance(gemini_config["key"], list):   
             key_list = gemini_config["key"]
@@ -82,11 +88,21 @@ class my_gemini:
                 return
         
     def query_case_batch(self, cases, temperature=1, n=1, top_p=1):
-        if len(cases)> 1:
-            raise ValueError("gemini test now does not support batch > 1")
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            future_to_case = {executor.submit(self._query_and_append, case, temperature, n, top_p): case for case in
-                              cases}
-            for future in concurrent.futures.as_completed(future_to_case):
-                future.result()
+        # if len(cases)> 1:
+        #     raise ValueError("gemini test now does not support batch > 1")
+        for case in cases:
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                # future_to_case = {executor.submit(self._query_and_append, case, temperature, n, top_p): case for case in
+                #                 cases}
+                future_to_case = {executor.submit(self._query_and_append, case, temperature, n, top_p)}
+                for future in concurrent.futures.as_completed(future_to_case):
+                    future.result()
+        return
+    
+    def query_n_case(self, n_case, c_reason, temperature=1, top_p=1):
+        for i in range(len(n_case)):
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future_to_case = {executor.submit(self._query_and_append, n_case[i], temperature, c_reason[i], top_p)}
+                for future in concurrent.futures.as_completed(future_to_case):
+                    future.result()
         return

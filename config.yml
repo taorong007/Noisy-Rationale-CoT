@@ -1,5 +1,5 @@
 # noise test
-model: gemini-pro #gpt-3.5-turbo-0613 or llama2 or gemini-pro
+model: gemini-pro  # gpt-3.5-turbo-0613 or llama2 or gemini-pro
 dataset:  base_math # family_relation and base_math and SCAN
 start_num: 0
 test_num: 300
@@ -33,7 +33,6 @@ processed_dataset_options:
   n_shots: 3
   # using_subset: False
   # processed_dataset_path: default-zeroshot
-
 
 # when use_processed_datset is False
 # raw_dataset_options:
