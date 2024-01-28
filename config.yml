@@ -1,6 +1,6 @@
 # noise test
-model: gemini-pro  # gpt-3.5-turbo-0613 or llama2 or gemini-pro
-dataset: family_relation # family_relation and base_math and SCAN
+model: mixtral # gpt-3.5-turbo-0613 or gemini-pro or mixtral or  llama-2-70b
+dataset:  family_relation # family_relation and base_math and SCAN
 start_num: 0
 test_num: 300
 batch_size: 1
@@ -92,8 +92,8 @@ gpt:
   # api_base: "https://openkey.cloud/v1"
 
 ## llama2 
-llama2:
-  ckpt_dir: /vol/home/lanlong/xuanli/code/llama-main/llama-2-7b-chat/
-  tokenizer_path: /vol/home/lanlong/xuanli/code/llama-main/tokenizer.model
-  max_seq_len: 4000
-  max_batch_size: 10
+# llama2:
+#   ckpt_dir: /vol/home/lanlong/xuanli/code/llama-main/llama-2-7b-chat/
+#   tokenizer_path: /vol/home/lanlong/xuanli/code/llama-main/tokenizer.model
+#   max_seq_len: 4000
+#   max_batch_size: 10

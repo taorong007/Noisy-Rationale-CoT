@@ -71,10 +71,25 @@ class my_gemini:
     def _query_and_append(self, single_query, temperature=1, n=1, top_p=1):
         err_count = 0
         while True:
-            # if isinstance(single_query, dict):  # case
-            retval, messages = self.query_case(single_query, temperature, n, top_p)
-            # else:  # messages
-            #     retval, messages = self.query(single_query)
+            if isinstance(single_query, dict):  # case
+                retval, messages = self.query_case(single_query, temperature, n, top_p)
+            else:  # messages
+                prompt = ""
+                messages = single_query
+                for message in messages[:-1]:
+                    if message["role"] == "system":
+                        prompt += message["content"] + "\n"
+                    elif messages["role"] == "user":
+                        prompt += "user: {}\n".format(message["content"])
+                    else:
+                        prompt += "model: {}\n".format(message["content"])
+                prompt += "user: {}\n".format(messages[-1]["content"])
+                retval, responses = self.generate_content(prompt, temperature, n, top_p)
+                if retval[0]:
+                    response_content = []
+                    for response in responses:
+                        response_content.append({"role":"assistent", "content": response})
+                    messages.append(response_content)
             if retval[0]:
                 return
             if err_count > 30:
@@ -88,6 +103,15 @@ class my_gemini:
                 # future_to_case = {executor.submit(self._query_and_append, case, temperature, n, top_p): case for case in
                 #                 cases}
                 future_to_case = {executor.submit(self._query_and_append, case, temperature, n, top_p)}
+                for future in concurrent.futures.as_completed(future_to_case):
+                    future.result()
+        return
+    
+    def query_messages_batch(self, messages_batch, temperature=1, n=1, top_p=1):
+        
+        for messages in messages_batch:
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future_to_case = {executor.submit(self._query_and_append, messages, temperature, n, top_p)}
                 for future in concurrent.futures.as_completed(future_to_case):
                     future.result()
         return

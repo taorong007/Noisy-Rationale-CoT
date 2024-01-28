@@ -110,7 +110,7 @@ class noise_test:
         self._pickle_name = os.path.join(dirname, name_without_ext + '.pkl')
 
         self._log(args)
-
+        self._log(self._model.key)
         self._correct_num = 0
         self._error_num = 0
         self._not_match_num = 0
@@ -164,9 +164,9 @@ class noise_test:
         return os.path.join(processed_dataset_dir, file_name)
 
     def _init_model(self):
-        if self._model_name == "llama2":
+        if self._model_name.split("-")[0] == "llama":
             from llm_model.llama.my_llama import my_llama
-            model_config = self.config["llama2"] if "llama2" in self.config else None
+            model_config = self.config["llama"] if "llama" in self.config else None
             self._model = my_llama(config=model_config)
         elif self._model_name.split("-")[0] == "gpt":
             from llm_model.my_gpt.my_gpt import my_gpt
@@ -176,6 +176,10 @@ class noise_test:
             from llm_model.Gemini.my_gemini import my_gemini
             model_config = self.config["gemini"] if "gemini" in self.config else None
             self._model = my_gemini(config=model_config)
+        elif self._model_name == "mixtral":
+            from llm_model.mixtral.my_mixtral import my_mixtral
+            model_config = self.config["my_mixtral"] if "my_mixtral" in self.config else None
+            self._model = my_mixtral(config=model_config)
         else:
             raise ValueError("Unsupported model {}".format(self._model_name))
 
@@ -596,9 +600,8 @@ class noise_test:
             # else:
             self._log(
                     f"index {index}/{len(case_list) - 1}, correct_num {self._correct_num}, error_num {self._error_num}, "
-                    f"accuracy {self._correct_num / (self._correct_num + self._error_num + self._not_match_num)} ")
-
-            if self._model_name.split("-")[0] == "gpt":
+                    f"Acc {self._correct_num / (self._correct_num + self._error_num + self._not_match_num)}")
+            if not self._model_name.startswith("gemini"):
                 self._log(self._model.compute_cost())
 
         self._answers_list = [self._answers_list[i:i + case_n]
@@ -709,7 +712,7 @@ class noise_test:
                     noisy_shot_correct_object["corrected_responses"].append(None)
         self._log("noisy_ICL_correct_process:\n")
         self._log(noisy_ICL_correct_object)
-        if self._model_name.split("-")[0] == "gpt":
+        if not self._model_name.startswith("gemini"):
             self._log(self._model.compute_cost())
         self._noisy_ICL_correct_list.append(noisy_ICL_correct_object)
         self._clean_shot = clean_shot
@@ -757,8 +760,8 @@ class noise_test:
             # else:
             self._log(
                     f"index {i}/{self._test_num - 1}, correct_num {self._correct_num}, error_num {self._error_num}, "
-                    f"accuracy {self._correct_num / (self._correct_num + self._error_num + self._not_match_num)} ")
-            if self._model_name.split("-")[0] == "gpt":
+                    f"Acc {self._correct_num / (self._correct_num + self._error_num + self._not_match_num)}")
+            if not self._model_name.startswith("gemini"):
                 self._log(self._model.compute_cost())
         with open(self._get_logged_ICL_list_file(), 'w', encoding='utf-8') as ICL_file:
             json.dump({"reason_ICL_list": self._reason_ICL_list}, ICL_file)
@@ -796,8 +799,8 @@ class noise_test:
             # else:
             self._log(
                     f"index {i}/{self._test_num - 1}, correct_num {self._correct_num}, error_num {self._error_num}, "
-                    f"accuracy {self._correct_num / (self._correct_num + self._error_num + self._not_match_num)} ")
-            if self._model_name.split("-")[0] == "gpt":
+                    f"Acc {self._correct_num / (self._correct_num + self._error_num + self._not_match_num)}")
+            if not self._model_name.startswith("gemini"):
                 self._log(self._model.compute_cost())
         self._answers_list = [self._answers_list[i:i + sum(self.c_reason)]
                               for i in range(0, len(self._answers_list), sum(self.c_reason))]

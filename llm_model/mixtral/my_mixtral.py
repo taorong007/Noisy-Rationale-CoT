@@ -1,44 +1,42 @@
+from typing import List, Optional
 import time
 import yaml
 import openai
 from ..multiple_key import init_api_key_handling
-import concurrent
 import os
-from dotenv import load_dotenv
 import sys
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
 
-class my_llama:    
-    def __init__(self, model='llama', config = None):
+class my_mixtral:    
+    def __init__(self, model='mixtral', config = None):
         with open('mixtral_key.yml', 'r') as f:
-            key_config = yaml.safe_load(f)
+            mixtral_config = yaml.safe_load(f)
         self.prompt_tokens = 0 
         self.completion_tokens = 0 
         self.embedding_tokens = 0
         self.total_tokens = 0
-        self.max_response_tokens = 800
+        self.max_response_tokens = 1000
         
         os.environ['https_proxy'] = 'http://127.0.0.1:10809'
         os.environ['http_proxy'] = 'http://127.0.0.1:10809'
-        if isinstance(key_config["key"], list):   
-                key_list = key_config["key"]
+        if isinstance(mixtral_config["key"], list):   
+                key_list = mixtral_config["key"]
                 self.key = init_api_key_handling(key_list, "mixtral_apikey_manager.json")
                 self.client = openai.OpenAI(
-                    base_url="https://llama2-70b.lepton.run/api/v1/",
+                    base_url="https://mixtral-8x7b.lepton.run/api/v1/",
                     api_key=self.key
                 )
         else:
-            self.key = key_config["key"]
+            self.key = mixtral_config["key"]
             self.client = openai.OpenAI(
-                base_url="https://llama2-70b.lepton.run/api/v1/",
-                api_key=key_config["key"]
+                base_url="https://mixtral-8x7b.lepton.run/api/v1/",
+                api_key=mixtral_config["key"]
             )
-        pass
         
 
     def compute_cost(self):
-        price = 0.8
+        price = 0.5
         # output_price = 0.002
         # embedding_price = 0.0001
         rate = 7.18
@@ -53,7 +51,7 @@ class my_llama:
         for _ in range(n):
             this_responses.append("")
         completion = self.client.chat.completions.create(
-            model="llama2-70b",
+            model="mixtral-8x7b",
             messages=messages,
             stream=True,
             n=n,
@@ -89,7 +87,7 @@ class my_llama:
                 this_n = single_n if all_n > single_n else all_n
                 all_n -= this_n
                 print(f"{all_n} ", end="")
-                sys.stdout.flush() 
+                sys.stdout.flush()
                 with ThreadPoolExecutor(max_workers=1) as executor:
                     future = executor.submit(self.completions_process, responses, messages, temperature, this_n, top_p)
                     try:
@@ -98,13 +96,14 @@ class my_llama:
                         err = "chat.completions timeout err"
                         print(err)
                         time.sleep(this_n * 6.1)
-                        return (False, f'Llama2 API Err: {err}'), err
+                        return (False, f'Mixtral API Err: {err}'), err
                 time.sleep(this_n * 6.1)
             print("")
             return (True, f''), responses
         except Exception as err:
             print(err)
-            return (False, f'Llama2 API Err: {err}'), err
+            time.sleep(this_n * 6.1)
+            return (False, f'Mixtral API Err: {err}'), err
 
     
     def get_config(self):
@@ -171,10 +170,10 @@ class my_llama:
 
     
     def query_n_case(self, n_case, c_reason, temperature=1, top_p=1):
-    
         for i in range(len(n_case)):
             self._query_and_append(n_case[i], temperature, c_reason[i], top_p)
         return
+        
         # with concurrent.futures.ThreadPoolExecutor() as executor:
         #     future_to_case = {executor.submit(self._query_and_append, n_case[i], temperature, c_reason[i], top_p): n_case[i]
         #                       for i in range(len(n_case))}
