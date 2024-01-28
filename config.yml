@@ -1,6 +1,6 @@
 # noise test
 model: mixtral # gpt-3.5-turbo-0613 or gemini-pro or mixtral or  llama-2-70b
-dataset:  family_relation # family_relation and base_math and SCAN
+dataset:  base_math # family_relation and base_math and SCAN
 start_num: 0
 test_num: 300
 batch_size: 1
@@ -52,7 +52,7 @@ processed_dataset_options:
 prefix_context: False ## prefix
 
 # method
-method: CD-CoT  # CD-CoT or baseline,  smoothllm, selfdenoise, selfpolish, contrastivecot, ISC, SCO, BT
+method: BT  # CD-CoT or baseline,  smoothllm, selfdenoise, selfpolish, contrastivecot, ISC, SCO, BT
 
 
 ## baseline, smoothllm, selfdenoise, selfpolish, contrastivecot, ISC
