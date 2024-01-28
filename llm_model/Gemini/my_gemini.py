@@ -15,16 +15,9 @@ class my_gemini:
             raise ValueError(f"{model} is not supported")
         with open('gemini_key.yml', 'r') as f:
             gemini_config = yaml.safe_load(f)
-<<<<<<< HEAD
-
         os.environ['https_proxy'] = 'http://127.0.0.1:7890'
         os.environ['http_proxy'] = 'http://127.0.0.1:7890'
 
-=======
-            
-        os.environ['https_proxy'] = 'http://127.0.0.1:10809'
-        os.environ['http_proxy'] = 'http://127.0.0.1:10809'
->>>>>>> origin
         
         if isinstance(gemini_config["key"], list):   
             key_list = gemini_config["key"]
