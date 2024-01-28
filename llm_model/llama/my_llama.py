@@ -84,7 +84,7 @@ class my_llama:
             all_n = n
             single_n = 1
             responses = []
-            print("Start time: {} ".format(datetime.now().strftime("%Y-%m-%d %H:%M:%S")), end="")
+            print("Time Now: {} ".format(datetime.now().strftime("%Y-%m-%d %H:%M:%S")), end="")
             while all_n > 0:
                 this_n = single_n if all_n > single_n else all_n
                 all_n -= this_n
@@ -144,7 +144,13 @@ class my_llama:
             if isinstance(single_query, dict):  # case
                 retval, messages = self.query_case(single_query, temperature, n, top_p)
             else:  # messages
-                retval, messages = self.query(single_query, temperature, n, top_p)
+                retval, responses = self.query(single_query, temperature, n, top_p)
+                if retval[0]:
+                    response_content = []
+                    for response in responses:
+                        response_content.append({"role":"assistent", "content": response})
+                    single_query.append(response_content)  # the gemini format is "model" and "parts". This aims to use unique format in our program
+                    return
             if retval[0]:
                 return
             # tokens = self.num_tokens_from_messages(messages)
@@ -181,3 +187,9 @@ class my_llama:
         #     for future in concurrent.futures.as_completed(future_to_case):
         #         future.result()
         # return
+
+    def query_messages_batch(self, messages_batch, temperature=1, n=1, top_p=1):
+        # with concurrent.futures.ThreadPoolExecutor() as executor:
+        for messages in messages_batch:
+            self._query_and_append(messages, temperature, n, top_p)
+        return

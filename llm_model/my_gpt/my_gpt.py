@@ -28,11 +28,13 @@ class my_gpt:
             with open('openai_key.yml', 'r') as f:
                 openai_config = yaml.safe_load(f)
               
-            if isinstance(openai_config["key"], list):   
+            if isinstance(openai_config["key"], list):
                 key_list = openai_config["key"]
-                openai.api_key = init_api_key_handling(key_list) 
+                self.key = init_api_key_handling(key_list)
+                openai.api_key = self.key
             else:
-                openai.api_key = openai_config["key"]
+                self.key = openai_config["key"]
+                openai.api_key = self.key
             if "api_base" in openai_config:
                 openai.api_base = openai_config["api_base"]
             # openai.api_base = "https://openkey.cloud/v1"
