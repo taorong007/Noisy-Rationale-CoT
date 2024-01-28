@@ -1,6 +1,6 @@
 # noise test
-model: gemini-pro  # gpt-3.5-turbo-0613 or llama2 or gemini-pro
-dataset:  base_math # family_relation and base_math and SCAN
+model: mixtral # gpt-3.5-turbo-0613 or gemini-pro or mixtral or  llama-2-70b
+dataset:  family_relation # family_relation and base_math and SCAN 
 start_num: 0
 test_num: 300
 batch_size: 1
@@ -29,7 +29,7 @@ use_processed_dataset: True
 ## when use_processed_dataset is True
 processed_dataset_options:
   # processed dataset path or one of ["default-zeroshot"， "default-clean", "default-(irrelevant|inaccurate)-(easy|medium|hard)-(fixed|random)"]
-  processed_dataset_path: default-inaccurate-easy-fixed
+  processed_dataset_path: default-inaccurate-medium-fixed
   n_shots: 3
   # using_subset: False
   # processed_dataset_path: default-zeroshot
@@ -93,8 +93,8 @@ gpt:
   # api_base: "https://openkey.cloud/v1"
 
 ## llama2 
-llama2:
-  ckpt_dir: /vol/home/lanlong/xuanli/code/llama-main/llama-2-7b-chat/
-  tokenizer_path: /vol/home/lanlong/xuanli/code/llama-main/tokenizer.model
-  max_seq_len: 4000
-  max_batch_size: 10
+# llama2:
+#   ckpt_dir: /vol/home/lanlong/xuanli/code/llama-main/llama-2-7b-chat/
+#   tokenizer_path: /vol/home/lanlong/xuanli/code/llama-main/tokenizer.model
+#   max_seq_len: 4000
+#   max_batch_size: 10

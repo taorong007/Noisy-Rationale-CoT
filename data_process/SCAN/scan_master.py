@@ -613,8 +613,9 @@ class scan_master():
         case["label"] = label
         return case
     
-    def match_answer(self, answer_str):
-        match = re.search(r'OUT:\s*(.*)', answer_str)
+    @staticmethod
+    def match_answer(answer_str):
+        match = re.search(r'(?:.*OUT:\s*)([^\n]*)', answer_str, re.DOTALL)
         if match:
             squence_str = re.sub(r'[^a-zA-Z0-9_\s]+', '', match.group(1)).strip()
             squence = squence_str.split()
