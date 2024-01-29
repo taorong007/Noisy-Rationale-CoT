@@ -29,7 +29,7 @@ use_processed_dataset: True
 ## when use_processed_dataset is True
 processed_dataset_options:
   # processed dataset path or one of ["default-zeroshot"， "default-clean", "default-(irrelevant|inaccurate)-(easy|medium|hard)-(fixed|random)"]
-  processed_dataset_path: default-inaccurate-medium-fixed
+  processed_dataset_path: default-irrelevant-medium-fixed
   n_shots: 3
   # using_subset: False
   # processed_dataset_path: default-zeroshot
@@ -53,7 +53,7 @@ processed_dataset_options:
 prefix_context: False ## prefix
 
 # method
-method: BT  # CD-CoT or baseline,  smoothllm, selfdenoise, selfpolish, contrastivecot, ISC, SCO, BT
+method: CD-CoT  # CD-CoT or baseline,  smoothllm, selfdenoise, selfpolish, contrastivecot, ISC, SCO, BT
 
 
 ## baseline, smoothllm, selfdenoise, selfpolish, contrastivecot, ISC

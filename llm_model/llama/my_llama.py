@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 import sys
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
+import concurrent.futures
 
 class my_llama:    
     def __init__(self, model='llama', config = None):
@@ -50,39 +51,30 @@ class my_llama:
     def completions_process(self, responses, messages, temperature=1, n=1, top_p=1):
         this_responses = []
         start_time = time.time()
-        for _ in range(n):
-            this_responses.append("")
-        completion = self.client.chat.completions.create(
+        response = self.client.chat.completions.create(
             model="llama2-70b",
             messages=messages,
-            stream=True,
             n=n,
             temperature=temperature,
             top_p=top_p,
             max_tokens=self.max_response_tokens
         )
-        
-        for chunk in completion:
-            last_chunk = chunk
-            if not chunk.choices:
-                continue
-            for choice in chunk.choices:
-                content = choice.delta.content
-                if content != None:
-                    this_responses[choice.index] += content
+
+        for choice in response.choices:
+            this_responses.append(choice.message.content)
         end_time = time.time()
         consume_time = end_time - start_time
         print(f"{consume_time} ", end="")
-        self.completion_tokens += last_chunk.model_extra["usage"]["completion_tokens"]
-        self.prompt_tokens += last_chunk.model_extra["usage"]["prompt_tokens"]
-        self.total_tokens += last_chunk.model_extra["usage"]["total_tokens"]
+        self.completion_tokens += response.usage.completion_tokens
+        self.prompt_tokens += response.usage.prompt_tokens
+        self.total_tokens += response.usage.total_tokens
         responses += this_responses
         return responses
 
     def query(self, messages, temperature=1, n=1, top_p=1):
         try:
             all_n = n
-            single_n = 1
+            single_n = 5
             responses = []
             print("Time Now: {} ".format(datetime.now().strftime("%Y-%m-%d %H:%M:%S")), end="")
             while all_n > 0:
@@ -161,7 +153,7 @@ class my_llama:
                 messages.append([{'role': "assistant", 'content': f"error:{retval}"}])
                 break
             err_count += 1
-            if err_count == 20:
+            if err_count == 50:
                 messages.append([{'role': "assistant", 'content': f"error:{retval}"}])
                 break
     
