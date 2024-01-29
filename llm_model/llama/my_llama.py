@@ -89,13 +89,14 @@ class my_llama:
                     except TimeoutError:
                         err = "chat.completions timeout err"
                         print(err)
-                        time.sleep(this_n * 6.1)
+                        time.sleep(6.1)
                         return (False, f'Llama2 API Err: {err}'), err
-                time.sleep(this_n * 6.1)
+                time.sleep(6.1)
             print("")
             return (True, f''), responses
         except Exception as err:
             print(err)
+            time.sleep(6.1)
             return (False, f'Llama2 API Err: {err}'), err
 
     
