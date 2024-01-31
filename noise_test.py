@@ -56,14 +56,18 @@ class noise_test:
                 config["if_in_context"] = False
             else:
                 config["if_in_context"] = True
-                assert processed_dataset_options["n_shots"] <= config["n_max_shots"]
                 if config["if_noise"] == True:
-                    config["n_shots"] = 0
-                    config["n_noisy_shots"] = processed_dataset_options["n_shots"]
+                    if isinstance(processed_dataset_options["n_shots"], int): 
+                        config["n_noisy_shots"] = processed_dataset_options["n_shots"]
+                        config["n_shots"] = 0
+                    else:
+                        config["n_noisy_shots"] = int(processed_dataset_options["n_shots"].split("+")[0])
+                        config["n_shots"] = int(processed_dataset_options["n_shots"].split("+")[1]) 
+                        # self._clean_dataset_path = self._get_default_processed_dataset_name(["", "clean"])
                 else:
                     config["n_shots"] = processed_dataset_options["n_shots"]
                     config["n_noisy_shots"] = 0
-
+                assert config["n_shots"] + config["n_noisy_shots"]  <= config["n_max_shots"]
         else:
             config = args["raw_dataset_options"]
 
@@ -110,7 +114,7 @@ class noise_test:
         self._pickle_name = os.path.join(dirname, name_without_ext + '.pkl')
 
         self._log(args)
-        self._log(self._model.key)
+        # self._log(self._model.key)
         self._correct_num = 0
         self._error_num = 0
         self._not_match_num = 0
@@ -619,15 +623,43 @@ class noise_test:
             demos = []
             if self.method == "BT":
                 case["first_error_position_list"] = []
-            for i in range(self._n_shots + self._n_noisy_shots):
-                demo = [raw_data["CoT_demos"][i]["question"], raw_data["CoT_demos"][i]["answer"]]
-                demos.append(demo)
-                if self.method == "BT":
-                    sentence_with_noise_list = ast.literal_eval(raw_data["CoT_demos"][i]["sentences_with_noise"])
-                    if 1 in sentence_with_noise_list:
-                        case["first_error_position_list"].append(sentence_with_noise_list.index(1))
-                    else:
+            
+            if self._if_noise == True:
+                for i in range(self._n_noisy_shots):
+                    demo = [raw_data["CoT_demos"][i]["question"], raw_data["CoT_demos"][i]["answer"]]
+                    demos.append(demo)
+                    if self.method == "BT":
+                        sentence_with_noise_list = ast.literal_eval(raw_data["CoT_demos"][i]["sentences_with_noise"])
+                        if 1 in sentence_with_noise_list:
+                            case["first_error_position_list"].append(sentence_with_noise_list.index(1))
+                        else:
+                            case["first_error_position_list"].append(-1)
+                for i in range(self._n_shots):
+                    if self._dataset_name == "family_relation":
+                        expr = self._dataset_processor.get_random_demos(1).iloc[0]
+                    elif self._dataset_name == "SCAN":
+                        expr = self._dataset_processor.get_random_demos(1)[0]
+                    elif self._dataset_name == "base_math":
+                        index = i + self._n_noisy_shots
+                        question = raw_data["CoT_demos"][index]["question"]
+                        pattern = r'[\da-fA-F]+\+[\da-fA-F]+'
+                        match = re.search(pattern, question)
+                        expr =  match.group()
+                    demo = [self._dataset_processor.get_question(expr), self._dataset_processor.get_correct_answer(expr)]
+                    demos.append(demo)
+                    random.shuffle(demos)
+                    if self.method == "BT":
                         case["first_error_position_list"].append(-1)
+            else:
+                for i in range(self._n_shots + self._n_noisy_shots):
+                    demo = [raw_data["CoT_demos"][i]["question"], raw_data["CoT_demos"][i]["answer"]]
+                    demos.append(demo)
+                    if self.method == "BT":
+                        sentence_with_noise_list = ast.literal_eval(raw_data["CoT_demos"][i]["sentences_with_noise"])
+                        if 1 in sentence_with_noise_list:
+                            case["first_error_position_list"].append(sentence_with_noise_list.index(1))
+                        else:
+                            case["first_error_position_list"].append(-1)
             case["in-context"] = demos
             if self._dataset_system_prompt is not None:
                 case["system-prompt"] = self._dataset_system_prompt
@@ -708,7 +740,7 @@ class noise_test:
                     answer = match.group(1)
                     noisy_shot_correct_object["corrected_responses"].append(answer)
                 else:
-                    noisy_shot_correct_object["corrected_responses"].append(None)
+                    noisy_shot_correct_object["corrected_responses"].append(content)
         self._log("noisy_ICL_correct_process:\n")
         self._log(noisy_ICL_correct_object)
         if not self._model_name.startswith("gemini"):

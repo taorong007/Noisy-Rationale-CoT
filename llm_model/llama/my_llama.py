@@ -18,7 +18,7 @@ class my_llama:
         self.completion_tokens = 0 
         self.embedding_tokens = 0
         self.total_tokens = 0
-        self.max_response_tokens = 800
+        self.max_response_tokens = 1200
         
         os.environ['https_proxy'] = 'http://127.0.0.1:10809'
         os.environ['http_proxy'] = 'http://127.0.0.1:10809'
