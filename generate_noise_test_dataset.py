@@ -113,10 +113,10 @@ class generate_test:
             json.dump(case_list, f)
 
     def get_shot_index_file_path(self):
-        reasoning_type = self.args[self._dataset_name]["reasoning_type"]
+        subtask = self.args[self._dataset_name]["subtask"]
         file_dir = os.path.join(self._dataset_processor.file_path, "processed")
         if self._dataset_name != "commonsense":
-            file_dir = os.path.join(file_dir, reasoning_type)
+            file_dir = os.path.join(file_dir, subtask)
         file_name = "10_shot_ICL_index.json"
         file_path = os.path.join(file_dir, file_name)
         if not os.path.exists(file_dir):
@@ -129,7 +129,7 @@ class generate_test:
         dataset_config = dict()
         dataset_config["dataset"] = self._dataset_name
         if self._dataset_name != "commonsense":
-            dataset_config["reasoning_type"] = self.config[self._dataset_name]["reasoning_type"]
+            dataset_config["subtask"] = self.config[self._dataset_name]["subtask"]
             
         dataset_content = []
         if isinstance(self._dataset, pd.DataFrame):
@@ -186,8 +186,8 @@ class generate_test:
         
         file_dir = os.path.join(self._dataset_processor.file_path, "processed")
         if self._dataset_name != "commonsense":
-            reasoning_type = self.args[self._dataset_name]["reasoning_type"]
-            file_dir = os.path.join(file_dir, reasoning_type)
+            subtask = self.args[self._dataset_name]["subtask"]
+            file_dir = os.path.join(file_dir, subtask)
         if set_file_path is None:
             if not os.path.exists(file_dir):
                 os.makedirs(file_dir)

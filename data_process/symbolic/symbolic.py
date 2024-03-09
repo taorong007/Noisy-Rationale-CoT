@@ -10,7 +10,7 @@ from collections import deque
 import math
 
 class symbolic():
-    def __init__(self, n_shots=0, n_noisy_shots=0, noise_type="irrelevant", noise_ratio = 0.5, noise_distribution = "fixed", prefix_context =True, config: dict = None, reasoning_type = "longer") -> None:
+    def __init__(self, n_shots=0, n_noisy_shots=0, noise_type="irrelevant", noise_ratio = 0.5, noise_distribution = "fixed", prefix_context =True, config: dict = None, subtask = "longer") -> None:
         
         self.n_shots = n_shots
         self.n_noisy_shots = n_noisy_shots
@@ -31,9 +31,9 @@ class symbolic():
             self.noise_ratio = 0
             self.noise_distribution = None
         if config is not None:
-            self.reasoning_type = config["reasoning_type"]
+            self.subtask = config["subtask"]
         else:
-            self.reasoning_type = reasoning_type
+            self.subtask = subtask
         
         self.file_path = os.path.join("data", "symbolic")
         self.unzip_data()
@@ -87,19 +87,19 @@ class symbolic():
         # trainset_file_name = f"{self.trainset}.2,{self.trainset}.3_train.csv"
         # testset_file_name = f"{self.testset}_test.csv"
         # self.trainset = pd.read_csv(os.path.join(unzip_path, trainset_file_name))
-        if self.reasoning_type == "longer":
+        if self.subtask == "longer":
             split_name = "length"
         else:
             split_name = "simple"
         unzip_path = os.path.join(self.file_path, "unzip_data", f"{split_name}_split")
-        if self.reasoning_type ==  "longer":
+        if self.subtask ==  "longer":
             train_file_name = "tasks_train_length.txt"
             test_file_name = "tasks_test_length.txt"
-        elif self.reasoning_type ==  "equal":
+        elif self.subtask ==  "equal":
             train_file_name = "tasks_train_simple.txt"
             test_file_name = "tasks_test_simple.txt"
         else:
-            raise ValueError(f"reasoning type{self.reasoning_type} not support")
+            raise ValueError(f"reasoning type{self.subtask} not support")
         
         with open(os.path.join(self.file_path, "base_example.json"), "r") as f:
             self.base_example = json.load(f)
@@ -107,7 +107,7 @@ class symbolic():
         trainset = self.read_raw_file(os.path.join(unzip_path, train_file_name))
         testset = self.read_raw_file(os.path.join(unzip_path, test_file_name))
         self.trainset = trainset
-        if self.reasoning_type == "longer":
+        if self.subtask == "longer":
             random.shuffle(testset)
             # self.shuffle_file(os.path.join(unzip_path, test_file_name))
             # testset = self.read_raw_file("shuffled_test.txt")
@@ -325,7 +325,7 @@ class symbolic():
                 if self._should_add_noise(mn_noise_distrib_state):
                     answer += self.get_inaccurate_thought_of_direction(this_direction)
                 
-                if self.reasoning_type == "equal":
+                if self.subtask == "equal":
                     # direction
                     answer += f"The '{this_direction}' corresponds to the command I_TURN_{this_direction.upper()}. "
                     
@@ -377,7 +377,7 @@ class symbolic():
                     if self._should_add_noise(mn_noise_distrib_state):
                         answer += self.get_inaccurate_thought_of_angle(this_angle)
                     
-                    if self.reasoning_type == "equal":
+                    if self.subtask == "equal":
                         # direction
                         answer += f"'{this_direction}' corresponds to the command I_TURN_{this_direction.upper()}. "
                         n_ir_pos += 1
@@ -429,7 +429,7 @@ class symbolic():
                     if self._should_add_noise(mn_noise_distrib_state):
                         answer += self.get_inaccurate_thought_of_angle(this_angle)
 
-                    if self.reasoning_type == "equal":
+                    if self.subtask == "equal":
                         # direction
                         answer += f"'{this_direction}' corresponds to the command I_TURN_{this_direction.upper()}. "
                         n_ir_pos += 1

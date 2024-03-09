@@ -21,11 +21,11 @@ class math:
         base: The base number for calculations. Default is 9.
         
     """
-    def __init__(self,  n_shots=0, n_noisy_shots=0, noise_type="miscalculation", noise_ratio = 0.5, noise_distribution = "fixed", prefix_context = False, config: dict = None, reasoning_type="base-9") -> None:
+    def __init__(self,  n_shots=0, n_noisy_shots=0, noise_type="miscalculation", noise_ratio = 0.5, noise_distribution = "fixed", prefix_context = False, config: dict = None, subtask="base-9") -> None:
         if config is not None:
-            self.base = int(config["reasoning_type"].split("base-")[1])
+            self.base = int(config["subtask"].split("base-")[1])
         else:
-            self.base = int(reasoning_type.split("base-"))
+            self.base = int(subtask.split("base-"))
 
         self.n_shots = n_shots
         self.n_noisy_shots = n_noisy_shots

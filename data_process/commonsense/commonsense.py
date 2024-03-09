@@ -10,7 +10,7 @@ from collections import deque
 import math
 
 class family_relation():
-    def __init__(self, if_in_context = False, n_shots=0, n_noisy_shots=0, noise_type="irrelevant", noise_ratio = 0.5, noise_distribution = "fixed", prefix_context =False, config: dict = None, reasoning_type = "symbolic", hop = 3, trainset=5, testset = 5.3) -> None:
+    def __init__(self, if_in_context = False, n_shots=0, n_noisy_shots=0, noise_type="irrelevant", noise_ratio = 0.5, noise_distribution = "fixed", prefix_context =False, config: dict = None, subtask = "symbolic", hop = 3, trainset=5, testset = 5.3) -> None:
         self.if_in_context = if_in_context
         self.n_shots = n_shots
         self.n_noisy_shots = n_noisy_shots
@@ -26,19 +26,19 @@ class family_relation():
         if config is not None:
             self.trainset = config["train_set"] if "train_set" in config else trainset
             # self.testset = config["test_set"]
-            self.reasoning_type = config["reasoning_type"]
+            self.subtask = config["subtask"]
             self.hop = config["hop"] if "hop" in config else hop
         else:
             self.trainset = trainset
             self.testset = testset
-            self.reasoning_type = reasoning_type
+            self.subtask = subtask
             self.hop = hop
-        if reasoning_type == "symbolic":
+        if subtask == "symbolic":
             assert self.trainset >= 5
-        elif reasoning_type == "story":
+        elif subtask == "story":
             assert self.trainset < 5
         else:
-            raise ValueError(f"reasoning type not support {reasoning_type}")
+            raise ValueError(f"reasoning type not support {subtask}")
         self.not_support_relation_reason = []
         self.replace_num = 0
         self.error_reason_num = 0
@@ -62,7 +62,7 @@ class family_relation():
     
     def get_config(self):
         config = dict()
-        config["reasoning_type"] = self.reasoning_type
+        config["subtask"] = self.subtask
         config["hop"] = self.hop
         return config
     
@@ -120,8 +120,8 @@ class family_relation():
         processed_path = os.path.join(self.file_path, "processed")
         if not os.path.exists(processed_path):
             os.makedirs(processed_path)
-        if self.reasoning_type == "symbolic":
-            file_name = f"{self.reasoning_type}_{self.hop}hop"
+        if self.subtask == "symbolic":
+            file_name = f"{self.subtask}_{self.hop}hop"
             if type == 1:
                 file_name += "_demos.json"
                 raw_data_IC_list = []
@@ -155,7 +155,7 @@ class family_relation():
         # testset_file_name = f"{self.testset}_test.csv"
         # self.trainset = pd.read_csv(os.path.join(unzip_path, trainset_file_name))
     
-        if self.reasoning_type !=  "symbolic":
+        if self.subtask !=  "symbolic":
             file_name = f"{self.trainset}.2,{self.trainset}.3_train.csv"
             raw_dataset = pd.read_csv(os.path.join(unzip_path, file_name))
             self.relation_list = list(set(raw_dataset["target"]))
@@ -209,7 +209,7 @@ class family_relation():
     
     def get_question(self, raw_data):
         question = ""
-        if self.reasoning_type != "symbolic":
+        if self.subtask != "symbolic":
             story = raw_data["story"]
             question += f"Story:{story}\n"
             # genders = raw_data["genders"]

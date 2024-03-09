@@ -8,11 +8,11 @@ batch_size: 5
 # subtask
 ## math
 math:
-  reasoning_type: base-11
+  subtask: base-11
 
 ## symbolic
 symbolic:
-  reasoning_type: equal # equal or longer
+  subtask: equal # equal or longer
 
 # use subfolder_suffix
 # subfolder_suffix_path: 4_shot_ablation

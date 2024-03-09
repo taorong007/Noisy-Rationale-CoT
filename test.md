@@ -104,9 +104,13 @@ OPENAI_API_KEY=[YOUR_API_KEY_HERE]
 
 ## Run experiments
 
+**NoRa** has 3 kinds of **task**: math, symbolic, commonsense
+math include 2 **subtasks**: base-9, base-11
+symbolic include 2 **subtasks**: equal, longer
+
 To run `NoRa`
 
-for **common** experiment:
+### for common experiment
 
 1. config config.yml
 
@@ -116,23 +120,32 @@ for **common** experiment:
 python noise_test.py
 ```
 
-for **quick start**:
+### for quick start
 
 run
 
 ``` bash
-python noise_test.py -task [dataset]-[subtask]-[zeroshot|clean|irrelevant|inaccurate]-[easy|medium|hard] -method [basemodel|CD-CoT]
+python noise_test.py -task [task]-[subtask]-[zeroshot|clean|irrelevant|inaccurate]-[easy|medium|hard] -method [basemodel|CD-CoT]
 ```
 
+**task (subtask)** include: math (base-9, base-11), symbolic (equal, longer), commonsense
 
-For example, to run main `DeepInception` experiments (Tab.1) with `Vicuna-v1.5-7b` as the target model with the default maximum number of tokens in CUDA 0, run
+for example:
+python noise_test.py -task math_base-9_clean -method basemodel
+python noise_test.py -task symbolic_longer_irrelevant_easy -method CD-CoT
+python noise_test.py -task commonsense_inaccurate_hard -method contrastivecot
+
+<!-- For example, to run main `DeepInception` experiments (Tab.1) with `Vicuna-v1.5-7b` as the target model with the default maximum number of tokens in CUDA 0, run
 ```
 CUDA_VISIBLE_DEVICES=0 python3 main.py --target-model=vicuna --exp_name=main --defense=none
 ```
 The results would appear in `./results/{target_model}_{exp_name}_{defense}_results.json`, in this example is `./results/vicuna_main_none_results.json`
 
-See `main.py` for all of the arguments and descriptions.
+See `main.py` for all of the arguments and descriptions. -->
+### Result
 
+The results would appear in `./results/{task}/{subtask}/{model}/{method}/`
+The file will be `log_[ICL_|][n_clean_shots]clean_[noise_[n_noisy_shots][inaccurate|irrelevant]_[fixed|random]_ratio[ratio]|origin]_case[cases_num]_temp[temperature]_n[reasoning_times].json`
 
 <!-- ## Citation
 ```
@@ -143,3 +156,5 @@ See `main.py` for all of the arguments and descriptions.
   year={2023}
 }
 ``` -->
+
+## Config Introduction

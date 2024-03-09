@@ -50,14 +50,14 @@ class noise_test:
             processed_dataset_options = args["processed_dataset_options"]
             processed_dataset_path = processed_dataset_options["processed_dataset_path"]
             if parser_args.task != None:
-                labels = parser_args.task.split("-")
+                labels = parser_args.task.split("_")
                 task = labels[0]
                 assert task in ["math", "symbolic", "commonsense"]
                 self._dataset_name = task
                 if task != "commonsense":
                     subtask = labels[1]
-                    dataset_label = 
-                print(dataset_label)
+                    dataset_label = labels[2:]
+                    args[task]["subtask"] = subtask
                 self.processed_dataset_path = self._get_default_processed_dataset_name(dataset_label)
             elif processed_dataset_path.startswith("default-"):
                 dataset_label = processed_dataset_path.split("-")[1:]
@@ -166,16 +166,16 @@ class noise_test:
         else:
             file_name = "clean.json"
         if self._dataset_name == "math":
-            reasoning_type = args[self._dataset_name]["reasoning_type"]
+            subtask = args[self._dataset_name]["subtask"]
             dataset_dir = os.path.join("data", "math")
-            processed_dataset_dir = os.path.join("data", "math", "processed", reasoning_type)
+            processed_dataset_dir = os.path.join("data", "math", "processed", subtask)
         elif self._dataset_name == "family_relation":
             dataset_dir = os.path.join("data", "commonsense")
             processed_dataset_dir = os.path.join("data", "commonsense", "processed")
         elif self._dataset_name == "symbolic":
-            reasoning_type = args[self._dataset_name]["reasoning_type"]
+            subtask = args[self._dataset_name]["subtask"]
             dataset_dir = os.path.join("data", "symbolic")
-            processed_dataset_dir = os.path.join("data", "symbolic", "processed", reasoning_type)
+            processed_dataset_dir = os.path.join("data", "symbolic", "processed", subtask)
         else:
             raise ValueError(f"dataset {self._dataset_name} are not supported in default")
         if not os.path.exists(os.path.join(processed_dataset_dir, file_name)):
@@ -262,7 +262,8 @@ class noise_test:
         return os.path.join(dir_name, file_name)
 
     def _init_method(self):
-        self.method = self.config["method"]
+        if not hasattr(self, "method"):
+            self.method = self.config["method"]
         args = self.config
         if self.method == "basemodel":
             self.temperature_reason = args["temperature_reason"] if "temperature_reason" in args else 1
@@ -337,11 +338,11 @@ class noise_test:
         log_path = os.path.join("result", self._dataset_name)
         dataset_config = self.config[self._dataset_name] if self._dataset_name in self.config else None
         if dataset_config != None:
-            if "reasoning_type" in dataset_config:
-                log_path = os.path.join(log_path, dataset_config["reasoning_type"])
+            if "subtask" in dataset_config:
+                log_path = os.path.join(log_path, dataset_config["subtask"])
 
         if self._dataset_name == "family_relation":
-            if self._dataset_config["reasoning_type"] == "symbolic":
+            if self._dataset_config["subtask"] == "symbolic":
                 log_path = os.path.join(log_path, "hop" + str(self._dataset_config["hop"]))
         log_path = os.path.join(log_path, self._model_name)
         log_path = os.path.join(log_path, f"method_{self.method}")

@@ -39,10 +39,6 @@ Category | Parameter | Description |Examples|
     构建openai_key.yml：
     echo "key = xxxxxx" > openai_key.yml 
 
-- 如果 model = "gpt..." 并且 gpt["api"] = "hkbu"：
-    构建hkbu_key.yml：
-    echo "key = xxxxxx" > hkbu_key.yml
-
 在创建的xxxx_key.yml 中包含下面字段
 
 ``` txt
@@ -55,7 +51,6 @@ key = xxxxxx
 
 结果会保存在result文件夹中
 
- -->
 <!-- <div align="center"><img src="imgs/banner.png" width="700"/></div> -->
 
 <h1 align="center"> Can Large Language Models Reason Robustly with Noisy Rationales? </h1>
@@ -162,9 +157,13 @@ OPENAI_API_KEY=[YOUR_API_KEY_HERE]
 
 ## Run experiments
 
+**NoRa** has 3 kinds of **task**: math, symbolic, commonsense
+math include 2 **subtasks**: base-9, base-11
+symbolic include 2 **subtasks**: equal, longer
+
 To run `NoRa`
 
-for **common** experiment:
+### for common experiment
 
 1. config config.yml
 
@@ -174,23 +173,32 @@ for **common** experiment:
 python noise_test.py
 ```
 
-for **quick start**:
+### for quick start
 
 run
 
 ``` bash
-python noise_test.py -task [dataset]-[subtask]-[zeroshot|clean|irrelevant|inaccurate]-[easy|medium|hard] -method [basemodel|CD-CoT]
+python noise_test.py -task [task]-[subtask]-[zeroshot|clean|irrelevant|inaccurate]-[easy|medium|hard] -method [basemodel|CD-CoT]
 ```
 
-<!-- 
-For example, to run main `DeepInception` experiments (Tab.1) with `Vicuna-v1.5-7b` as the target model with the default maximum number of tokens in CUDA 0, run
+**task (subtask)** include: math (base-9, base-11), symbolic (equal, longer), commonsense
+
+for example:
+python noise_test.py -task math_base-9_clean -method basemodel
+python noise_test.py -task symbolic_longer_irrelevant_easy -method CD-CoT
+python noise_test.py -task commonsense_inaccurate_hard -method contrastivecot
+
+<!-- For example, to run main `DeepInception` experiments (Tab.1) with `Vicuna-v1.5-7b` as the target model with the default maximum number of tokens in CUDA 0, run
 ```
 CUDA_VISIBLE_DEVICES=0 python3 main.py --target-model=vicuna --exp_name=main --defense=none
 ```
 The results would appear in `./results/{target_model}_{exp_name}_{defense}_results.json`, in this example is `./results/vicuna_main_none_results.json`
 
 See `main.py` for all of the arguments and descriptions. -->
+### Result
 
+The results would appear in `./results/{task}/{subtask}/{model}/{method}/`
+The file will be `log_[ICL_|][n_clean_shots]clean_[noise_[n_noisy_shots][inaccurate|irrelevant]_[fixed|random]_ratio[ratio]|origin]_case[cases_num]_temp[temperature]_n[reasoning_times].json`
 
 <!-- ## Citation
 ```
@@ -201,3 +209,27 @@ See `main.py` for all of the arguments and descriptions. -->
   year={2023}
 }
 ``` -->
+
+## Config Introduction
+
+|Category | Parameter | Sub-Parameter | Description |Examples|
+|------ | ------ | ------ | ------ | ------ |
+|Model|model||llm model name|"gpt-3.5-turbo", "gemini-pro", "mixtral", "llama-2-70b"|
+|Dataset|dataset||the dataset used for the experiment.|"base_math", "symbolic", "family_relation"|
+||start_num||the starting number of the experiment.| 0 |
+||test_num||the number of test instances.|200|
+||batch_size||the size of the data processed per batch.|1, 5|
+|Task Config|math|subtask|the subtask of Nora-Math|base-9, base-11|
+||symbolic|subtask|the subtask of Nora-symbolic|equal, longer|
+|Generation|use_processed_dataset||whether use processed dataset, or generate test by detailed setting|True, False|
+||processed_dataset_options|processed_dataset_path|processed dataset path or default dataset|processed dataset path or one of ["default-zeroshot"， "default-clean", "default-(irrelevant,inaccurate)-(easy,medium,hard)-(fixed,random)"]|
+|||n_shots|shots num|1, 2, 3, 4, 5|
+|||using_subset|||
+||raw_dataset_options||||
+<!-- |ICL|if_in_context|| symbol of whether use in-context demos |True, False|
+||n_shots|| w/o noise shots num | 1, 2, 3|
+|Noise|if_noise|symbol of whether use noisy demos|True, False (be False if if_in_context is False)|
+||n_noisy_shots| noisy shots num | 1, 2, 3|
+||noise_type| type of noise | "irrelavant", "minor-error" |
+||noise_ratio| ratio of each thought insert a sentence irrelavant noise or become a minor-error thought|0.2, 0.5, 0.8|
+||noise_distribution| fixed noise num in a example shot or just same possibilty to insert noise in each thought| "fixed", "random"| -->

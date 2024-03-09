@@ -8,11 +8,11 @@ batch_size: 5
 # subtask
 ## math
 math:
-  reasoning_type: base-9
+  subtask: base-9
 
 ## symbolic
 symbolic:
-  reasoning_type: longer # equal or longer
+  subtask: longer # equal or longer
 
 
 # use subfolder_suffix
