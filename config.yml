@@ -1,8 +1,8 @@
 # noise test
-model: mixtral # gpt-3.5-turbo-0613 or gemini-pro or mixtral or  llama-2-70b
+model: gpt-3.5-turbo-0613 # gpt-3.5-turbo-0613 or gemini-pro or mixtral or  llama-2-70b
 dataset: base_math # family_relation and base_math and SCAN
 start_num: 0
-test_num: 300
+test_num: 5
 batch_size: 1
 
 # subtask
@@ -52,7 +52,7 @@ processed_dataset_options:
 prefix_context: False ## prefix
 
 # method
-method: BT  # CD-CoT or baseline,  smoothllm, selfdenoise, selfpolish, contrastivecot, ISC, SCO, BT
+method: CD-CoT  # CD-CoT or baseline,  smoothllm, selfdenoise, selfpolish, contrastivecot, ISC, SCO, BT
 
 
 ## baseline, smoothllm, selfdenoise, selfpolish, contrastivecot, ISC
@@ -60,30 +60,16 @@ temperature_reason: 1
 n_reason: 5
 
 ## CD-CoT
-use_logged_rephrased_result: False
+use_logged_rephrased_result: True
 n_rephrase: 5
 temperature_rephrase: 1
 topp_rephrase: 1
 m_select: 2 # 1 or 2 or 3 or 5
 use_logged_ICL_result: False
 use_clean_shot: True
-# use_noisy_shot: False
 c_reason: [3,2] # [5] or [3,2] or [2,2,1] or [1,1,1,1,1]
 temp_reason: 1
 topp_reason: 1
-
-### RV
-#RV_n_reason: 1
-#RV_temp_reason: 0.1 # 0.1
-#RV_topp_reason: 1 # 1
-### RAV
-#RAV_n_reason: 5
-#RAV_temp_reason: 1 # 1
-#RAV_topp_reason: 0.9 # 0.9
-
-### both
-#RV_weight: 0.5
-#RAV_weight: 0.5
 
 # model
 ## gpt
