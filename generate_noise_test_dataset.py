@@ -4,12 +4,9 @@ from typing import List, Optional
 import json
 import re
 import pickle
-import data_process.base_math.base_math as base_math
-import data_process.family_relation.family_relation as family_relation
-import data_process.GSM.GSM as GSM
-import data_process.SCAN.scan_master as scan_master
-import data_process.tracking_shuffled_objects.tracking_shuffled_objects as shuffled_obj
-import data_process.BBH.bbh as bbh
+import data_process.math.math as math
+import data_process.commonsense.commonsense as commonsense
+import data_process.symbolic.symbolic as symbolic
 import pandas as pd
 import nltk
 import random
@@ -63,13 +60,13 @@ class generate_test:
     
     def _init_dataset(self):
         processor_config = self.config[self._dataset_name] if self._dataset_name in config else None
-        if self._dataset_name == "base_math":
-            self._dataset_processor = base_math.base_math(n_shots=self._n_shots,
+        if self._dataset_name == "math":
+            self._dataset_processor = math.math(n_shots=self._n_shots,
                                                           n_noisy_shots=self._n_noisy_shots,
                                                           noise_type=self._noise_type, noise_ratio=self._noise_ratio, noise_distribution=self._noise_distribution,
                                                           prefix_context=self._prefix_context, config=processor_config)
-        elif self._dataset_name == "family_relation":
-            self._dataset_processor = family_relation.family_relation(if_in_context=self._if_in_context,
+        elif self._dataset_name == "commonsense":
+            self._dataset_processor = commonsense.commonsense(if_in_context=self._if_in_context,
                                                                       n_shots=self._n_shots,
                                                                       n_noisy_shots=self._n_noisy_shots,
                                                                       noise_type=self._noise_type,
@@ -77,14 +74,8 @@ class generate_test:
                                                                       prefix_context=self._prefix_context,
                                                                       config=processor_config)
             self._dataset_config = self._dataset_processor.get_config()
-        elif self._dataset_name == "GSM":
-            self._dataset_processor = GSM.GSM(n_shots=self._n_shots, n_noisy_shots=self._n_noisy_shots, noise_type=self._noise_type,  noisy_level=self._noisy_level, prefix_context=self._prefix_context)
-        elif self._dataset_name == "SCAN":
-            self._dataset_processor = scan_master.scan_master(n_shots=self._n_shots, n_noisy_shots=self._n_noisy_shots, noise_type=self._noise_type,  noise_ratio=self._noise_ratio, noise_distribution=self._noise_distribution, prefix_context=self._prefix_context, config = processor_config)
-        elif self._dataset_name == "BBH":
-            self._dataset_processor = bbh.bbh(n_shots=self._n_shots, n_noisy_shots=self._n_noisy_shots, noise_type=self._noise_type,  noise_ratio=self._noise_ratio, noise_distribution=self._noise_distribution, prefix_context=self._prefix_context, config = processor_config)
-        elif self._dataset_name == "shuffled_obj":
-            self._dataset_processor = shuffled_obj.tracking_shuffled_objects(n_shots=self._n_shots, n_noisy_shots=self._n_noisy_shots, noise_type=self._noise_type,  noise_ratio=self._noise_ratio, noise_distribution=self._noise_distribution, prefix_context=self._prefix_context, config = processor_config)
+        elif self._dataset_name == "symbolic":
+            self._dataset_processor = symbolic.symbolic(n_shots=self._n_shots, n_noisy_shots=self._n_noisy_shots, noise_type=self._noise_type,  noise_ratio=self._noise_ratio, noise_distribution=self._noise_distribution, prefix_context=self._prefix_context, config = processor_config)
         else:
             raise ValueError("Unsupported dataset {}".format(self._dataset_name))
         self._dataset = self._dataset_processor.load_data()
@@ -98,7 +89,7 @@ class generate_test:
         self._case_list.append(processed_case)
     
     def generate_shot_index(self, set_file_path=None):
-        if self._dataset_name == "base_math":
+        if self._dataset_name == "math":
             raise ValueError("The dataset for binary calculation inherently comes with ICL demos, so there is no need to generate indices. ")
         if set_file_path is None:
             file_path = self.get_shot_index_file_path()
@@ -111,7 +102,7 @@ class generate_test:
         for current_index, data in data_iter:
             case = dict()
             other_indices = []
-            if self._dataset_name == "SCAN":
+            if self._dataset_name == "symbolic":
                 self._dataset_processor.get_random_demos(10, index_list=other_indices)
             else:
                 self._dataset_processor.get_random_demos(10, expr=data, index_list=other_indices)
@@ -124,7 +115,7 @@ class generate_test:
     def get_shot_index_file_path(self):
         reasoning_type = self.args[self._dataset_name]["reasoning_type"]
         file_dir = os.path.join(self._dataset_processor.file_path, "processed")
-        if self._dataset_name != "family_relation":
+        if self._dataset_name != "commonsense":
             file_dir = os.path.join(file_dir, reasoning_type)
         file_name = "10_shot_ICL_index.json"
         file_path = os.path.join(file_dir, file_name)
@@ -137,7 +128,7 @@ class generate_test:
         
         dataset_config = dict()
         dataset_config["dataset"] = self._dataset_name
-        if self._dataset_name != "family_relation":
+        if self._dataset_name != "commonsense":
             dataset_config["reasoning_type"] = self.config[self._dataset_name]["reasoning_type"]
             
         dataset_content = []
@@ -146,7 +137,7 @@ class generate_test:
         else:
             data_iter = enumerate(self._dataset)
             
-        if self._dataset_name == "base_math":
+        if self._dataset_name == "math":
             for count, raw_data in data_iter:
                 self._question_insert(raw_data)
         else:
@@ -194,7 +185,7 @@ class generate_test:
         dataset["content"] = dataset_content    
         
         file_dir = os.path.join(self._dataset_processor.file_path, "processed")
-        if self._dataset_name != "family_relation":
+        if self._dataset_name != "commonsense":
             reasoning_type = self.args[self._dataset_name]["reasoning_type"]
             file_dir = os.path.join(file_dir, reasoning_type)
         if set_file_path is None:

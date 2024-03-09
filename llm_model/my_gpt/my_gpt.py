@@ -4,6 +4,7 @@ import yaml
 import concurrent.futures
 import time
 import tiktoken
+import os
 from ..multiple_key import init_api_key_handling
 
 
@@ -25,28 +26,19 @@ class my_gpt:
         # self.run_times = run_times
 
         if api == 'openai':
-            with open('openai_key.yml', 'r') as f:
-                openai_config = yaml.safe_load(f)
-              
-            if isinstance(openai_config["key"], list):
-                key_list = openai_config["key"]
+            # with open('openai_key.yml', 'r') as f:
+            #     openai_config = yaml.safe_load(f)
+            key = os.getenv('OPENAI_API_KEY')
+            if ":" in key:
+                key_list = key.split(":")
                 self.key = init_api_key_handling(key_list)
                 openai.api_key = self.key
             else:
-                self.key = openai_config["key"]
+                self.key = key
                 openai.api_key = self.key
-            if "api_base" in openai_config:
-                openai.api_base = openai_config["api_base"]
+            if "OPENAI_API_BASE" in os.environ:
+                openai.api_base = os.getenv('OPENAI_API_BASE')
             # openai.api_base = "https://openkey.cloud/v1"
-        elif api == 'hkbu':
-            with open('hkbu_key.yml', 'r') as f:
-                key_config = yaml.safe_load(f)
-            apiKey = key_config["key"]
-            basicUrl = "https://chatgpt.hkbu.edu.hk/general/rest"
-            modelName = "gpt-35-turbo-16k"
-            apiVersion = "2023-08-01-preview"
-            self.url = basicUrl + "/deployments/" + modelName + "/chat/completions/?api-version=" + apiVersion
-            self.headers = {'Content-Type': 'application/json', 'api-key': apiKey}
         else:
             raise "Api not support: {}".format(api)
         pass

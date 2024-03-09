@@ -19,7 +19,7 @@ def Intrinsic_Self_Correct(case_batch, model, dataset_name, n_reason, answer_mat
         prompt2 = "Based on the problems you found, improve vour answer. Please reiterate your answer, with your final answer "
         if dataset_name == "base_math":
             prompt2 += "in the format of \"Answer:\\boxed{{result}}\""
-        elif dataset_name == "SCAN":
+        elif dataset_name == "symbolic":
             prompt2 += "in the format of \"So, final answer is OUT: <action sequence>\""
         elif dataset_name == "family_relation":
             prompt2 += "in the format of \"Answer: {{relation}}\""
