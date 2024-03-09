@@ -3,12 +3,9 @@ import os
 import json
 import re
 import pickle
-import data_process.base_math.base_math as base_math
-import data_process.family_relation.family_relation as family_relation
-import data_process.GSM.GSM as GSM
-import data_process.SCAN.scan_master as scan_master
-import data_process.tracking_shuffled_objects.tracking_shuffled_objects as shuffled_obj
-import data_process.BBH.bbh as bbh
+import data_process.math.math as nora_math
+import data_process.commonsense.commonsense as nora_commonsense
+import data_process.symbolic.symbolic as nora_symbolic
 import pandas as pd
 import nltk
 import random
@@ -19,6 +16,15 @@ import string
 import argparse
 import zipfile
 import ast
+from dotenv import load_dotenv
+
+parser = argparse.ArgumentParser()
+parser.add_argument('-config', type=str, default='config.yml', help='Path to the config file')
+parser.add_argument('-task', type=str, default=None, help='The task to perform')
+parser.add_argument('-method', type=str, default=None, help='The method to use')
+parser_args = parser.parse_args()
+if parser_args.task != None:
+    parser_args.config = "quick_start.yml"
 
 
 def wr_log(obj, log_file):
@@ -29,6 +35,7 @@ def wr_log(obj, log_file):
 
 class noise_test:
     def __init__(self, args) -> None:
+        load_dotenv()
         self.config = args
         self._model_name = args["model"]
         self._dataset_name = args["dataset"]
@@ -40,28 +47,42 @@ class noise_test:
             self._test_num / self._batch_size), "test_num / batch_size should be a positive integer"
 
         self.use_processed_dataset = args["use_processed_dataset"]
-        if self.use_processed_dataset:
+        if self.use_processed_dataset or parser_args.task != None:
             processed_dataset_options = args["processed_dataset_options"]
             processed_dataset_path = processed_dataset_options["processed_dataset_path"]
-            if processed_dataset_path.startswith("default-"):
-                dataset_label = processed_dataset_path.split("-")
+            if parser_args.task != None:
+                labels = parser_args.task.split("-")
+                task = labels[0]
+                assert task in ["math", "symbolic", "commonsense"]
+                self._dataset_name = task
+                if task != "commonsense":
+                    subtask = labels[1]
+                    dataset_label = 
+                print(dataset_label)
+                self.processed_dataset_path = self._get_default_processed_dataset_name(dataset_label)
+            elif processed_dataset_path.startswith("default-"):
+                dataset_label = processed_dataset_path.split("-")[1:]
                 self.processed_dataset_path = self._get_default_processed_dataset_name(dataset_label)
             else:
                 self.processed_dataset_path = processed_dataset_path
             with open(self.processed_dataset_path, "r", encoding="utf-8") as f:
                 config = json.load(f)["config"]
-            if dataset_label[1] == "zeroshot":
+            if dataset_label[0] == "zeroshot":
                 config["if_in_context"] = False
             else:
                 config["if_in_context"] = True
-                assert processed_dataset_options["n_shots"] <= config["n_max_shots"]
                 if config["if_noise"] == True:
-                    config["n_shots"] = 0
-                    config["n_noisy_shots"] = processed_dataset_options["n_shots"]
+                    if isinstance(processed_dataset_options["n_shots"], int): 
+                        config["n_noisy_shots"] = processed_dataset_options["n_shots"]
+                        config["n_shots"] = 0
+                    else:
+                        config["n_noisy_shots"] = int(processed_dataset_options["n_shots"].split("+")[0])
+                        config["n_shots"] = int(processed_dataset_options["n_shots"].split("+")[1]) 
+                        # self._clean_dataset_path = self._get_default_processed_dataset_name(["", "clean"])
                 else:
                     config["n_shots"] = processed_dataset_options["n_shots"]
                     config["n_noisy_shots"] = 0
-
+                assert config["n_shots"] + config["n_noisy_shots"]  <= config["n_max_shots"]
         else:
             config = args["raw_dataset_options"]
 
@@ -109,7 +130,7 @@ class noise_test:
         self._pickle_name = os.path.join(dirname, name_without_ext + '.pkl')
 
         self._log(args)
-        self._log(self._model.key)
+        # self._log(self._model.key)
         self._correct_num = 0
         self._error_num = 0
         self._not_match_num = 0
@@ -133,27 +154,30 @@ class noise_test:
         args = self.config
         noise_type = ["zeroshot", "clean", "irrelevant", "inaccurate"]
         noise_difficulty = ["easy", "medium", "hard"]
-        type = dataset_label[1]
+        type = dataset_label[0]
         assert type in noise_type
         if type in ["irrelevant", "inaccurate"]:
             file_name = f"{type}"
-            difficulty = dataset_label[2]
-            distribution = dataset_label[3]
+            difficulty = dataset_label[1]
+            if len(dataset_label) > 2:
+                distribution = dataset_label[2]
+            else:
+                distribution = "fixed"
             assert difficulty in noise_difficulty
             file_name += f"_{difficulty}_{distribution}.json"
         else:
             file_name = "clean.json"
-        if self._dataset_name == "base_math":
+        if self._dataset_name == "math":
             reasoning_type = args[self._dataset_name]["reasoning_type"]
-            dataset_dir = os.path.join("data", "base_math")
-            processed_dataset_dir = os.path.join("data", "base_math", "processed", reasoning_type)
+            dataset_dir = os.path.join("data", "math")
+            processed_dataset_dir = os.path.join("data", "math", "processed", reasoning_type)
         elif self._dataset_name == "family_relation":
-            dataset_dir = os.path.join("data", "data_emnlp_final")
-            processed_dataset_dir = os.path.join("data", "data_emnlp_final", "processed")
-        elif self._dataset_name == "SCAN":
+            dataset_dir = os.path.join("data", "commonsense")
+            processed_dataset_dir = os.path.join("data", "commonsense", "processed")
+        elif self._dataset_name == "symbolic":
             reasoning_type = args[self._dataset_name]["reasoning_type"]
-            dataset_dir = os.path.join("data", "SCAN-master")
-            processed_dataset_dir = os.path.join("data", "SCAN-master", "processed", reasoning_type)
+            dataset_dir = os.path.join("data", "symbolic")
+            processed_dataset_dir = os.path.join("data", "symbolic", "processed", reasoning_type)
         else:
             raise ValueError(f"dataset {self._dataset_name} are not supported in default")
         if not os.path.exists(os.path.join(processed_dataset_dir, file_name)):
@@ -194,14 +218,14 @@ class noise_test:
 
     def _init_dataset(self):
         processor_config = self.config[self._dataset_name] if self._dataset_name in self.config else None
-        if self._dataset_name == "base_math":
-            self._dataset_processor = base_math.base_math(n_shots=self._n_shots,
+        if self._dataset_name == "math":
+            self._dataset_processor = nora_math.math(n_shots=self._n_shots,
                                                           n_noisy_shots=self._n_noisy_shots,
                                                           noise_type=self._noise_type, noise_ratio=self._noise_ratio,
                                                           noise_distribution=self._noise_distribution,
                                                           prefix_context=self._prefix_context, config=processor_config)
         elif self._dataset_name == "family_relation":
-            self._dataset_processor = family_relation.family_relation(if_in_context=self._if_in_context,
+            self._dataset_processor = nora_commonsense.family_relation(if_in_context=self._if_in_context,
                                                                       n_shots=self._n_shots,
                                                                       n_noisy_shots=self._n_noisy_shots,
                                                                       noise_type=self._noise_type,
@@ -209,30 +233,13 @@ class noise_test:
                                                                       prefix_context=self._prefix_context,
                                                                       config=processor_config)
             self._dataset_config = self._dataset_processor.get_config()
-        elif self._dataset_name == "GSM":
-            self._dataset_processor = GSM.GSM(n_shots=self._n_shots, n_noisy_shots=self._n_noisy_shots,
-                                              noise_type=self._noise_type, noisy_level=self._noisy_level,
-                                              prefix_context=self._prefix_context)
-        elif self._dataset_name == "SCAN":
-            self._dataset_processor = scan_master.scan_master(n_shots=self._n_shots, n_noisy_shots=self._n_noisy_shots,
+        elif self._dataset_name == "symbolic":
+            self._dataset_processor = nora_symbolic.symbolic(n_shots=self._n_shots, n_noisy_shots=self._n_noisy_shots,
                                                               noise_type=self._noise_type,
                                                               noise_ratio=self._noise_ratio,
                                                               noise_distribution=self._noise_distribution,
                                                               prefix_context=self._prefix_context,
                                                               config=processor_config)
-        elif self._dataset_name == "BBH":
-            self._dataset_processor = bbh.bbh(n_shots=self._n_shots, n_noisy_shots=self._n_noisy_shots,
-                                              noise_type=self._noise_type, noise_ratio=self._noise_ratio,
-                                              noise_distribution=self._noise_distribution,
-                                              prefix_context=self._prefix_context, config=processor_config)
-        elif self._dataset_name == "shuffled_obj":
-            self._dataset_processor = shuffled_obj.tracking_shuffled_objects(n_shots=self._n_shots,
-                                                                             n_noisy_shots=self._n_noisy_shots,
-                                                                             noise_type=self._noise_type,
-                                                                             noise_ratio=self._noise_ratio,
-                                                                             noise_distribution=self._noise_distribution,
-                                                                             prefix_context=self._prefix_context,
-                                                                             config=processor_config)
         else:
             raise ValueError("Unsupported dataset {}".format(self._dataset_name))
         if not self.use_processed_dataset:
@@ -259,7 +266,7 @@ class noise_test:
     def _init_method(self):
         self.method = self.config["method"]
         args = self.config
-        if self.method == "baseline":
+        if self.method == "basemodel":
             self.temperature_reason = args["temperature_reason"] if "temperature_reason" in args else 1
             self.n_reason = args["n_reason"] if "n_reason" in args else 1
         elif self.method == "CD-CoT":
@@ -335,7 +342,7 @@ class noise_test:
             log_file += "_origin"
 
         log_file += "_case{}".format(self._test_num)
-        if self.method == "baseline":
+        if self.method == "basemodel":
             log_file += "_temp{}_n{}".format(self.temperature_reason, self.n_reason)
         elif self.method == "CD-CoT":
             log_file += "_use_{}".format(self.use_logged_rephrased_result)
@@ -431,7 +438,7 @@ class noise_test:
         case_list = [copy.deepcopy(self._case_list[i:i + batch_size]) for i in
                      range(0, len(self._case_list), batch_size)]
         for index, case_batch in enumerate(case_list):
-            if self.method == "baseline":
+            if self.method == "basemodel":
                 case_n = self.n_reason
                 self._model.query_case_batch(case_batch, self.temperature_reason, self.n_reason)
                 self._response_process(case_batch)
@@ -444,9 +451,9 @@ class noise_test:
                 self._response_process(case_batch)
                 case_n = self.n_reason
             elif self.method == "contrastivecot":
-                if self._dataset_name == "base_math":
+                if self._dataset_name == "math":
                     expr = "47+58"
-                elif self._dataset_name == "SCAN":
+                elif self._dataset_name == "symbolic":
                     expr = ["walk around right twice after run opposite left",
                             ["I_TURN_LEFT", "I_TURN_LEFT", "I_RUN", "I_TURN_RIGHT", "I_WALK", "I_TURN_RIGHT", "I_WALK",
                              "I_TURN_RIGHT", "I_WALK", "I_TURN_RIGHT", "I_WALK", "I_TURN_RIGHT", "I_WALK",
@@ -533,15 +540,43 @@ class noise_test:
             demos = []
             if self.method == "BT":
                 case["first_error_position_list"] = []
-            for i in range(self._n_shots + self._n_noisy_shots):
-                demo = [raw_data["CoT_demos"][i]["question"], raw_data["CoT_demos"][i]["answer"]]
-                demos.append(demo)
-                if self.method == "BT":
-                    sentence_with_noise_list = ast.literal_eval(raw_data["CoT_demos"][i]["sentences_with_noise"])
-                    if 1 in sentence_with_noise_list:
-                        case["first_error_position_list"].append(sentence_with_noise_list.index(1))
-                    else:
+            
+            if self._if_noise == True:
+                for i in range(self._n_noisy_shots):
+                    demo = [raw_data["CoT_demos"][i]["question"], raw_data["CoT_demos"][i]["answer"]]
+                    demos.append(demo)
+                    if self.method == "BT":
+                        sentence_with_noise_list = ast.literal_eval(raw_data["CoT_demos"][i]["sentences_with_noise"])
+                        if 1 in sentence_with_noise_list:
+                            case["first_error_position_list"].append(sentence_with_noise_list.index(1))
+                        else:
+                            case["first_error_position_list"].append(-1)
+                for i in range(self._n_shots):
+                    if self._dataset_name == "family_relation":
+                        expr = self._dataset_processor.get_random_demos(1).iloc[0]
+                    elif self._dataset_name == "symbolic":
+                        expr = self._dataset_processor.get_random_demos(1)[0]
+                    elif self._dataset_name == "math":
+                        index = i + self._n_noisy_shots
+                        question = raw_data["CoT_demos"][index]["question"]
+                        pattern = r'[\da-fA-F]+\+[\da-fA-F]+'
+                        match = re.search(pattern, question)
+                        expr =  match.group()
+                    demo = [self._dataset_processor.get_question(expr), self._dataset_processor.get_correct_answer(expr)]
+                    demos.append(demo)
+                    random.shuffle(demos)
+                    if self.method == "BT":
                         case["first_error_position_list"].append(-1)
+            else:
+                for i in range(self._n_shots + self._n_noisy_shots):
+                    demo = [raw_data["CoT_demos"][i]["question"], raw_data["CoT_demos"][i]["answer"]]
+                    demos.append(demo)
+                    if self.method == "BT":
+                        sentence_with_noise_list = ast.literal_eval(raw_data["CoT_demos"][i]["sentences_with_noise"])
+                        if 1 in sentence_with_noise_list:
+                            case["first_error_position_list"].append(sentence_with_noise_list.index(1))
+                        else:
+                            case["first_error_position_list"].append(-1)
             case["in-context"] = demos
             if self._dataset_system_prompt is not None:
                 case["system-prompt"] = self._dataset_system_prompt
@@ -657,10 +692,7 @@ class noise_test:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-config', type=str, default='config.yml', help='Path to the config file')
-    args = parser.parse_args()
-    config_path = args.config
+    config_path = parser_args.config
     with open(config_path, 'r', encoding='utf-8') as f:
         config = yaml.safe_load(f)
     test = noise_test(args=config)
@@ -668,7 +700,7 @@ if __name__ == "__main__":
     noise_test_result = test.run()
     test.COT_SC_correct_rate(noise_test_result["answers_list"])
 
-    # with open('./result/base_math/base-9/gpt-3.5-turbo-0613/method_CD-CoT/log_ICL_0clean_noise_3irrelevant_fixed_ratio0.5_case5_n5_temp1_topp_1_m2_c2_temp1_topp_1.pkl',
+    # with open('./result/math/base-9/gpt-3.5-turbo-0613/method_CD-CoT/log_ICL_0clean_noise_3irrelevant_fixed_ratio0.5_case5_n5_temp1_topp_1_m2_c2_temp1_topp_1.pkl',
     #         'rb') as f:
     #     result_dict = pickle.load(f)
     #     answers_list = result_dict["answers_list"]

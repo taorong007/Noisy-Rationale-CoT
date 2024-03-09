@@ -6,22 +6,16 @@ test_num: 5
 batch_size: 1
 
 # subtask
-## base cal
-base_math:
-  reasoning_type: base-9
+## math
+math:
+  reasoning_type: base-11
 
-## SCAN
-SCAN:
-  reasoning_type: simple # simple or length
-
-## family rel
-family_relation:
-  reasoning_type: symbolic
-  # train_set: 5
-  # hop: 3
+## symbolic
+symbolic:
+  reasoning_type: equal # equal or longer
 
 # use subfolder_suffix
-# subfolder_suffix_path: ablation_study
+# subfolder_suffix_path: 4_shot_ablation
 
 # use_processed_dataset or use raw dataset
 use_processed_dataset: True
@@ -31,31 +25,31 @@ processed_dataset_options:
   # processed dataset path or one of ["default-zeroshot"， "default-clean", "default-(irrelevant|inaccurate)-(easy|medium|hard)-(fixed|random)"]
   processed_dataset_path: default-irrelevant-medium-fixed
   n_shots: 3
-  # using_subset: False
+  using_subset: False
   # processed_dataset_path: default-zeroshot
 
 # when use_processed_datset is False
-# raw_dataset_options:
-#   ## in-context 
-#   if_in_context: True
-#   n_shots: 0 # self-made excellent shots
-#   # n_weak_shots: 0
-
-#   ## noise
-#   if_noise: True
-#   n_noisy_shots: 10
-#   noise_type: inaccurate # irrelevant or inaccurate
-#   noise_ratio: 0.8 # 0.3, 0.5 or 0.8
-#   noise_distribution: fixed #fixed or random
+raw_dataset_options:
+  ## in-context 
+  if_in_context: True
+  n_shots: 0 # self-made excellent shots
+  # n_weak_shots: 0
+  ## noise
+  if_noise: True
+  n_noisy_shots: 10
+  noise_type: inaccurate # irrelevant or inaccurate
+  noise_ratio: 0.8 # 0.3, 0.5 or 0.8
+  noise_distribution: fixed #fixed or random
 
 # ICL format
 prefix_context: False ## prefix
 
 # method
+<<<<<<< HEAD
 method: CD-CoT  # CD-CoT or baseline,  smoothllm, selfdenoise, selfpolish, contrastivecot, ISC, SCO, BT
 
 
-## baseline, smoothllm, selfdenoise, selfpolish, contrastivecot, ISC
+## basemodel, smoothllm, selfdenoise, selfpolish, contrastivecot, ISC
 temperature_reason: 1
 n_reason: 5
 
@@ -74,12 +68,4 @@ topp_reason: 1
 # model
 ## gpt
 gpt:
-  api: openai  # openai or hkbu
-  # api_base: "https://openkey.cloud/v1"
-
-## llama2 
-# llama2:
-#   ckpt_dir: /vol/home/lanlong/xuanli/code/llama-main/llama-2-7b-chat/
-#   tokenizer_path: /vol/home/lanlong/xuanli/code/llama-main/tokenizer.model
-#   max_seq_len: 4000
-#   max_batch_size: 10
+  api: openai  # openai

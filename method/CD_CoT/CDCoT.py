@@ -71,7 +71,7 @@ class CDCoT:
     def rephrase_icl_shots(self, case, dataset_name, dataset_processor):
         if dataset_name == "base_math":
             expr = "47+58"
-        elif dataset_name == "SCAN":
+        elif dataset_name == "symbolic":
             expr = ["walk around right twice after run opposite left",
                     ["I_TURN_LEFT", "I_TURN_LEFT", "I_RUN", "I_TURN_RIGHT", "I_WALK", "I_TURN_RIGHT", "I_WALK",
                      "I_TURN_RIGHT", "I_WALK", "I_TURN_RIGHT", "I_WALK", "I_TURN_RIGHT", "I_WALK", "I_TURN_RIGHT",
@@ -92,7 +92,7 @@ class CDCoT:
             noisy_shot_correct_object["question"] = shot[0]
             noisy_shot_correct_object["noisy response"] = shot[1]
             contrastive_case = dict()
-            if dataset_name == "SCAN":
+            if dataset_name == "symbolic":
                 contrastive_question = dataset_processor.get_sys_prompt()
             else:
                 contrastive_question = ""
@@ -110,13 +110,13 @@ class CDCoT:
             if len(clean_shot) == 1:
                 clean_shot.append(dataset_processor.get_correct_answer(expr))
             contrastive_question += clean_shot[1]
-            if dataset_name == "SCAN":
-                label = dataset_processor.match_answer(clean_shot[1])  # only SCAN
+            if dataset_name == "symbolic":
+                label = dataset_processor.match_answer(clean_shot[1])  # only symbolic
                 contrastive_question += f"\nAnswer: {label}."
             contrastive_question += f"\nSecond Example:\nQuestion: {shot[0]}"
             contrastive_question += f"\nExplanation: {shot[1]}"
-            if dataset_name == "SCAN":
-                label = dataset_processor.match_answer(shot[1])  # only SCAN
+            if dataset_name == "symbolic":
+                label = dataset_processor.match_answer(shot[1])  # only symbolic
                 contrastive_question += f"\nAnswer: {label}."
             contrastive_question += "\nYou must respond in the format of \"correct version is: {the correct " \
                                     "explanation and answer}."
