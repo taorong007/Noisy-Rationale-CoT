@@ -69,7 +69,7 @@ class CDCoT:
         return ICL_list
 
     def rephrase_icl_shots(self, case, dataset_name, dataset_processor):
-        if dataset_name == "base_math":
+        if dataset_name == "math":
             expr = "47+58"
         elif dataset_name == "symbolic":
             expr = ["walk around right twice after run opposite left",
