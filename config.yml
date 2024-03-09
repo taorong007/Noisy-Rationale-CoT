@@ -45,21 +45,18 @@ raw_dataset_options:
 prefix_context: False ## prefix
 
 # method
-<<<<<<< HEAD
 method: CD-CoT  # CD-CoT or baseline,  smoothllm, selfdenoise, selfpolish, contrastivecot, ISC, SCO, BT
-
 
 ## basemodel, smoothllm, selfdenoise, selfpolish, contrastivecot, ISC
 temperature_reason: 1
 n_reason: 5
 
 ## CD-CoT
-use_logged_rephrased_result: True
+use_logged_rephrased_result: False  # for ablation, default to False
+use_logged_ICL_result: False  # for ablation, default to False
 n_rephrase: 5
 temperature_rephrase: 1
 topp_rephrase: 1
-m_select: 2 # 1 or 2 or 3 or 5
-use_logged_ICL_result: False
 use_clean_shot: True
 c_reason: [3,2] # [5] or [3,2] or [2,2,1] or [1,1,1,1,1]
 temp_reason: 1

@@ -277,9 +277,9 @@ class noise_test:
             n_rephrase = args["n_rephrase"] if "n_rephrase" in args else 5
             temperature_rephrase = args["temperature_rephrase"] if "temperature_rephrase" in args else 1
             topp_rephrase = args["topp_rephrase"] if "topp_rephrase" in args else 1
-            m_select = args["m_select"] if "m_select" in args else 1
             use_clean_shot = args["use_clean_shot"] if "use_clean_shot" in args else True
             c_reason = args["c_reason"] if "c_reason" in args else [5]
+            m_select = len(c_reason)
             temp_reason = args["temp_reason"] if "temp_reason" in args else 1
             topp_reason = args["topp_reason"] if "topp_reason" in args else 1
             self.CDCoT = CDCoT.CDCoT(n_rephrase, temperature_rephrase, topp_rephrase, m_select,

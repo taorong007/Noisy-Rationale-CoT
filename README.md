@@ -182,6 +182,7 @@ run
 python noise_test.py -task [dataset]-[subtask]-[zeroshot|clean|irrelevant|inaccurate]-[easy|medium|hard] -method [basemodel|CD-CoT]
 ```
 
+
 <!-- 
 For example, to run main `DeepInception` experiments (Tab.1) with `Vicuna-v1.5-7b` as the target model with the default maximum number of tokens in CUDA 0, run
 ```
