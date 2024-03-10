@@ -198,6 +198,7 @@ See `main.py` for all of the arguments and descriptions. -->
 ### Result
 
 The results would appear in `./results/{task}/{subtask}/{model}/{method}/`
+
 The file will be `log_[ICL_|][n_clean_shots]clean_[noise_[n_noisy_shots][inaccurate|irrelevant]_[fixed|random]_ratio[ratio]|origin]_case[cases_num]_temp[temperature]_n[reasoning_times].json`
 
 <!-- ## Citation
