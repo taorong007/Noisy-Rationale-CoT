@@ -182,6 +182,7 @@ python noise_test.py -task [task]-[subtask]-[zeroshot|clean|irrelevant|inaccurat
 ```
 
 **task (subtask)** include: math (base-9, base-11), symbolic (equal, longer), commonsense
+
 **method** include: basemodel, CD-CoT, smoothllm, selfdenoise, selfpolish, contrastivecot, ISC, SCO, BT
 
 for example:
