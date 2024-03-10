@@ -178,7 +178,9 @@ python noise_test.py
 run
 
 ``` bash
-python noise_test.py -task [task]-[subtask]-[zeroshot|clean|irrelevant|inaccurate]-[easy|medium|hard] -method [basemodel|CD-CoT]
+python noise_test.py -task [task]-[subtask]-zeroshot -method [basemodel|CD-CoT]
+python noise_test.py -task [task]-[subtask]-clean -method [basemodel|CD-CoT]
+python noise_test.py -task [task]-[subtask]-[irrelevant|inaccurate]-[easy|medium|hard] -method [basemodel|CD-CoT]
 ```
 
 **task (subtask)** include: math (base-9, base-11), symbolic (equal, longer), commonsense
