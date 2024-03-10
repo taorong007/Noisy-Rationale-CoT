@@ -26,6 +26,7 @@ parser_args = parser.parse_args()
 if parser_args.task != None:
     parser_args.config = "quick_start.yml"
 
+
 def wr_log(obj, log_file):
     print(obj)
     log_file.write(str(obj) + "\n")
@@ -58,6 +59,8 @@ class noise_test:
                     subtask = labels[1]
                     dataset_label = labels[2:]
                     args[task]["subtask"] = subtask
+                else:
+                    dataset_label = labels[1:]
                 self.processed_dataset_path = self._get_default_processed_dataset_name(dataset_label)
             elif processed_dataset_path.startswith("default-"):
                 dataset_label = processed_dataset_path.split("-")[1:]
@@ -122,6 +125,7 @@ class noise_test:
         log_name = args["log_name"] if "log_name" in args else self._get_log_file_name()
         print(f"test result is in {log_name}")
         self._log_file = open(log_name, 'w', encoding='utf-8')
+
         dirname = os.path.dirname(log_name)
         basename = os.path.basename(log_name)
         name_without_ext = os.path.splitext(basename)[0]
@@ -169,7 +173,7 @@ class noise_test:
             subtask = args[self._dataset_name]["subtask"]
             dataset_dir = os.path.join("data", "math")
             processed_dataset_dir = os.path.join("data", "math", "processed", subtask)
-        elif self._dataset_name == "family_relation":
+        elif self._dataset_name == "commonsense":
             dataset_dir = os.path.join("data", "commonsense")
             processed_dataset_dir = os.path.join("data", "commonsense", "processed")
         elif self._dataset_name == "symbolic":
@@ -222,8 +226,8 @@ class noise_test:
                                                           noise_type=self._noise_type, noise_ratio=self._noise_ratio,
                                                           noise_distribution=self._noise_distribution,
                                                           prefix_context=self._prefix_context, config=processor_config)
-        elif self._dataset_name == "family_relation":
-            self._dataset_processor = nora_commonsense.family_relation(if_in_context=self._if_in_context,
+        elif self._dataset_name == "commonsense":
+            self._dataset_processor = nora_commonsense.commonsense(if_in_context=self._if_in_context,
                                                                       n_shots=self._n_shots,
                                                                       n_noisy_shots=self._n_noisy_shots,
                                                                       noise_type=self._noise_type,
@@ -251,58 +255,40 @@ class noise_test:
         dir_name = os.path.dirname(self.processed_dataset_path)
         base_name = os.path.basename(self.processed_dataset_path)
         prefix = os.path.splitext(base_name)[0]
-        file_name = f"{prefix}_{self._start_num}_{self._test_num}_n{self.n_rephrase}_t{self.temperature_rephrase}_p{self.topp_rephrase}.json"
+        file_name = f"{prefix}_{self._start_num}_{self._test_num}_n{self.CDCoT.n_rephrase}_t{self.CDCoT.temperature_rephrase}_p{self.CDCoT.topp_rephrase}.json"
         return os.path.join(dir_name, file_name)
 
     def _get_logged_ICL_list_file(self):
         dir_name = os.path.dirname(self.processed_dataset_path)
         base_name = os.path.basename(self.processed_dataset_path)
         prefix = os.path.splitext(base_name)[0]
-        file_name = f"{prefix}_{self._start_num}_{self._test_num}_n{self.n_rephrase}_t{self.temperature_rephrase}_p{self.topp_rephrase}_m{self.m_select}_ICL.json"
+        file_name = f"{prefix}_{self._start_num}_{self._test_num}_n{self.CDCoT.n_rephrase}_t{self.CDCoT.temperature_rephrase}_p{self.CDCoT.topp_rephrase}_m{self.CDCoT.m_select}_ICL.json"
         return os.path.join(dir_name, file_name)
 
     def _init_method(self):
-        if not hasattr(self, "method"):
+        if parser_args.method == None:
             self.method = self.config["method"]
+        else:
+            self.method = parser_args.method
         args = self.config
         if self.method == "basemodel":
             self.temperature_reason = args["temperature_reason"] if "temperature_reason" in args else 1
             self.n_reason = args["n_reason"] if "n_reason" in args else 1
         elif self.method == "CD-CoT":
-            self.use_logged_rephrased_result = args["use_logged_rephrased_result"] if "use_logged_rephrased_result" in args else False
-            self.n_rephrase = args["n_rephrase"] if "n_rephrase" in args else 5
-            self.temperature_rephrase = args["temperature_rephrase"] if "temperature_rephrase" in args else 1
-            self.topp_rephrase = args["topp_rephrase"] if "topp_rephrase" in args else 1
-            self.m_select = args["m_select"] if "m_select" in args else 1
+            from method.CD_CoT import CDCoT
+            self.use_logged_rephrased_result = args[
+                "use_logged_rephrased_result"] if "use_logged_rephrased_result" in args else False
             self.use_logged_ICL_result = args["use_logged_ICL_result"] if "use_logged_ICL_result" in args else False
-            self.use_clean_shot = args["use_clean_shot"] if "use_clean_shot" in args else True
-            # self.use_noisy_shot = args["use_noisy_shot"] if "use_noisy_shot" in args else True
-            self.c_reason = args["c_reason"] if "c_reason" in args else [5]
-            self.temp_reason = args["temp_reason"] if "temp_reason" in args else 1
-            self.topp_reason = args["topp_reason"] if "topp_reason" in args else 1
-        # elif self.method == "RV":
-        #     self.temperature_rephrase = args["temperature_rephrase"] if "temperature_rephrase" in args else 1
-        #     self.n_rephrase = args["n_rephrase"] if "n_rephrase" in args else 5
-        #     self.RV_n_reason = args["RV_n_reason"] if "RV_n_reason" in args else 1
-        #     self.RV_temp_reason = args["RV_temp_reason"] if "RV_temp_reason" in args else 0.1
-        #     self.RV_topp_reason = args["RV_topp_reason"] if "RV_topp_reason" in args else 1
-        # elif self.method == "RAV":
-        #     self.temperature_rephrase = args["temperature_rephrase"] if "temperature_rephrase" in args else 1
-        #     self.n_rephrase = args["n_rephrase"] if "n_rephrase" in args else 5
-        #     self.RAV_n_reason = args["RAV_n_reason"] if "RAV_n_reason" in args else 5
-        #     self.RAV_temp_reason = args["RAV_temp_reason"] if "RAV_temp_reason" in args else 1
-        #     self.RAV_topp_reason = args["RAV_topp_reason"] if "RAV_topp_reason" in args else 0.9
-        # elif self.method == "both":
-        #     self.temperature_rephrase = args["temperature_rephrase"] if "temperature_rephrase" in args else 1
-        #     self.n_rephrase = args["n_rephrase"] if "n_rephrase" in args else 5
-        #     self.RV_n_reason = args["RV_n_reason"] if "RV_n_reason" in args else 1
-        #     self.RV_temp_reason = args["RV_temp_reason"] if "RV_temp_reason" in args else 0.1
-        #     self.RV_topp_reason = args["RV_topp_reason"] if "RV_topp_reason" in args else 1
-        #     self.RAV_n_reason = args["RAV_n_reason"] if "RAV_n_reason" in args else 5
-        #     self.RAV_temp_reason = args["RAV_temp_reason"] if "RAV_temp_reason" in args else 1
-        #     self.RAV_topp_reason = args["RAV_topp_reason"] if "RAV_topp_reason" in args else 0.9
-        #     self.RV_weight = args["RV_weight"] if "RV_weight" in args else 0.5
-        #     self.RAV_weight = args["RAV_weight"] if "RAV_weight" in args else 0.5
+            n_rephrase = args["n_rephrase"] if "n_rephrase" in args else 5
+            temperature_rephrase = args["temperature_rephrase"] if "temperature_rephrase" in args else 1
+            topp_rephrase = args["topp_rephrase"] if "topp_rephrase" in args else 1
+            use_clean_shot = args["use_clean_shot"] if "use_clean_shot" in args else True
+            c_reason = args["c_reason"] if "c_reason" in args else [5]
+            m_select = len(c_reason)
+            temp_reason = args["temp_reason"] if "temp_reason" in args else 1
+            topp_reason = args["topp_reason"] if "topp_reason" in args else 1
+            self.CDCoT = CDCoT.CDCoT(n_rephrase, temperature_rephrase, topp_rephrase, m_select,
+                               c_reason, temp_reason, topp_reason, self._model, use_clean_shot)
         elif self.method == "smoothllm":
             from method.smooth_llm_main.lib.defenses import SmoothLLM
             self.temperature_reason = args["temperature_reason"] if "temperature_reason" in args else 1
@@ -329,10 +315,6 @@ class noise_test:
         elif self.method == "BT":
             self.temperature_reason = args["temperature_reason"] if "temperature_reason" in args else 1
             self.n_reason = args["n_reason"] if "n_reason" in args else 1
-        # if self.method == "smoothllm":
-        #     self.smoothllm = SmoothLLM(self._model, self._dataset_processor, "RandomSwapPerturbation", 10, self.n_reason)
-        # elif self.method == "selfdenoise":
-        #     self.SelfDenoise = SelfDenoise(n_reason=self.n_reason)
 
     def _get_log_file_name(self):
         log_path = os.path.join("result", self._dataset_name)
@@ -341,14 +323,14 @@ class noise_test:
             if "subtask" in dataset_config:
                 log_path = os.path.join(log_path, dataset_config["subtask"])
 
-        if self._dataset_name == "family_relation":
+        if self._dataset_name == "commonsense":
             if self._dataset_config["subtask"] == "symbolic":
                 log_path = os.path.join(log_path, "hop" + str(self._dataset_config["hop"]))
         log_path = os.path.join(log_path, self._model_name)
         log_path = os.path.join(log_path, f"method_{self.method}")
         if "subfolder_suffix_path" in self.config:
             if len(self.config["subfolder_suffix_path"]) > 0:
-                log_path = os.path.join(log_path, self.config["subfolder_suffix_path"])        
+                log_path = os.path.join(log_path, self.config["subfolder_suffix_path"])
         if not os.path.exists(log_path):
             os.makedirs(log_path)
         log_file = "log"
@@ -369,24 +351,12 @@ class noise_test:
             log_file += "_temp{}_n{}".format(self.temperature_reason, self.n_reason)
         elif self.method == "CD-CoT":
             log_file += "_use_{}".format(self.use_logged_rephrased_result)
-            log_file += "_n{}_t{}_p{}".format(self.n_rephrase, self.temperature_rephrase, self.topp_rephrase)
-            log_file += "_m{}_clean_{}".format(self.m_select, self.use_clean_shot)
-            log_file += "_c{}_t{}_p_{}".format(len(self.c_reason), self.temp_reason, self.topp_reason)
+            log_file += "_n{}_t{}_p{}".format(self.CDCoT.n_rephrase, self.CDCoT.temperature_rephrase,
+                                              self.CDCoT.topp_rephrase)
+            log_file += "_m{}_clean_{}".format(self.CDCoT.m_select, self.CDCoT.use_clean_shot)
+            log_file += "_c{}_t{}_p_{}".format(len(self.CDCoT.c_reason), self.CDCoT.temp_reason, self.CDCoT.topp_reason)
         else:
             log_file += "_temp{}_n{}".format(self.temperature_reason, self.n_reason)
-        # elif self.method == "RV":
-        #     log_file += "_rephrase_temp{}_n{}".format(self.temperature_rephrase, self.n_rephrase)
-        #     log_file += "_reason_temp{}_n{}".format(self.RV_temp_reason, self.RV_n_reason)
-        #     log_file += "_topp{}_".format(self.RV_topp_reason)
-        # elif self.method == "RAV":
-        #     log_file += "_rephrase_temp{}_n{}".format(self.temperature_rephrase, self.n_rephrase)
-        #     log_file += "_reason_temp{}_n{}".format(self.RAV_temp_reason, self.RAV_n_reason)
-        #     log_file += "_topp{}_".format(self.RAV_topp_reason)
-        # elif self.method == "both":
-        #     log_file += "_rephrase_temp{}_n{}".format(self.temperature_rephrase, self.n_rephrase)
-        #     log_file += "_reason_temp_RV{}_RAV{}_n_RV{}_RAV{}".format(self.RV_temp_reason, self.RAV_temp_reason,
-        #                                                               self.RV_n_reason, self.RAV_n_reason)
-        #     log_file += "_topp_RV{}_RAV{}".format(self.RV_topp_reason, self.RAV_topp_reason)
         log_file += ".log"
         log_file_path = os.path.join(log_path, log_file)
         return log_file_path
@@ -428,9 +398,10 @@ class noise_test:
             self._noise_test_result["contents_list"] = self._contents_list
             self._noise_test_result["question_list"] = [case["question"] for case in self._case_list]
             self._noise_test_result["label_list"] = [case["label"] for case in self._case_list]
-            # self._noise_test_result = [self._correct_num, self._error_num, self._answers_list, self._contents_list]
             self._save_result()
-            self._log("correct_num:{}, error_num:{}, Acc:{}".format(self._correct_num, self._error_num, self._correct_num / (self._correct_num + self._error_num + self._not_match_num)))
+            self._log("correct_num:{}, error_num:{}, Acc:{}".format(self._correct_num, self._error_num,
+                                                                    self._correct_num / (
+                                                                            self._correct_num + self._error_num + self._not_match_num)))
         self._log("End time: {}".format(datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
         return self._noise_test_result
 
@@ -438,33 +409,6 @@ class noise_test:
         print(obj)
         self._log_file.write(str(obj) + "\n")
         self._log_file.flush()
-
-    def _random_mask_sentences(self, text, percent):
-        try:
-            nltk.data.find('tokenizers/punkt')
-        except LookupError:
-            nltk.download('punkt')
-        sentences = nltk.sent_tokenize(text)
-        num_to_replace = int(len(sentences) * percent)
-        # print(num_to_replace)
-        to_replace = random.sample(range(len(sentences)), num_to_replace)
-        for i in to_replace:
-            sentences[i] = ""
-        return " ".join(sentences)
-
-    def _random_mask_words(self, text, percent, mask="xxxx"):
-        try:
-            nltk.data.find('tokenizers/punkt')
-        except LookupError:
-            nltk.download('punkt')
-        words = nltk.word_tokenize(text)
-        non_punctuation_words = [i for i, word in enumerate(words) if word not in string.punctuation]
-        num_mask = int(len(non_punctuation_words) * percent)
-        # print(num_to_replace)
-        to_mask = random.sample(non_punctuation_words, num_mask)
-        for i in to_mask:
-            words[i] = mask
-        return " ".join(words)
 
     def _response_process(self, case_batch):
         for case in case_batch:
@@ -503,31 +447,6 @@ class noise_test:
                 case_n = self.n_reason
                 self._model.query_case_batch(case_batch, self.temperature_reason, self.n_reason)
                 self._response_process(case_batch)
-            # elif self.method == "RV":
-            #     case_n = self.n_rephrase * self.RV_n_reason
-            #     case_batch = self._rephrase(case_batch)
-            #     self._model.query_case_batch(case_batch, self.RV_temp_reason, self.RV_n_reason, self.RV_topp_reason)
-            #     self._response_process(case_batch)
-            # elif self.method == "RAV":
-            #     case_n = self.RAV_n_reason
-            #     case_batch = self._rephrase_aggregate(case_batch)
-            #     self._model.query_case_batch(case_batch, self.RAV_temp_reason, self.RAV_n_reason, self.RAV_topp_reason)
-            #     self._response_process(case_batch)
-            # elif self.method == "both":
-            #     RV_case_batch, RAV_case_batch = self._rephrase_both(case_batch)
-            #     self._model.query_case_batch(RV_case_batch, self.RV_temp_reason, self.RV_n_reason, self.RV_topp_reason)
-            #     self._model.query_case_batch(RAV_case_batch, self.RAV_temp_reason, self.RAV_n_reason,
-            #                                  self.RAV_topp_reason)
-            #     split_RV_case_batch = [RV_case_batch[i:i + self.n_rephrase] for i in
-            #                            range(0, len(RV_case_batch), self.n_rephrase)]
-            #     split_RAV_case_batch = [[RAV_case_batch[i]] for i in range(len(RAV_case_batch))]
-            #     merge_split_case_batch = [split_RV_case_batch[i] + split_RAV_case_batch[i] for i in
-            #                               range(len(split_RV_case_batch))]
-            #     merge_case_batch = []
-            #     for merge_split in merge_split_case_batch:
-            #         merge_case_batch += merge_split
-            #     self._response_process(merge_case_batch)
-            #     case_n = self.n_rephrase * self.RV_n_reason + self.RAV_n_reason
             elif self.method == "smoothllm":
                 case_batch = self.smoothllm(case_batch)
                 self._response_process(case_batch)
@@ -540,13 +459,12 @@ class noise_test:
                 if self._dataset_name == "math":
                     expr = "47+58"
                 elif self._dataset_name == "symbolic":
-                    # expr = self._dataset_processor.get_random_demos(1)[0]
                     expr = ["walk around right twice after run opposite left",
                             ["I_TURN_LEFT", "I_TURN_LEFT", "I_RUN", "I_TURN_RIGHT", "I_WALK", "I_TURN_RIGHT", "I_WALK",
                              "I_TURN_RIGHT", "I_WALK", "I_TURN_RIGHT", "I_WALK", "I_TURN_RIGHT", "I_WALK",
                              "I_TURN_RIGHT",
                              "I_WALK", "I_TURN_RIGHT", "I_WALK", "I_TURN_RIGHT", "I_WALK"]]
-                elif self._dataset_name == "family_relation":
+                elif self._dataset_name == "commonsense":
                     expr = self._dataset_processor.get_random_demos(1).iloc[0]
                 postive_QAL = []
                 postive_QAL.append(self._dataset_processor.get_question(expr))
@@ -559,12 +477,16 @@ class noise_test:
                 case_n = self.n_reason
             elif self.method == "ISC":
                 from method.Intrinsic_Self_Correct.Intrinsic_Self_Correct import Intrinsic_Self_Correct
-                case_batch = Intrinsic_Self_Correct(case_batch=case_batch, model=self._model, dataset_name=self._dataset_name, n_reason=self.n_reason)
+                case_batch = Intrinsic_Self_Correct(case_batch=case_batch, model=self._model,
+                                                    dataset_name=self._dataset_name, n_reason=self.n_reason)
                 self._response_process(case_batch)
                 case_n = self.n_reason
             elif self.method == "SCO":
                 from method.Intrinsic_Self_Correct.Intrinsic_Self_Correct import Intrinsic_Self_Correct
-                case_batch = Intrinsic_Self_Correct(case_batch=case_batch, model=self._model, dataset_name=self._dataset_name, n_reason=self.n_reason, answer_match_func=self._dataset_processor.match_answer, method="SCO")
+                case_batch = Intrinsic_Self_Correct(case_batch=case_batch, model=self._model,
+                                                    dataset_name=self._dataset_name, n_reason=self.n_reason,
+                                                    answer_match_func=self._dataset_processor.match_answer,
+                                                    method="SCO")
                 self._response_process(case_batch)
                 case_n = self.n_reason
             elif self.method == "selfpolish":
@@ -582,7 +504,10 @@ class noise_test:
                 case_n = self.n_reason
             elif self.method == "SCO":
                 from method.Intrinsic_Self_Correct.Intrinsic_Self_Correct import Intrinsic_Self_Correct
-                case_batch = Intrinsic_Self_Correct(case_batch=case_batch, model=self._model, dataset_name=self._dataset_name, n_reason=self.n_reason, answer_match_func=self._dataset_processor.match_answer, method="SCO")
+                case_batch = Intrinsic_Self_Correct(case_batch=case_batch, model=self._model,
+                                                    dataset_name=self._dataset_name, n_reason=self.n_reason,
+                                                    answer_match_func=self._dataset_processor.match_answer,
+                                                    method="SCO")
                 self._response_process(case_batch)
                 case_n = self.n_reason
             elif self.method == "selfpolish":
@@ -598,16 +523,12 @@ class noise_test:
                 self._model.query_case_batch(case_batch, temperature=self.temperature_reason, n=self.n_reason)
                 self._response_process(case_batch)
                 case_n = self.n_reason
-            # if self._correct_num + self._error_num == 0:
-            #     self._log(
-            #         f"index {index}/{len(case_list) - 1}, correct_num {self._correct_num}, error_num {self._error_num}, "
-            #         f"accuracy NULL")
-            # else:
             self._log(
-                    f"index {index}/{len(case_list) - 1}, correct_num {self._correct_num}, error_num {self._error_num}, "
-                    f"Acc {self._correct_num / (self._correct_num + self._error_num + self._not_match_num)}")
+                f"index {index}/{len(case_list) - 1}, correct_num {self._correct_num}, error_num {self._error_num}, "
+                f"Acc {self._correct_num / (self._correct_num + self._error_num + self._not_match_num)}")
             if not self._model_name.startswith("gemini"):
                 self._log(self._model.compute_cost())
+
         self._answers_list = [self._answers_list[i:i + case_n]
                               for i in range(0, len(self._answers_list), case_n)]
         self._contents_list = [self._contents_list[i:i + case_n]
@@ -636,7 +557,7 @@ class noise_test:
                         else:
                             case["first_error_position_list"].append(-1)
                 for i in range(self._n_shots):
-                    if self._dataset_name == "family_relation":
+                    if self._dataset_name == "commonsense":
                         expr = self._dataset_processor.get_random_demos(1).iloc[0]
                     elif self._dataset_name == "symbolic":
                         expr = self._dataset_processor.get_random_demos(1)[0]
@@ -670,91 +591,12 @@ class noise_test:
         with open(self._pickle_name, 'wb') as f:
             pickle.dump(self._noise_test_result, f)
 
-    def _rephrase_icl_shots(self, case):
-        if self._dataset_name == "math":
-            expr = "47+58"
-        elif self._dataset_name == "symbolic":
-            expr = ["walk around right twice after run opposite left",
-                    ["I_TURN_LEFT", "I_TURN_LEFT", "I_RUN", "I_TURN_RIGHT", "I_WALK", "I_TURN_RIGHT", "I_WALK",
-                     "I_TURN_RIGHT", "I_WALK", "I_TURN_RIGHT", "I_WALK", "I_TURN_RIGHT", "I_WALK", "I_TURN_RIGHT",
-                     "I_WALK", "I_TURN_RIGHT", "I_WALK", "I_TURN_RIGHT", "I_WALK"]]
-        elif self._dataset_name == "family_relation":
-            expr = self._dataset_processor.get_random_demos(1).iloc[0]
-        else:
-            raise ValueError("dataset type {} not support rephrase".format(self._dataset_name))
-        temperature_rephrase = self.temperature_rephrase
-        topp_rephrase = self.topp_rephrase
-        n_rephrase = self.n_rephrase
-        contrastive_queries = []
-        in_context = case["in-context"]
-        clean_shot = []
-        noisy_ICL_correct_object = []
-        for shot in in_context:
-            noisy_shot_correct_object = dict()
-            noisy_shot_correct_object["question"] = shot[0]
-            noisy_shot_correct_object["noisy response"] = shot[1]
-            contrastive_case = dict()
-            if self._dataset_name == "symbolic":
-                contrastive_question = self._dataset_processor.get_sys_prompt()
-            else:
-                contrastive_question = ""
-            contrastive_question += "The following are two examples for the same type of task: " \
-                                    "the first example has correct explanation and correct answer, " \
-                                    "and the second example has distracted explanation and correct answer. " \
-                                    "Please follow the first example and give me the correct explanation and " \
-                                    "answer for the second example, which should be logically consistent " \
-                                    "with the first one."
-            contrastive_question += "\nFirst Example:\nQuestion:"
-            if len(clean_shot) == 0:
-                clean_shot.append(self._dataset_processor.get_question(expr))
-            contrastive_question += clean_shot[0]
-            contrastive_question += "\nExplanation:"
-            if len(clean_shot) == 1:
-                clean_shot.append(self._dataset_processor.get_correct_answer(expr))
-            contrastive_question += clean_shot[1]
-            if self._dataset_name == "symbolic":
-                label = self._dataset_processor.match_answer(clean_shot[1])  # only symbolic
-                contrastive_question += f"\nAnswer: {label}."
-            contrastive_question += f"\nSecond Example:\nQuestion: {shot[0]}"
-            contrastive_question += f"\nExplanation: {shot[1]}"
-            if self._dataset_name == "symbolic":
-                label = self._dataset_processor.match_answer(shot[1])  # only symbolic
-                contrastive_question += f"\nAnswer: {label}."
-            contrastive_question += "\nYou must respond in the format of \"correct version is: {the correct " \
-                                    "explanation and answer}."
-            contrastive_question += "Don't offer anything else."
-            contrastive_case["question"] = contrastive_question
-            contrastive_queries.append(contrastive_case)
-            noisy_shot_correct_object["correct_prompt"] = contrastive_question
-            noisy_ICL_correct_object.append(noisy_shot_correct_object)
-        self._model.query_case_batch(contrastive_queries, temperature_rephrase, n_rephrase, topp_rephrase)
-        shot_query_list = list(zip(in_context, contrastive_queries))
-        for i in range(len(shot_query_list)):
-            shot, query = shot_query_list[i]
-            noisy_shot_correct_object = noisy_ICL_correct_object[i]
-            noisy_shot_correct_object["corrected_responses"] = []
-            responses = query["messages"][-1]
-            for response in responses:
-                content = response['content']
-                match = re.search(r'[Cc]orrect [Vv]ersion.*?:([\s\S]*)', content)
-                if match:
-                    answer = match.group(1)
-                    noisy_shot_correct_object["corrected_responses"].append(answer)
-                else:
-                    noisy_shot_correct_object["corrected_responses"].append(content)
-        self._log("noisy_ICL_correct_process:\n")
-        self._log(noisy_ICL_correct_object)
-        if not self._model_name.startswith("gemini"):
-            self._log(self._model.compute_cost())
-        self._noisy_ICL_correct_list.append(noisy_ICL_correct_object)
-        self._clean_shot = clean_shot
-
     def _load_rephrased_result(self):
         logged_rephrased_result_file = self._get_logged_rephrased_result_file()
         if os.path.exists(logged_rephrased_result_file):
             with open(logged_rephrased_result_file, 'r') as rephrased_result_f:
                 noisy_ICL_correct_recording = json.load(rephrased_result_f)
-                self._clean_shot = noisy_ICL_correct_recording["clean_shot"]
+                self.CDCoT.clean_shot = noisy_ICL_correct_recording["clean_shot"]
                 self._noisy_ICL_correct_list = noisy_ICL_correct_recording["noisy_ICL_correct_process"]
                 rephrased_result_f.close()
         else:
@@ -764,8 +606,14 @@ class noise_test:
         json_name = self._get_logged_rephrased_result_file()
         noisy_ICL_correct_recording = dict()
         for case in self._case_list:
-            self._rephrase_icl_shots(case)
-        noisy_ICL_correct_recording["clean_shot"] = self._clean_shot
+            noisy_ICL_correct_object, clean_shot = self.CDCoT.rephrase_icl_shots(case, self._dataset_name,
+                                                                                 self._dataset_processor)
+            self._log("noisy_ICL_correct_process:\n")
+            self._log(noisy_ICL_correct_object)
+            if not self._model_name.startswith("gemini"):
+                self._log(self._model.compute_cost())
+            self._noisy_ICL_correct_list.append(noisy_ICL_correct_object)
+        noisy_ICL_correct_recording["clean_shot"] = clean_shot
         noisy_ICL_correct_recording["noisy_ICL_correct_process"] = self._noisy_ICL_correct_list
         with open(json_name, 'w') as rephrase_record_file:
             json.dump(noisy_ICL_correct_recording, rephrase_record_file)
@@ -775,33 +623,24 @@ class noise_test:
         for i in range(self._test_num - self._start_num):
             case = self._case_list[i]
             ICL_correct_process = self._noisy_ICL_correct_list[i]
-            select_shot_list = self._select_ICL_shot(ICL_correct_process)
-            ICL_list = self._comprise_ICL(select_shot_list, self._clean_shot, self.m_select)
-            self._reason_ICL_list.append(ICL_list)
-            n_case = []
-            for ICL in ICL_list:
-                new_case = copy.deepcopy(case)
-                new_case['in-context'] = ICL
-                n_case.append(new_case)
-            self._model.query_n_case(n_case, self.c_reason, self.temp_reason, self.topp_reason)
+            select_shot_list, self._reason_ICL_list, n_case = self.CDCoT.CD_CoT(case, ICL_correct_process,
+                                                                                self._reason_ICL_list,
+                                                                                self._dataset_processor)
+            self._log("selected shots list:")
+            self._log(select_shot_list)
             self._response_process(n_case)
-            # if self._correct_num + self._error_num == 0:
-            #     self._log(
-            #         f"index {i}/{len(self._test_num) - 1}, correct_num {self._correct_num}, error_num {self._error_num}, "
-            #         f"accuracy NULL")
-            # else:
             self._log(
-                    f"index {i}/{self._test_num - 1}, correct_num {self._correct_num}, error_num {self._error_num}, "
-                    f"Acc {self._correct_num / (self._correct_num + self._error_num + self._not_match_num)}")
+                f"index {i}/{self._test_num - 1}, correct_num {self._correct_num}, error_num {self._error_num}, "
+                f"Acc {self._correct_num / (self._correct_num + self._error_num + self._not_match_num)}")
             if not self._model_name.startswith("gemini"):
                 self._log(self._model.compute_cost())
         with open(self._get_logged_ICL_list_file(), 'w', encoding='utf-8') as ICL_file:
             json.dump({"reason_ICL_list": self._reason_ICL_list}, ICL_file)
             ICL_file.close()
-        self._answers_list = [self._answers_list[i:i + sum(self.c_reason)]
-                              for i in range(0, len(self._answers_list), sum(self.c_reason))]
-        self._contents_list = [self._contents_list[i:i + sum(self.c_reason)]
-                               for i in range(0, len(self._contents_list), sum(self.c_reason))]
+        self._answers_list = [self._answers_list[i:i + sum(self.CDCoT.c_reason)]
+                              for i in range(0, len(self._answers_list), sum(self.CDCoT.c_reason))]
+        self._contents_list = [self._contents_list[i:i + sum(self.CDCoT.c_reason)]
+                               for i in range(0, len(self._contents_list), sum(self.CDCoT.c_reason))]
 
     def _load_ICL_list_result(self):
         logged_ICL_list_result_file = self._get_logged_ICL_list_file()
@@ -817,70 +656,20 @@ class noise_test:
         for i in range(self._test_num - self._start_num):
             case = self._case_list[i]
             ICL_list = self._reason_ICL_list[i]
-            n_case = []
-            for ICL in ICL_list:
-                new_case = copy.deepcopy(case)
-                new_case['in-context'] = ICL[1:]
-                n_case.append(new_case)
-            self._model.query_n_case(n_case, self.c_reason, self.temp_reason, self.topp_reason)
+            n_case = self.CDCoT.CD_CoT_with_ICL_list(case, ICL_list)
             self._response_process(n_case)
-            # if self._correct_num + self._error_num == 0:
-            #     self._log(
-            #         f"index {i}/{len(self._test_num) - 1}, correct_num {self._correct_num}, error_num {self._error_num}, "
-            #         f"accuracy NULL")
-            # else:
             self._log(
-                    f"index {i}/{self._test_num - 1}, correct_num {self._correct_num}, error_num {self._error_num}, "
-                    f"Acc {self._correct_num / (self._correct_num + self._error_num + self._not_match_num)}")
+                f"index {i}/{self._test_num - 1}, correct_num {self._correct_num}, error_num {self._error_num}, "
+                f"Acc {self._correct_num / (self._correct_num + self._error_num + self._not_match_num)}")
             if not self._model_name.startswith("gemini"):
                 self._log(self._model.compute_cost())
-        self._answers_list = [self._answers_list[i:i + sum(self.c_reason)]
-                              for i in range(0, len(self._answers_list), sum(self.c_reason))]
-        self._contents_list = [self._contents_list[i:i + sum(self.c_reason)]
-                               for i in range(0, len(self._contents_list), sum(self.c_reason))]
-
-    def _select_ICL_shot(self, ICL_correct_process):
-        select_shot_list = []
-        for shot_correct_process in ICL_correct_process:
-            select_shot = []
-            question = shot_correct_process["question"]
-            noisy_response = shot_correct_process["noisy response"]
-            label = self._dataset_processor.match_answer(noisy_response)
-            corrected_responses = shot_correct_process["corrected_responses"]
-            not_none_corrected_responses = []
-            for corrected_response in corrected_responses:
-                if corrected_response is not None:
-                    corrected_answer = self._dataset_processor.match_answer(corrected_response)
-                    if corrected_answer == label:
-                        new_shot = [question, corrected_response]
-                        select_shot.append(new_shot)
-                    not_none_corrected_responses.append(corrected_response)
-            if len(select_shot) != 0:
-                select_shot_list.append(select_shot)
-            else:
-                # ablation
-                new_shot = [question, random.sample(not_none_corrected_responses, 1)[0]]
-                select_shot.append(new_shot)
-                select_shot_list.append(select_shot)
-            self._log("selected shots: \n")
-            self._log(select_shot)
-        return select_shot_list
-
-    def _comprise_ICL(self, select_shot_list, clean_shot, m):
-        ICL_list = []
-        for i in range(m):
-            if self.use_clean_shot:
-                ICL = [clean_shot]
-            else:
-                ICL = []
-            for j in range(len(select_shot_list)):
-                random.seed(time.time())
-                selected_shot = random.sample(select_shot_list[j], 1)[0]
-                ICL.append(selected_shot)
-            ICL_list.append(ICL)
-        return ICL_list
+        self._answers_list = [self._answers_list[i:i + sum(self.CDCoT.c_reason)]
+                              for i in range(0, len(self._answers_list), sum(self.CDCoT.c_reason))]
+        self._contents_list = [self._contents_list[i:i + sum(self.CDCoT.c_reason)]
+                               for i in range(0, len(self._contents_list), sum(self.CDCoT.c_reason))]
 
     def COT_SC_correct_rate(self, answers_list):
+
         from collections import Counter
         valid_count = 0
         all_count = 0
@@ -902,230 +691,9 @@ class noise_test:
             guess_value, _ = counter.most_common(1)[0]
             if guess_value == true_answer:
                 SC_right_count += 1
-
         self._log("SC_correct_num:{}, valid_num:{}, SC_correct_rate:{}".format(SC_right_count, all_count,
                                                                                SC_right_count / all_count))
         return SC_right_count, valid_count, all_count
-
-    # def _rephrase(self, case_batch):
-    #     n_case_batch = []
-    #     for case in case_batch:
-    #         n_shot_list, clean_shot = self._rephrase_icl_shots(case)
-    #         for context in zip([clean_shot] * len(n_shot_list[0]), *n_shot_list):
-    #             new_case = copy.deepcopy(case)
-    #             new_case['in-context'] = list(context)
-    #             n_case_batch.append(new_case)
-    #     return n_case_batch
-
-    # def _select_n_shot(self, n_shot, standard_answer_embedding):
-    #     answer_list = []
-    #     answer_shot = dict()
-    #     # self._log("rephrased_question:{}".format(n_shot[0][0]))
-    #     # self._log("rephrased_response:\n")
-    #     for i in range(len(n_shot)):
-    #         shot = n_shot[i]
-    #         raw_answer = shot[1]
-    #         # self._log("index_{}: {}\n".format(i, raw_answer))
-    #         answer = self._dataset_processor.match_answer(raw_answer)
-    #         if answer is not None:
-    #             answer_list.append(answer)
-    #             if answer not in answer_shot:
-    #                 answer_shot[answer] = [i]
-    #             else:
-    #                 answer_shot[answer].append(i)
-    #     # 1. get the most confident answers
-    #     from collections import Counter
-    #     counter = Counter(answer_list)
-    #     count_pairs = counter.most_common()
-    #     _, most_count = count_pairs[0]
-    #     most_answer_list = [pair[0] for index, pair in enumerate(count_pairs) if pair[1] == most_count]
-    #     most_consistent_index = []
-    #     for answer in most_answer_list:
-    #         most_consistent_index += answer_shot[answer]
-    #
-    #     # 2. heuristic removal of unreasonable responses
-    #     heuristic_selected_index = copy.deepcopy(most_consistent_index)
-    #     for i in most_consistent_index:
-    #         raw_answer = n_shot[i][1]
-    #         # task-specific
-    #         if self._dataset_name == "math":
-    #             token_limit = 5
-    #             phrase_limit = 20
-    #             # remove over-short response
-    #             if len(heuristic_selected_index) > 1 and len(raw_answer) < token_limit:
-    #                 heuristic_selected_index.remove(i)
-    #             # remove over-long response
-    #             import re
-    #             pattern = r'[.,?!]'
-    #             phrases = re.split(pattern, raw_answer)
-    #             if len(heuristic_selected_index) > 1 and len(phrases) > phrase_limit:
-    #                 heuristic_selected_index.remove(i)
-    #         elif self._dataset_name == "symbolic":
-    #             token_limit = 20
-    #             # phrase_limit = 30  # need to be changed
-    #             # remove over-short response
-    #             if len(heuristic_selected_index) > 1 and len(raw_answer) < token_limit:
-    #                 heuristic_selected_index.remove(i)
-    #
-    #     # 3. rank responses by similarity
-    #     if len(heuristic_selected_index) == 1:
-    #         selected_index = heuristic_selected_index[0]
-    #         selected_shot = n_shot[selected_index]
-    #     else:
-    #         answer_embeddings = []
-    #         for j in heuristic_selected_index:
-    #             shot = n_shot[j]
-    #             raw_answer = shot[1]
-    #             answer_embeddings.append(self._model.get_embedding(raw_answer))
-    #         from sklearn.metrics.pairwise import cosine_similarity
-    #         import numpy as np
-    #         similarity_score = cosine_similarity([standard_answer_embedding],
-    #                                              answer_embeddings)[0]
-    #         max_index = int(np.argmax(similarity_score))
-    #         selected_index = heuristic_selected_index[max_index]
-    #         selected_shot = n_shot[selected_index]
-    #     self._log("selected_index:{}".format(selected_index))
-    #     self._log("selected_response:{}".format(selected_shot[1]))
-    #
-    #     return selected_shot
-
-    # def _rephrase_aggregate(self, case_batch):
-    #     standard_answer_embedding = None
-    #     for case in case_batch:
-    #         n_shot_list, standard_answer = self._rephrase_icl_shots(case)
-    #         if standard_answer_embedding is None:
-    #             standard_answer_embedding = self._model.get_embedding(standard_answer)
-    #         selected_shots = []
-    #         for n_shot in n_shot_list:
-    #             selected_shot = self._select_n_shot(n_shot, standard_answer_embedding)
-    #             selected_shots.append(selected_shot)
-    #         for i in range(len(case['in-context'])):
-    #             case['in-context'][i] = selected_shots[i]
-    #     return case_batch
-
-    # def _rephrase_both(self, case_batch):
-    #     RV_case_batch = []
-    #     RAV_case_batch = []
-    #     standard_answer_embedding = None
-    #     for case in case_batch:
-    #         n_shot_list, standard_answer = self._rephrase_icl_shots(case)
-    #         # RV
-    #         for context in zip(*n_shot_list):
-    #             new_case = copy.deepcopy(case)
-    #             new_case['in-context'] = list(context)
-    #             RV_case_batch.append(new_case)
-    #         # RAV
-    #         if standard_answer_embedding is None:
-    #             standard_answer_embedding = self._model.get_embedding(standard_answer)
-    #         selected_shots = []
-    #         for n_shot in n_shot_list:
-    #             selected_shot = self._select_n_shot(n_shot, standard_answer_embedding)
-    #             selected_shots.append(selected_shot)
-    #         new_case = copy.deepcopy(case)
-    #         for i in range(len(new_case['in-context'])):
-    #             new_case['in-context'][i] = selected_shots[i]
-    #         RAV_case_batch.append(new_case)
-    #     return RV_case_batch, RAV_case_batch
-
-    # def COT_RAV_SC_correct_rate(self, answers_list):
-    #     from collections import Counter
-    #     valid_count = 0
-    #     SC_right_count = 0
-    #     RV_length = self.RV_n_reason * self.n_rephrase
-    #     for answers in answers_list:
-    #         RAV_answers = [sublist for sublist in answers[RV_length:] if isinstance(sublist, list)]  # clean answers
-    #         if len(RAV_answers) == 0:
-    #             continue
-    #         else:
-    #             valid_count += 1
-    #
-    #         second_elements_are_1 = [sublist[1] == 1 for sublist in RAV_answers]
-    #         any_second_element_is_1 = any(second_elements_are_1)
-    #         if not any_second_element_is_1:
-    #             continue
-    #         true_answer = next((sublist[0] for sublist in RAV_answers if sublist[1] == 1), None)
-    #         counter = Counter(sublist[0] for sublist in RAV_answers)
-    #         guess_value, _ = counter.most_common(1)[0]
-    #         if guess_value == true_answer:
-    #             SC_right_count += 1
-    #
-    #     self._log("RAV_correct_num:{}, vaild_num:{}, RAV_correct_rate:{}".format(SC_right_count, valid_count,
-    #                                                                              SC_right_count / valid_count))
-    #     return SC_right_count, valid_count
-    #
-    # def COT_RV_SC_correct_rate(self, answers_list):
-    #     from collections import Counter
-    #     valid_count = 0
-    #     SC_right_count = 0
-    #     RV_length = self.RV_n_reason * self.n_rephrase
-    #     for answers in answers_list:
-    #         RV_answers = [sublist for sublist in answers[:RV_length] if isinstance(sublist, list)]
-    #         # answers = [sublist for sublist in answers if isinstance(sublist, list)]  # clean answers
-    #         if len(RV_answers) == 0:
-    #             continue
-    #         else:
-    #             valid_count += 1
-    #
-    #         second_elements_are_1 = [sublist[1] == 1 for sublist in RV_answers]
-    #         any_second_element_is_1 = any(second_elements_are_1)
-    #         if not any_second_element_is_1:
-    #             continue
-    #         true_answer = next((sublist[0] for sublist in RV_answers if sublist[1] == 1), None)
-    #         counter = Counter(sublist[0] for sublist in RV_answers)
-    #         guess_value, _ = counter.most_common(1)[0]
-    #         if guess_value == true_answer:
-    #             SC_right_count += 1
-    #
-    #     self._log("RV_correct_num:{}, vaild_num:{}, RV_correct_rate:{}".format(SC_right_count, valid_count,
-    #                                                                            SC_right_count / valid_count))
-    #     return SC_right_count, valid_count
-
-    # def weighted_SC_correct_rate(self, answers_list):
-    #     from collections import Counter
-    #     valid_count = 0
-    #     SC_right_count = 0
-    #     RV_weight = self.RV_weight
-    #     RAV_weight = self.RAV_weight
-    #     RV_length = self.RV_n_reason * self.n_rephrase
-    #     for answers in answers_list:
-    #         RV_answers = [sublist for sublist in answers[:RV_length] if isinstance(sublist, list)]  # clean answers
-    #         RAV_answers = [sublist for sublist in answers[RV_length:] if isinstance(sublist, list)]
-    #         if len(RV_answers) + len(RAV_answers) == 0:
-    #             continue
-    #         else:
-    #             valid_count += 1
-    #
-    #         any_prediction_is_right = any(
-    #             [sublist[1] == 1 for sublist in RV_answers] + [sublist[1] == 1 for sublist in RAV_answers])
-    #         if not any_prediction_is_right:
-    #             continue
-    #         true_answer = next((sublist[0] for sublist in RV_answers + RAV_answers if sublist[1] == 1), None)
-    #         RV_counter = Counter(sublist[0] for sublist in RV_answers)
-    #         RAV_counter = Counter(sublist[0] for sublist in RAV_answers)
-    #         RV_weighted_counter = dict()
-    #         RAV_weighted_counter = dict()
-    #         for answer, count in RV_counter.most_common():
-    #             RV_weighted_counter[answer] = count * RV_weight
-    #         for answer, count in RAV_counter.most_common():
-    #             RAV_weighted_counter[answer] = count * RAV_weight
-    #         merged_weighted_counter = copy.deepcopy(RV_weighted_counter)
-    #         for k, v in RAV_weighted_counter.items():
-    #             if k in RV_weighted_counter:
-    #                 merged_weighted_counter[k] += RAV_weighted_counter[k]
-    #             else:
-    #                 merged_weighted_counter[k] = RAV_weighted_counter[k]
-    #         guess_answer = None
-    #         most_counter = 0
-    #         for k, v in merged_weighted_counter.items():
-    #             if v > most_counter:
-    #                 most_counter = v
-    #                 guess_answer = k
-    #         if guess_answer == true_answer:
-    #             SC_right_count += 1
-    #
-    #     self._log("RV_weight:{}, RAV_weight:{}, weighted_SC_correct_num:{}, vaild_num:{}, SC_correct_rate:{}".format(
-    #         self.RV_weight, self.RAV_weight, SC_right_count, valid_count, SC_right_count / valid_count))
-    #     return SC_right_count, valid_count
 
 
 if __name__ == "__main__":
@@ -1142,9 +710,3 @@ if __name__ == "__main__":
     #     result_dict = pickle.load(f)
     #     answers_list = result_dict["answers_list"]
     #     print(answers_list)
-
-
-    # if test.method == "both":
-    #     test.weighted_SC_correct_rate(answer_list)
-    # else:
-    #     test.COT_SC_correct_rate(answer_list)

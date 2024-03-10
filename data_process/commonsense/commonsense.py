@@ -9,7 +9,7 @@ import copy
 from collections import deque
 import math
 
-class family_relation():
+class commonsense():
     def __init__(self, if_in_context = False, n_shots=0, n_noisy_shots=0, noise_type="irrelevant", noise_ratio = 0.5, noise_distribution = "fixed", prefix_context =False, config: dict = None, subtask = "symbolic", hop = 3, trainset=5, testset = 5.3) -> None:
         self.if_in_context = if_in_context
         self.n_shots = n_shots

@@ -17,7 +17,7 @@ pip install openai==0.28 requests pandas nltk pyyaml scikit-learn tiktoken pytho
 Category | Parameter | Description |Examples|
 | ------ | ------ | ------ | ------ |
 |Model|model|llm model name|"gpt-3.5-turbo", "gpt-3.5-turbo-1106", "llama2"|
-|Dataset|dataset|the dataset used for the experiment.|"base_math", "symbolic", "family_relation"|
+|Dataset|dataset|the dataset used for the experiment.|"base_math", "symbolic", "commonsense"|
 ||start_num|the starting number of the experiment.| 0 |
 ||test_num|the number of test instances.|200|
 ||batch_size|the size of the data processed per batch.|1, 5|
@@ -182,13 +182,18 @@ python noise_test.py -task [task]-[subtask]-[zeroshot|clean|irrelevant|inaccurat
 ```
 
 **task (subtask)** include: math (base-9, base-11), symbolic (equal, longer), commonsense
+**method** include: basemodel, CD-CoT, smoothllm, selfdenoise, selfpolish, contrastivecot, ISC, SCO, BT
 
 for example:
+
 python noise_test.py -task math_base-9_clean -method basemodel
+
+python noise_test.py -task math_base-9_inaccurate_easy -method basemodel
+
 python noise_test.py -task symbolic_longer_irrelevant_easy -method CD-CoT
+
 python noise_test.py -task commonsense_inaccurate_hard -method contrastivecot
 
-<!-- For example, to run main `DeepInception` experiments (Tab.1) with `Vicuna-v1.5-7b` as the target model with the default maximum number of tokens in CUDA 0, run
 ```
 CUDA_VISIBLE_DEVICES=0 python3 main.py --target-model=vicuna --exp_name=main --defense=none
 ```
@@ -216,7 +221,7 @@ The file will be `log_[ICL_|][n_clean_shots]clean_[noise_[n_noisy_shots][inaccur
 |Category | Parameter | Sub-Parameter | Description |Examples|
 |------ | ------ | ------ | ------ | ------ |
 |Model|model||llm model name|"gpt-3.5-turbo", "gemini-pro", "mixtral", "llama-2-70b"|
-|Dataset|dataset||the dataset used for the experiment.|"base_math", "symbolic", "family_relation"|
+|Dataset|dataset||the dataset used for the experiment.|"base_math", "symbolic", "commonsense"|
 ||start_num||the starting number of the experiment.| 0 |
 ||test_num||the number of test instances.|200|
 ||batch_size||the size of the data processed per batch.|1, 5|

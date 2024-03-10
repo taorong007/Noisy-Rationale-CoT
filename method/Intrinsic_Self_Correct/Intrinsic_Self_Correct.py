@@ -21,7 +21,7 @@ def Intrinsic_Self_Correct(case_batch, model, dataset_name, n_reason, answer_mat
             prompt2 += "in the format of \"Answer:\\boxed{{result}}\""
         elif dataset_name == "symbolic":
             prompt2 += "in the format of \"So, final answer is OUT: <action sequence>\""
-        elif dataset_name == "family_relation":
+        elif dataset_name == "commonsense":
             prompt2 += "in the format of \"Answer: {{relation}}\""
         else:
             prompt2 += "a single numerical number, in the form \\boxed{{answer}}"

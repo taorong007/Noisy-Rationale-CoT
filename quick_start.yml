@@ -54,15 +54,13 @@ temperature_reason: 1
 n_reason: 5
 
 ## CD-CoT
-use_logged_rephrased_result: False
+use_logged_rephrased_result: False  # for ablation, default to False
+use_logged_ICL_result: False  # for ablation, default to False
 n_rephrase: 5
 temperature_rephrase: 1
 topp_rephrase: 1
-m_select: 2 # 1 or 2 or 3 or 5
-use_logged_ICL_result: False
-use_clean_shot: True
-# use_noisy_shot: False
-c_reason: [3,2] # [5] or [3,2] or [2,2,1] or [1,1,1,1,1]
+use_clean_shot: True  # for ablation, default to True
+c_reason: [3,2]  # [5] or [3,2] or [2,2,1] or [1,1,1,1,1]
 temp_reason: 1
 topp_reason: 1
 
