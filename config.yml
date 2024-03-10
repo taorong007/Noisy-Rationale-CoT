@@ -1,6 +1,6 @@
 # noise test
 model: gpt-3.5-turbo-0613 # gpt-3.5-turbo-0613 or gemini-pro or mixtral or  llama-2-70b
-dataset:  symbolic # math and symbolic and commonsense 
+dataset:  math # math and symbolic and commonsense 
 start_num: 0
 test_num: 300
 batch_size: 5
@@ -8,7 +8,7 @@ batch_size: 5
 # subtask
 ## math
 math:
-  subtask: base-11
+  subtask: base-9
 
 ## symbolic
 symbolic:
