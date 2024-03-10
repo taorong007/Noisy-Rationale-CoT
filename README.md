@@ -197,12 +197,6 @@ python noise_test.py -task symbolic_longer_irrelevant_easy -method CD-CoT
 
 python noise_test.py -task commonsense_inaccurate_hard -method contrastivecot
 
-```
-CUDA_VISIBLE_DEVICES=0 python3 main.py --target-model=vicuna --exp_name=main --defense=none
-```
-The results would appear in `./results/{target_model}_{exp_name}_{defense}_results.json`, in this example is `./results/vicuna_main_none_results.json`
-
-See `main.py` for all of the arguments and descriptions. -->
 ### Result
 
 The results would appear in `./results/{task}/{subtask}/{model}/{method}/`
