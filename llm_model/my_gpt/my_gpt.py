@@ -82,7 +82,6 @@ class my_gpt:
                     top_p=top_p,
                     max_tokens=self.max_response_tokens
                 )
-                print("for test")
                 self.completion_tokens += response["usage"]["completion_tokens"]
                 self.prompt_tokens += response["usage"]["prompt_tokens"]
                 self.total_tokens += response["usage"]["total_tokens"]
