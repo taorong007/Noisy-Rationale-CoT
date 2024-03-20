@@ -116,7 +116,9 @@ OPENAI_API_BASE=[YOUR_API_BASE_HERE]
 ## Run experiments
 
 **NoRa** has 3 kinds of **task**: math, symbolic, commonsense
+
 math include 2 **subtasks**: base-9, base-11
+
 symbolic include 2 **subtasks**: equal, longer
 
 To run `NoRa`
