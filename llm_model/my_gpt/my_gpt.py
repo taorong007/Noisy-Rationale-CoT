@@ -5,15 +5,20 @@ import concurrent.futures
 import time
 import tiktoken
 import os
+import importlib.metadata
+# from packaging import version
 from ..multiple_key import init_api_key_handling
 
+def version_tuple(v):
+    return tuple(map(int, (v.split("."))))
+
+def lower_versions(version1, version2):
+    return version_tuple(version1) < version_tuple(version2)
 
 class my_gpt:
     def __init__(self, model='gpt-3.5-turbo-0613', config: dict = None, api="openai") -> None:
         if config != None:
             api = config["api"] if "api" in config else api
-            # temperature = config["temperature"] if "temperature" in config else temperature
-            # run_times = config["run_times"] if "run_times" in config else run_times
         self.api = api
         self.model = model
         self.prompt_tokens = 0
@@ -22,23 +27,39 @@ class my_gpt:
         self.total_tokens = 0
         self.max_prompt_tokens = 4096
         self.max_response_tokens = 1000
-        # self.temperature = temperature
-        # self.run_times = run_times
 
         if api == 'openai':
+            openai_version = importlib.metadata.version('openai')
+            new_version = '1.0.0'
+            
             # with open('openai_key.yml', 'r') as f:
             #     openai_config = yaml.safe_load(f)
+            
             key = os.getenv('OPENAI_API_KEY')
             if ":" in key:
                 key_list = key.split(":")
                 self.key = init_api_key_handling(key_list)
-                openai.api_key = self.key
             else:
                 self.key = key
-                openai.api_key = self.key
+                
             if "OPENAI_API_BASE" in os.environ:
-                openai.api_base = os.getenv('OPENAI_API_BASE')
-            # openai.api_base = "https://openkey.cloud/v1"
+                self.api_base = os.getenv('OPENAI_API_BASE')
+            else:
+                self.api_base = "https://api.openai.com"
+            
+            if lower_versions(openai_version, new_version):
+                self.api_version = "old"
+                openai.api_base = self.api_base
+                openai.api_key = self.key
+            else:
+                from openai import OpenAI
+                self.api_version = "new"
+                if "OPENAI_API_BASE" in os.environ:
+                    openai.api_base = os.getenv('OPENAI_API_BASE')
+                self.client = OpenAI(
+                    base_url=self.api_base,
+                    api_key=self.key
+                )
         else:
             raise "Api not support: {}".format(api)
         pass
@@ -74,25 +95,46 @@ class my_gpt:
     def query(self, messages, temperature=1, n=1, top_p=1):
         if self.api == 'openai':
             try:
-                response = openai.ChatCompletion.create(
-                    model=self.model,
-                    messages=messages,
-                    temperature=temperature,
-                    n=n,
-                    top_p=top_p,
-                    max_tokens=self.max_response_tokens
-                )
-                self.completion_tokens += response["usage"]["completion_tokens"]
-                self.prompt_tokens += response["usage"]["prompt_tokens"]
-                self.total_tokens += response["usage"]["total_tokens"]
-                completions = []
-                for choice in response['choices']:
-                    message = choice['message']
-                    completion = dict()
-                    completion['role'] = message['role']
-                    completion['content'] = message['content']
-                    completions.append(completion)
-                messages.append(completions)
+                if self.api_version == "old":
+                    response = openai.ChatCompletion.create(
+                        model=self.model,
+                        messages=messages,
+                        temperature=temperature,
+                        n=n,
+                        top_p=top_p,
+                        max_tokens=self.max_response_tokens
+                    )
+                    self.completion_tokens += response["usage"]["completion_tokens"]
+                    self.prompt_tokens += response["usage"]["prompt_tokens"]
+                    self.total_tokens += response["usage"]["total_tokens"]
+                    completions = []
+                    for choice in response['choices']:
+                        message = choice['message']
+                        completion = dict()
+                        completion['role'] = message['role']
+                        completion['content'] = message['content']
+                        completions.append(completion)
+                    messages.append(completions)
+                else:
+                    response = self.client.chat.completions.create(
+                        model=self.model,
+                        messages=messages,
+                        temperature=temperature,
+                        n=n,
+                        top_p=top_p,
+                        max_tokens=self.max_response_tokens
+                    )
+                    self.completion_tokens += response.usage.completion_tokens
+                    self.prompt_tokens += response.usage.prompt_tokens
+                    self.total_tokens += response.usage.total_tokens
+                    completions = []
+                    for choice in response.choices:
+                        message = choice.message
+                        completion = dict()
+                        completion['role'] = message.role
+                        completion['content'] = message.content
+                        completions.append(completion)
+                    messages.append(completions)
                 return (True, ''), messages
             except Exception as err:
                 print(err)

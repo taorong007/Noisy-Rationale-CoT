@@ -83,6 +83,10 @@ Summarize what their discussion results in each layer. -->
 1. In your environment, run
 
 ``` bash
+## Use new openai API:
+pip install openai requests pandas nltk pyyaml scikit-learn tiktoken python-dotenv
+
+## Use old openai API:
 pip install openai==0.28 requests pandas nltk pyyaml scikit-learn tiktoken python-dotenv
 ```
 
@@ -90,6 +94,10 @@ pip install openai==0.28 requests pandas nltk pyyaml scikit-learn tiktoken pytho
 
 ``` bash
 export OPENAI_API_KEY=[YOUR_API_KEY_HERE]
+# if you have mutiple API keys
+export OPENAI_API_KEY=[key1]:[key2]:[key3]...
+# if you required specific API base
+export OPENAI_API_BASE=[YOUR_API_BASE_HERE]
 ```
 **or** create a .env file in the project path:
 
@@ -97,6 +105,10 @@ export OPENAI_API_KEY=[YOUR_API_KEY_HERE]
 
 ``` txt
 OPENAI_API_KEY=[YOUR_API_KEY_HERE]
+# if you have mutiple keys
+OPENAI_API_KEY=[key1]:[key2]:[key3]...
+# if you required specific api base
+OPENAI_API_BASE=[YOUR_API_BASE_HERE]
 ```
 
 <!-- If you would like to run `NoRa` with Vicuna, Llama, and Falcon locally, modify `config.py` with the proper path of these three models. -->
@@ -174,7 +186,19 @@ The file will be `log_[ICL_|][n_clean_shots]clean_[noise_[n_noisy_shots][inaccur
 ||processed_dataset_options|processed_dataset_path|processed dataset path or default dataset|processed dataset path or one of ["default-zeroshot"， "default-clean", "default-(irrelevant,inaccurate)-(easy,medium,hard)-(fixed,random)"]|
 |||n_shots|shots num|1, 2, 3, 4, 5|
 |||using_subset|||
-||raw_dataset_options||||
+||raw_dataset_options|if_in_context|Represent whether use in-context shot for reasoning.|True, False|
+|||n_shots|The number of clean rationale shot|0,1,2,3,4...|
+|||if_noise|Represent whether exist noise shots|True, False|
+|||n_noisy_shots|The number of noisy rationale shot|1,2,3,4....|
+|||noisy_type|The type of noisy rationale shot|irrelevant, inaccurate|
+|||noisy_ratio|The ratio of inserting a noise thought after a clean thought.|0-1|
+|||noise_distribution|random: each clean thought have the possibility of noisy_ration to get a noisy thought, fixed: each shot have n_clean_thought * ratio of noisy thoughts| random, fixed|
+||prefix_context||Represent whether put in-context shots into the prompt prefix or mix as a messages list|True, False|
+||method||Represent what kind of method to process the reasoning|CD-CoT, basemodel,  smoothllm, selfdenoise, selfpolish, contrastivecot, ISC, SCO, BT|
+||temperature_reason||the reasoning temperature. Available if method is not CD-CoT|0-1|
+||n_reason||The reasoning repeat times. Available if method is not CD-CoT|1,2,3,4,5....|
+||CD-CoT||||
+<!-- ||gpt|api|version of gpt api|0.28, 1| -->
 <!-- |ICL|if_in_context|| symbol of whether use in-context demos |True, False|
 ||n_shots|| w/o noise shots num | 1, 2, 3|
 |Noise|if_noise|symbol of whether use noisy demos|True, False (be False if if_in_context is False)|
