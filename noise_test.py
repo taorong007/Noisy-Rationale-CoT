@@ -45,6 +45,10 @@ class noise_test:
         self.max_token = 0
         assert self._test_num / self._batch_size == int(
             self._test_num / self._batch_size), "test_num / batch_size should be a positive integer"
+        
+        self.shuffle_study = args["shuffle_study"] if "shuffle_study" in args else False
+        if self.shuffle_study:
+            self.shuffle_type = args["shuffle_type"]
 
         self.use_processed_dataset = args["use_processed_dataset"]
         if self.use_processed_dataset or parser_args.task != None:
@@ -104,15 +108,21 @@ class noise_test:
                 self._if_noise = False
                 self._noise_type = None
                 self._noise_ratio = 0
+                self._noise_semantic_related = 0
                 self._noise_distribution = None
             else:
                 self._noise_type = config["noise_type"]
+                if self._noise_type == "irrelevant":
+                    self._noise_semantic_related = config["noise_semantic_related"] if "noise_semantic_related" in config else 0
+                else:
+                    self._noise_semantic_related = 0
                 self._noise_ratio = config["noise_ratio"]
                 self._noise_distribution = config["noise_distribution"]
         else:
             self._n_noisy_shots = 0
             self._noise_type = None
             self._noise_ratio = 0
+            self._noise_semantic_related = 0
             self._noise_distribution = None
 
         self._prefix_context = args["prefix_context"] if "prefix_context" in args else False
@@ -142,7 +152,6 @@ class noise_test:
         self._answers_list = []
         self._contents_list = []
         self._noise_test_result = None
-
         return
 
     def _unzip_default_processed_dataset(self, file_dir):
@@ -196,7 +205,7 @@ class noise_test:
         elif self._model_name.split("-")[0] == "gpt":
             from llm_model.my_gpt.my_gpt import my_gpt
             model_config = self.config["gpt"] if "gpt" in self.config else None
-            self._model = my_gpt(model=self._model_name, config=model_config)
+            self._model = my_gpt(model=self._model_name, config=model_config, prefix_context=self._prefix_context)
         elif self._model_name == "gemini-pro":
             from llm_model.Gemini.my_gemini import my_gemini
             model_config = self.config["gemini"] if "gemini" in self.config else None
@@ -213,6 +222,7 @@ class noise_test:
             dataset = json.load(f)
             dataset_content = dataset["content"]
             if "system-prompt" in dataset:
+                # self._dataset_system_prompt = None
                 self._dataset_system_prompt = dataset["system-prompt"]
             else:
                 self._dataset_system_prompt = None
@@ -223,7 +233,7 @@ class noise_test:
         if self._dataset_name == "math":
             self._dataset_processor = nora_math.math(n_shots=self._n_shots,
                                                           n_noisy_shots=self._n_noisy_shots,
-                                                          noise_type=self._noise_type, noise_ratio=self._noise_ratio,
+                                                          noise_type=self._noise_type, noise_semantic_related = self._noise_semantic_related, noise_ratio=self._noise_ratio,
                                                           noise_distribution=self._noise_distribution,
                                                           prefix_context=self._prefix_context, config=processor_config)
         elif self._dataset_name == "commonsense":
@@ -238,6 +248,7 @@ class noise_test:
         elif self._dataset_name == "symbolic":
             self._dataset_processor = nora_symbolic.symbolic(n_shots=self._n_shots, n_noisy_shots=self._n_noisy_shots,
                                                               noise_type=self._noise_type,
+                                                              noise_semantic_related = self._noise_semantic_related,
                                                               noise_ratio=self._noise_ratio,
                                                               noise_distribution=self._noise_distribution,
                                                               prefix_context=self._prefix_context,
@@ -252,17 +263,33 @@ class noise_test:
         assert len(self._dataset) >= self._test_num
 
     def _get_logged_rephrased_result_file(self):
-        dir_name = os.path.dirname(self.processed_dataset_path)
-        base_name = os.path.basename(self.processed_dataset_path)
-        prefix = os.path.splitext(base_name)[0]
-        file_name = f"{prefix}_{self._start_num}_{self._test_num}_n{self.CDCoT.n_rephrase}_t{self.CDCoT.temperature_rephrase}_p{self.CDCoT.topp_rephrase}.json"
+        dir_name = os.path.join(self.log_dir, "rephrased")
+        if not os.path.exists(dir_name):
+            os.makedirs(dir_name)
+        # base_name = os.path.basename(self._log_file)
+        # prefix = os.path.splitext(base_name)[0]
+        if self._if_noise:
+            if self._noise_type == "irrelevant":
+                file_name = f"{self._noise_type}_{self._noise_ratio}_sem{self._noise_semantic_related}_{self._noise_distribution}_{self._start_num}_{self._test_num}_n{self.CDCoT.n_rephrase}_t{self.CDCoT.temperature_rephrase}_p{self.CDCoT.topp_rephrase}.json"
+            else:
+                file_name = f"{self._noise_type}_{self._noise_ratio}_{self._noise_distribution}_{self._start_num}_{self._test_num}_n{self.CDCoT.n_rephrase}_t{self.CDCoT.temperature_rephrase}_p{self.CDCoT.topp_rephrase}.json"
+        else:
+            file_name = f"clean_{self._start_num}_{self._test_num}_n{self.CDCoT.n_rephrase}_t{self.CDCoT.temperature_rephrase}_p{self.CDCoT.topp_rephrase}.json"
         return os.path.join(dir_name, file_name)
 
     def _get_logged_ICL_list_file(self):
-        dir_name = os.path.dirname(self.processed_dataset_path)
-        base_name = os.path.basename(self.processed_dataset_path)
-        prefix = os.path.splitext(base_name)[0]
-        file_name = f"{prefix}_{self._start_num}_{self._test_num}_n{self.CDCoT.n_rephrase}_t{self.CDCoT.temperature_rephrase}_p{self.CDCoT.topp_rephrase}_m{self.CDCoT.m_select}_ICL.json"
+        dir_name = os.path.join(self.log_dir, "icl")
+        if not os.path.exists(dir_name):
+            os.makedirs(dir_name)
+        # base_name = os.path.basename(self.processed_dataset_path)
+        # prefix = os.path.splitext(base_name)[0]
+        if self._if_noise:
+            if self._noise_type == "irrelevant":
+                file_name = f"{self._noise_type}_{self._noise_ratio}_sem{self._noise_semantic_related}_{self._noise_distribution}_{self._start_num}_{self._test_num}_n{self.CDCoT.n_rephrase}_t{self.CDCoT.temperature_rephrase}_p{self.CDCoT.topp_rephrase}_m{self.CDCoT.m_select}_ICL.json"
+            else:
+                file_name = f"{self._noise_type}_{self._noise_ratio}_{self._noise_distribution}_{self._start_num}_{self._test_num}_n{self.CDCoT.n_rephrase}_t{self.CDCoT.temperature_rephrase}_p{self.CDCoT.topp_rephrase}_m{self.CDCoT.m_select}_ICL.json"
+        else:
+            file_name = f"clean_{self._start_num}_{self._test_num}_n{self.CDCoT.n_rephrase}_t{self.CDCoT.temperature_rephrase}_p{self.CDCoT.topp_rephrase}_m{self.CDCoT.m_select}_ICL.json"
         return os.path.join(dir_name, file_name)
 
     def _init_method(self):
@@ -340,8 +367,15 @@ class noise_test:
             log_file += "_ICL_{}clean".format(self._n_shots)
             if self._n_weak_shots > 0:
                 log_file += "_{}weak".format(self._n_weak_shots)
+            if self.shuffle_study == True:
+                log_file += "_shuffle{}".format(self.shuffle_type)
+        
         if self._if_noise:
-            log_file += "_noise_{}{}_{}_ratio{}".format(self._n_noisy_shots, self._noise_type, self._noise_distribution,
+            if self._noise_type == "irrelevant":
+                log_file += "_noise_{}{}_sem{}_{}_ratio{}".format(self._n_noisy_shots, self._noise_type, self._noise_semantic_related, self._noise_distribution,
+                                                        self._noise_ratio)
+            else:
+                log_file += "_noise_{}{}_{}_ratio{}".format(self._n_noisy_shots, self._noise_type, self._noise_distribution,
                                                         self._noise_ratio)
         else:
             log_file += "_origin"
@@ -359,6 +393,7 @@ class noise_test:
             log_file += "_temp{}_n{}".format(self.temperature_reason, self.n_reason)
         log_file += ".log"
         log_file_path = os.path.join(log_path, log_file)
+        self.log_dir = log_path
         return log_file_path
 
     def run(self):
@@ -376,7 +411,9 @@ class noise_test:
                 test_num -= 1
                 if test_num <= 0:
                     break
-
+            
+            # avg_thought = sum(self._dataset_processor.thoughts_num_list) / len(self._dataset_processor.thoughts_num_list)
+            
             if self.method == "CD-CoT":
                 if self.use_processed_dataset and self.use_logged_ICL_result:
                     self._load_ICL_list_result()
@@ -586,6 +623,45 @@ class noise_test:
             if self._dataset_system_prompt is not None:
                 case["system-prompt"] = self._dataset_system_prompt
             self._case_list.append(case)
+        
+        if self.shuffle_study == True:
+            rationale_label_list = []
+            for case in self._case_list:
+                if "in-context" in case:
+                    for shot in case["in-context"]:
+                        answer = shot[1]
+                        reversed_sentence = answer[::-1]
+                        first_period_idx = reversed_sentence.find(".")
+                        second_period_idx = reversed_sentence.find(".", first_period_idx + 1)
+                        last_sentence_idx = len(reversed_sentence) - second_period_idx + 1
+                        rationale = answer[:last_sentence_idx]
+                        label = answer[last_sentence_idx:]
+                        rationale_label_list.append([rationale, label])
+                    
+                    last_rationale = copy.deepcopy(rationale_label_list[-1][0])
+                    last_label = copy.deepcopy(rationale_label_list[-1][1])
+                    for i in reversed(range(len(rationale_label_list))):
+                        if i == 0:
+                            if self.shuffle_type == 1:
+                                rationale_label_list[i][0] = last_rationale
+                            elif self.shuffle_type == 2:
+                                rationale_label_list[i][1] = last_label
+                            elif self.shuffle_type == 3:
+                                rationale_label_list[i][0] = last_rationale
+                                rationale_label_list[i][1] = last_label
+                        else:
+                            if self.shuffle_type == 1:
+                                rationale_label_list[i][0] = rationale_label_list[i-1][0]
+                            elif self.shuffle_type == 2:
+                                rationale_label_list[i][1] = rationale_label_list[i-1][1]
+                            elif self.shuffle_type == 3:
+                                rationale_label_list[i][0] = rationale_label_list[i-1][0]
+                                rationale_label_list[i][1] = rationale_label_list[i-1][1]
+                    
+                    for i, shot in enumerate(case["in-context"]):
+                        shot[1] = rationale_label_list[i][0] + rationale_label_list[i][1]                    
+        
+        return
 
     def _save_result(self):
         with open(self._pickle_name, 'wb') as f:

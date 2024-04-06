@@ -14,18 +14,18 @@ class math:
         n_shots: The number of normal shots. Default is 0.
         weak_shots: The number of weak shots. Default is 0.
         n_noisy_shots: The number of noisy shots. Default is 0.
-        noise_type: The type of noisy, can be "misunderstanding" or "miscalculation". Default is "miscalculation".
+        noise_type: The type of noisy, can be "inaccurate" or "irrelevant". Default is "irrelevant".
         noise_ratio: The ratio of noise. Each thought has a chance.
         noise_distribution: The method to fill the noise. ( fixed noise num in one shot or random num in one shot )
         config: A dictionary containing all the attribute values. If provided, values in the config dictionary will be used to overwrite the following parameters.
         base: The base number for calculations. Default is 9.
         
     """
-    def __init__(self,  n_shots=0, n_noisy_shots=0, noise_type="miscalculation", noise_ratio = 0.5, noise_distribution = "fixed", prefix_context = False, config: dict = None, subtask="base-9") -> None:
+    def __init__(self,  n_shots=0, n_noisy_shots=0, noise_type="irrelevant", noise_semantic_related = 0, noise_ratio = 0.5, noise_distribution = "fixed", prefix_context = False, config: dict = None, subtask="base-9") -> None:
         if config is not None:
             self.base = int(config["subtask"].split("base-")[1])
         else:
-            self.base = int(subtask.split("base-"))
+            self.base = int(subtask.split("base-")[1])
 
         self.n_shots = n_shots
         self.n_noisy_shots = n_noisy_shots
@@ -40,10 +40,12 @@ class math:
         if self.n_noisy_shots > 0:
             self.noise_ratio = noise_ratio
             self.noise_distribution = noise_distribution
-            assert noise_distribution == "fixed" or noise_distribution == "random"
+            assert noise_distribution == "fixed" or noise_distribution == "random" or noise_distribution == "n_thought"
+            self._noise_semantic_related = noise_semantic_related
         else:
             self.noise_ratio = 0
             self.noise_distribution = None
+            self._noise_semantic_related = 0
         self.prefix_context = prefix_context
         self.noise_type = noise_type            
         self.irrelevant_index = 0
@@ -61,6 +63,29 @@ class math:
     
     def get_correct_answer(self, expr):
         return self.get_answer(expr)
+    
+    def get_factual_longer_answer(self, expr):
+        digits = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        base = self.base
+        lhs, rhs = expr.split("+")
+        lt, lo = lhs  # tens, ones
+        rt, ro = rhs
+        ones_sum = self.get_label(f"{lo}+{ro}")
+        carry_over = len(ones_sum) > 1 
+        tens_sum_wo_carry = self.get_label(f"{lt}+{rt}")
+        if carry_over:
+            ones_carry_digit = 1
+            assert ones_sum[0] == "1"
+            tens_sum_w_carry = self.get_label(f"{tens_sum_wo_carry}+1")
+        else:
+            ones_carry_digit = 0
+            tens_sum_w_carry = tens_sum_wo_carry
+        assert self.get_label(expr) == tens_sum_w_carry + ones_sum[-1:]
+        tens_carry_over = len(tens_sum_w_carry) > 1
+        tens_carry_digit = 1 if tens_carry_over else 0
+        
+        ret = f"In base-{base}, the digits range from \"{digits[:base]}\". First, let's start by examining the ones place. We have {lo} + {ro} = {int(lo, base) + int(ro, base)} (here, we're using base-10 notation). Why do we use base-10 notation? It's because we're more accustomed to thinking in base-10, and it's easier to perform addition in base-10 before converting the result to base-9. Now, since we're calculating in base-{base}, {int(lo, base) + int(ro, base)} exceeds the maximum value of 8 that a single digit can represent. What does it mean when we exceed the maximum value in base-{base}? It means we need to carry over to the next place value. So, how do we perform the carry operation? We divide {int(lo, base) + int(ro, base)} by {base} and take the remainder, which gives us {int(lo, base) + int(ro, base)} mod {base} = {ones_sum[-1]}. Therefore, the digit in the ones place is {ones_sum[-1]}, and we need to carry {ones_carry_digit} to the tens place.\nNext, let's move on to the tens place. Here, we have {lt} + {rt} + {ones_carry_digit} = {int(lt, base) + int(rt, base) + ones_carry_digit} (again, using base-10 notation). The {lt} and {rt} are the original digits in the tens place, and the {ones_carry_digit} is the carry from the previous step. We encounter the same issue in the tens place, where {int(lt, base) + int(rt, base) + ones_carry_digit} exceeds the maximum value for a single digit in base-{base}. So, once again, we divide {int(lt, base) + int(rt, base) + ones_carry_digit} by {base} and take the remainder: {int(lt, base) + int(rt, base) + ones_carry_digit} mod {base} = {tens_sum_w_carry[-1]}. Hence, the digit in the tens place is {tens_sum_w_carry[-1]}, and we generate another carry of {tens_carry_digit}. You might wonder, why do we always divide by 9 and take the remainder? It's because in base-{base}, each place value cannot exceed {base-1}, and any value greater than {base-1} requires a carry operation. The remainder represents the digit in the current place value.\nFinally, due to the carry from the previous step, the result will have a leading digit of {tens_carry_digit} in the hundreds place. So the answer is {self.get_label(expr)}. Answer:\\box{{{self.get_label(expr)}}}"
+        return ret
     
     def get_answer(self, expr, generate_info = None):
         if generate_info!=None:
@@ -99,10 +124,17 @@ class math:
             noise_positions = random.sample(range(n_thought), noise_count)
             for pos in noise_positions:
                 noise_distribution_list[pos] = 1
-        else:
+        elif noise_distribution == "random":
             for pos in range(len(noise_distribution_list)):
                 if random.random() < noise_ratio:
                     noise_distribution_list[pos] = 1
+        elif noise_distribution == "n_thought":
+            assert noise_ratio <= n_thought
+            noise_positions = random.sample(range(n_thought), noise_ratio)
+            for pos in noise_positions:
+                noise_distribution_list[pos] = 1
+        else:
+            raise ValueError(f"noise_distribution {noise_distribution} not supported")
         self.noise_pos = 0
         return noise_distribution_list
         
@@ -123,6 +155,7 @@ class math:
 
     def irrelevant_answer(self, expr, generate_info = None):
         digits = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        semantic_related = self._noise_semantic_related
         base = self.base
         lhs, rhs = expr.split("+")
         lt, lo = lhs  # tens, ones
@@ -152,49 +185,105 @@ class math:
         
         ret = f"In base-{base}, the digits are \"{digits[:base]}\". "
         if self._should_add_noise(noise_distribution_list):
-            fact = self._random_choose_fact(base, selected_noise_set)    
-            ret += f"{fact}. "
+            if semantic_related == 0:
+                fact = self._random_choose_fact(base, selected_noise_set)    
+                ret += f"{fact}. "
+            if semantic_related == 1:
+                fact = self._random_choose_semantic1_position_noise(0)    
+                ret += f"{fact}. "
+            if semantic_related == 2:
+                fact = self._random_choose_semantic2_position_noise(0)    
+                ret += f"{fact}. "
         
         ret += f" We have {lo} + {ro} = {int(lo, base) + int(ro, base)} in base-10. "
         if self._should_add_noise(noise_distribution_list):
             number = int(lo, base) + int(ro, base)
-            fact = self._random_choose_fact(number, selected_noise_set)    
-            ret += f"{fact}. "
+            if semantic_related == 0:
+                fact = self._random_choose_fact(number, selected_noise_set)    
+                ret += f"{fact}. "
+            if semantic_related == 1:
+                fact = self._random_choose_semantic1_number_noise(number, selected_noise_set)    
+                ret += f"{fact}. "
+            if semantic_related == 2:
+                fact = self._random_choose_semantic2_position_noise(1, lo, ro)    
+                ret += f"{fact}. "
          
         ret += explaination
         if self._should_add_noise(noise_distribution_list):
             number = int(digits[base-1], base)
-            fact = self._random_choose_fact(number, selected_noise_set)    
-            ret += f"{fact}. " 
+            if semantic_related == 0:
+                fact = self._random_choose_fact(number, selected_noise_set)    
+                ret += f"{fact}. " 
+            if semantic_related == 1:
+                fact = self._random_choose_semantic1_position_noise(1)    
+                ret += f"{fact}. "
+            if semantic_related == 2:
+                fact = self._random_choose_semantic2_position_noise(2)    
+                ret += f"{fact}. "
         
         ret += f"{int(lo, base) + int(ro, base)} mod {base} = {ones_sum[-1]}, so the digit is {ones_sum[-1]} and the carry is {ones_carry_digit}. "
         if self._should_add_noise(noise_distribution_list):
             number = int(ones_sum[-1], base)
-            fact = self._random_choose_fact(number, selected_noise_set)    
-            ret += f"{fact}. "
-        
+            if semantic_related == 0:
+                fact = self._random_choose_fact(number, selected_noise_set)    
+                ret += f"{fact}. "
+            if semantic_related == 1:
+                fact = self._random_choose_semantic1_position_noise(2)    
+                ret += f"{fact}. "
+            if semantic_related == 2:
+                fact = self._random_choose_semantic2_position_noise(3)    
+                ret += f"{fact}. "
+            
         ret += f"We have {lt} + {rt} + {ones_carry_digit} = {int(lt, base) + int(rt, base) + ones_carry_digit} in base 10. " 
         number = int(lt, base) + int(rt, base) + ones_carry_digit
         if self._should_add_noise(noise_distribution_list):
-            fact = self._random_choose_fact(number, selected_noise_set)    
-            ret += f"{fact}. "
+            if semantic_related == 0:
+                fact = self._random_choose_fact(number, selected_noise_set)    
+                ret += f"{fact}. "
+            if semantic_related == 1:
+                fact = self._random_choose_semantic1_number_noise(number, selected_noise_set)    
+                ret += f"{fact}. "
+            if semantic_related == 2:
+                fact = self._random_choose_semantic2_position_noise(4, int(lt, base), int(rt, base), ones_carry_digit)    
+                ret += f"{fact}. "
         
         ret += f"{int(lt, base) + int(rt, base) + ones_carry_digit} mod {base} = {tens_sum_w_carry[-1]}, so the digit is {tens_sum_w_carry[-1]} and the carry is {tens_carry_digit}. "
         if self._should_add_noise(noise_distribution_list):
             number = int(tens_sum_w_carry[-1], base)
-            fact = self._random_choose_fact(number, selected_noise_set)    
-            ret += f"{fact}. "
-
+            if semantic_related == 0:
+                fact = self._random_choose_fact(number, selected_noise_set)    
+                ret += f"{fact}. "
+            if semantic_related == 1:
+                fact = self._random_choose_semantic1_position_noise(3, int(lt, base) + int(rt, base) + ones_carry_digit, tens_sum_w_carry[-1], tens_carry_digit)    
+                ret += f"{fact}. "
+            if semantic_related == 2:
+                fact = self._random_choose_semantic2_position_noise(5)    
+                ret += f"{fact}. "
+                
         ret += f"A leading digit is {tens_carry_digit}. "
         if self._should_add_noise(noise_distribution_list):
             number = tens_carry_digit
-            fact = self._random_choose_fact(number, selected_noise_set)    
+            if semantic_related == 0:
+                fact = self._random_choose_fact(number, selected_noise_set)    
+                ret += f"{fact}. "
+            if semantic_related == 1:
+                fact = self._random_choose_semantic1_position_noise(4)    
+                ret += f"{fact}. "
+        if semantic_related == 2:
+            fact = self._random_choose_semantic2_position_noise(6)    
             ret += f"{fact}. "
         
         ret += f"So the answer is {self.get_label(expr)}. "
         if self._should_add_noise(noise_distribution_list):
             number = int(self.get_label(expr)[-1], base)
-            fact = self._random_choose_fact(number, selected_noise_set)    
+            if semantic_related == 0:
+                fact = self._random_choose_fact(number, selected_noise_set)    
+                ret += f"{fact}. "
+            if semantic_related == 1:
+                fact = self._random_choose_semantic1_number_noise(number, selected_noise_set)    
+                ret += f"{fact}. "
+        if semantic_related == 2:
+            fact = self._random_choose_semantic2_position_noise(7, result=self.get_label(expr))    
             ret += f"{fact}. "
         
         ret += f"Answer:\\box{{{self.get_label(expr)}}}"
@@ -377,6 +466,52 @@ class math:
         #         tens_carry_over = 0
         # return ret
     
+    def _random_choose_semantic1_number_noise(self, number, selected_noise_set:set):
+        facts = self.semantic1_noise[f"{number}"]
+        while(1):
+            random_index = random.randrange(0, len(facts))
+            selected_fact = facts[random_index]
+            fact_index = f"{number}-{random_index}"
+            if fact_index not in selected_noise_set:
+                selected_noise_set.add(fact_index)
+                # print(fact_index)
+                break
+        # selected_fact = selected_fact[0] + selected_fact[1:]
+        if selected_fact[-1] == ".":
+            selected_fact = selected_fact[:-1] 
+        return selected_fact
+    
+    def _random_choose_semantic1_position_noise(self, position_index, mod1 = 0, mod_result=0, carry=0):
+        facts = self.semantic1_noise[f"position_{position_index}"]
+       
+        random_index = random.randrange(0, len(facts))
+        selected_fact = facts[random_index]
+        # selected_fact = selected_fact[0] + selected_fact[1:]
+        if selected_fact[-1] == ".":
+            selected_fact = selected_fact[:-1] 
+            
+        replaced_fact = selected_fact.replace("[mod1]", str(mod1))
+        replaced_fact = replaced_fact.replace("[mod_result]", str(mod_result))
+        replaced_fact = replaced_fact.replace("[carry]", str(carry))
+        return replaced_fact
+        
+    
+    def _random_choose_semantic2_position_noise(self, position_index, add1=0, add2=0, add3=0, result=0):
+        facts = self.semantic2_noise[f"position_{position_index}"]
+       
+        random_index = random.randrange(0, len(facts))
+        selected_fact = facts[random_index]
+        # selected_fact = selected_fact[0] + selected_fact[1:]
+        if selected_fact[-1] == ".":
+            selected_fact = selected_fact[:-1] 
+            
+        replaced_fact = selected_fact.replace("[add1]", str(add1))
+        replaced_fact = replaced_fact.replace("[add2]", str(add2))
+        replaced_fact = replaced_fact.replace("[add3]", str(add3))
+        replaced_fact = replaced_fact.replace("[result]", str(result))
+        return replaced_fact
+        
+    
     def _random_choose_fact(self, number, selected_noise_set:set):
         facts = self.noise_data[number]["facts"]
         while(1):
@@ -440,6 +575,10 @@ class math:
                         shot_a =  self.inaccurate_answer(demo, generate_info)
                     elif self.noise_type == "irrelevant":
                         shot_a =  self.irrelevant_answer(demo, generate_info)
+                    elif self.noise_type == "longer":
+                        shot_a =  self.get_factual_longer_answer(demo)
+                    elif self.noise_type == "semantic_related":
+                        shot_a =  self.get_semantic_related_answer(demo, generate_info)
                     else:
                         raise ValueError(f"noisy type not support:{self.noise_type}")
                     if not if_generate_info:
@@ -453,19 +592,32 @@ class math:
             #         prefix += "user:{}\nassistant:{}\n".format(shot[0], shot[1])
             #     prefix += "user:"
             # else:    
-                case["in-context"] = shots
+            case["in-context"] = shots
         question = self.get_question(expr)
         real_answer = self.get_label(expr)
         case["question"] = prefix + question
         case["label"] = real_answer 
+        case["answer"] = self.get_answer(expr)
         return case
     
     def load_data(self):
         noise_file = "./data/math/noise/factsOfNumber.json"
+        semantic1_noise_file = "./data/math/noise/semanticRalatedFactsOfNumber.json"
+        semantic2_noise_file = "./data/math/noise/taskRelatedNoise.json"
         data_file = "./data/math/icl/base{}.txt".format(self.base)
         dataset = [line.strip() for line in open(data_file)]
         with open(noise_file, encoding="utf-8") as f:
             self.noise_data = json.load(f)["noise_info"]
+        self.semantic1_noise = dict()
+        with open(semantic1_noise_file, encoding="utf-8") as f:
+            noise_info = json.load(f)["noise_info"]
+            for number_facts in noise_info:
+                self.semantic1_noise[number_facts["number"]] = number_facts["facts"]
+        self.semantic2_noise = dict()        
+        with open(semantic2_noise_file, encoding="utf-8") as f:
+            noise_info = json.load(f)["noise_info"]
+            for number_facts in noise_info:
+                self.semantic2_noise[number_facts["number"]] = number_facts["facts"]
         return dataset
     
     @staticmethod

@@ -1,6 +1,6 @@
 # noise test
-model: gpt-3.5-turbo-0613 # gpt-3.5-turbo-0613 or gemini-pro or mixtral or  llama-2-70b
-dataset:  math # math and symbolic and commonsense 
+model: gpt-3.5-turbo-0613 # gpt-3.5-turbo-0613 or gemini-pro or mixtral or  llama-2-70b or gpt-4-0125-preview
+dataset:  commonsense # math and symbolic and commonsense 
 start_num: 0
 test_num: 300
 batch_size: 5
@@ -8,14 +8,14 @@ batch_size: 5
 # subtask
 ## math
 math:
-  subtask: base-9
+  subtask: base-11
 
 ## symbolic
 symbolic:
-  subtask: equal # equal or longer
+  subtask: longer # equal or longer
 
 # use subfolder_suffix
-# subfolder_suffix_path: 4_shot_ablation
+# subfolder_suffix_path: shuffle_study
 
 # use_processed_dataset or use raw dataset
 use_processed_dataset: True
@@ -36,16 +36,21 @@ raw_dataset_options:
   # n_weak_shots: 0
   ## noise
   if_noise: True
-  n_noisy_shots: 10
-  noise_type: inaccurate # irrelevant or inaccurate
+  n_noisy_shots: 3
+  noise_type: irrelevant # irrelevant or inaccurate
   noise_ratio: 0.8 # 0.3, 0.5 or 0.8
-  noise_distribution: fixed #fixed or random
+  noise_semantic_related: 0 # 0-2
+  noise_distribution: fixed #fixed or random 
+
+# shuffle_study: True
+# shuffle_type: 3
+
 
 # ICL format
-prefix_context: False ## prefix
+# prefix_context: True ## prefix
 
 # method
-method: basemodel  # CD-CoT or basemodel,  smoothllm, selfdenoise, selfpolish, contrastivecot, ISC, SCO, BT
+method: basemodel # CD-CoT or basemodel,  smoothllm, selfdenoise, selfpolish, contrastivecot, ISC, SCO, BT
 
 ## basemodel, smoothllm, selfdenoise, selfpolish, contrastivecot, ISC
 temperature_reason: 1

@@ -10,7 +10,7 @@ from collections import deque
 import math
 
 class commonsense():
-    def __init__(self, if_in_context = False, n_shots=0, n_noisy_shots=0, noise_type="irrelevant", noise_ratio = 0.5, noise_distribution = "fixed", prefix_context =False, config: dict = None, subtask = "symbolic", hop = 3, trainset=5, testset = 5.3) -> None:
+    def __init__(self, if_in_context = False, n_shots=0, n_noisy_shots=0, noise_type="irrelevant", noise_ratio = 0.5, noise_distribution = "fixed", prefix_context =False, config: dict = None, subtask = "sym", hop = 3, trainset=5, testset = 5.3) -> None:
         self.if_in_context = if_in_context
         self.n_shots = n_shots
         self.n_noisy_shots = n_noisy_shots
@@ -33,7 +33,7 @@ class commonsense():
             self.testset = testset
             self.subtask = subtask
             self.hop = hop
-        if subtask == "symbolic":
+        if subtask == "sym":
             assert self.trainset >= 5
         elif subtask == "story":
             assert self.trainset < 5
@@ -120,7 +120,7 @@ class commonsense():
         processed_path = os.path.join(self.file_path, "processed")
         if not os.path.exists(processed_path):
             os.makedirs(processed_path)
-        if self.subtask == "symbolic":
+        if self.subtask == "sym":
             file_name = f"{self.subtask}_{self.hop}hop"
             if type == 1:
                 file_name += "_demos.json"
@@ -155,7 +155,7 @@ class commonsense():
         # testset_file_name = f"{self.testset}_test.csv"
         # self.trainset = pd.read_csv(os.path.join(unzip_path, trainset_file_name))
     
-        if self.subtask !=  "symbolic":
+        if self.subtask !=  "sym":
             file_name = f"{self.trainset}.2,{self.trainset}.3_train.csv"
             raw_dataset = pd.read_csv(os.path.join(unzip_path, file_name))
             self.relation_list = list(set(raw_dataset["target"]))
@@ -209,7 +209,7 @@ class commonsense():
     
     def get_question(self, raw_data):
         question = ""
-        if self.subtask != "symbolic":
+        if self.subtask != "sym":
             story = raw_data["story"]
             question += f"Story:{story}\n"
             # genders = raw_data["genders"]
@@ -610,7 +610,7 @@ class commonsense():
                 case["in-context"] = shots
         case["question"] = prefix + qustion
         case["label"] = label
-        
+        case["answer"] = self.get_answer(raw_data)
         return case
     
     def match_answer(self, answer_str):

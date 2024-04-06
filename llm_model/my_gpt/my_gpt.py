@@ -16,7 +16,7 @@ def lower_versions(version1, version2):
     return version_tuple(version1) < version_tuple(version2)
 
 class my_gpt:
-    def __init__(self, model='gpt-3.5-turbo-0613', config: dict = None, api="openai") -> None:
+    def __init__(self, model='gpt-3.5-turbo-0613', config: dict = None, api="openai", prefix_context=False) -> None:
         if config != None:
             api = config["api"] if "api" in config else api
         self.api = api
@@ -27,7 +27,7 @@ class my_gpt:
         self.total_tokens = 0
         self.max_prompt_tokens = 4096
         self.max_response_tokens = 1000
-
+        self.prefix_context = prefix_context
         if api == 'openai':
             openai_version = importlib.metadata.version('openai')
             new_version = '1.0.0'
@@ -77,7 +77,7 @@ class my_gpt:
         messages.append({'role': "user", 'content': single_chat})
         retval, error = self.query(messages)
         if retval:
-            return messages[-1]["content"]
+            return messages[-1][0]["content"]
         else:
             return f"error:{error}"
 
@@ -152,10 +152,15 @@ class my_gpt:
                 return (False, f'Error: {response}'), messages
 
     def compute_cost(self):
-        input_price = 0.0015
-        output_price = 0.002
-        embedding_price = 0.0001
-        rate = 7.18
+        if self.model == "gpt-3.5-turbo-0613":
+            input_price = 0.015
+            output_price = 0.02
+            embedding_price = 0.0001
+        elif "gpt-4" in self.model:
+            input_price = 0.16
+            output_price = 0.48
+            embedding_price = 0.0001
+        rate = 1
         cost = float(self.prompt_tokens) / 1000 * input_price * rate + \
                float(self.completion_tokens) / 1000 * output_price * rate + \
                float(self.embedding_tokens) / 1000 * embedding_price * rate
@@ -167,14 +172,25 @@ class my_gpt:
         if "system-prompt" in case:
             system_prompt = case["system-prompt"]
             messages.append({'role': "system", 'content': system_prompt})
-        if "in-context" in case:
-            IC_list = case["in-context"]
-            for shot in IC_list:
-                shot_q = shot[0]
-                shot_a = shot[1]
-                messages.append({'role': "user", 'content': shot_q})
-                messages.append({'role': "assistant", 'content': shot_a})
-        question = case["question"]
+        if self.prefix_context == False:
+            if "in-context" in case:
+                IC_list = case["in-context"]
+                for shot in IC_list:
+                    shot_q = shot[0]
+                    shot_a = shot[1]
+                    messages.append({'role': "user", 'content': shot_q})
+                    messages.append({'role': "assistant", 'content': shot_a})
+            question = case["question"]
+        else:
+            question = ""
+            if "in-context" in case:
+                IC_list = case["in-context"]
+                for shot in IC_list:
+                    shot_q = shot[0]
+                    shot_a = shot[1]
+                    question += f"user: {shot_q}\n"
+                    question += f"assistant: {shot_a}\n"
+            question += "user: {}".format(case["question"]) 
         messages.append({'role': "user", 'content': question})
         case["messages"] = messages
         return self.query(messages, temperature, n, top_p)
@@ -188,10 +204,10 @@ class my_gpt:
                 retval, messages = self.query(single_query, temperature, n, top_p)
             if retval[0]:
                 return
-            tokens = self.num_tokens_from_messages(messages)
-            if tokens >= self.max_prompt_tokens:
-                messages.append([{'role': "assistant", 'content': f"error:{retval}"}])
-                break
+            # tokens = self.num_tokens_from_messages(messages)
+            # if tokens >= self.max_prompt_tokens:
+            #     messages.append([{'role': "assistant", 'content': f"error:{retval}"}])
+            #     break
             if "This model's maximum context length is 4097 tokens. However, your messages resulted" in retval[1]:
                 messages.append([{'role': "assistant", 'content': f"error:{retval}"}])
                 break

@@ -10,7 +10,7 @@ from collections import deque
 import math
 
 class symbolic():
-    def __init__(self, n_shots=0, n_noisy_shots=0, noise_type="irrelevant", noise_ratio = 0.5, noise_distribution = "fixed", prefix_context =True, config: dict = None, subtask = "longer") -> None:
+    def __init__(self, n_shots=0, n_noisy_shots=0, noise_type="irrelevant", noise_semantic_related = 0, noise_ratio = 0.5, noise_distribution = "fixed", prefix_context =True, config: dict = None, subtask = "longer") -> None:
         
         self.n_shots = n_shots
         self.n_noisy_shots = n_noisy_shots
@@ -26,10 +26,13 @@ class symbolic():
             self.noise_type = noise_type
             self.noise_ratio = noise_ratio
             self.noise_distribution = noise_distribution
+            self._noise_semantic_related = noise_semantic_related
         else:
             self.noise_type = None
             self.noise_ratio = 0
             self.noise_distribution = None
+            self._noise_semantic_related = 0
+        assert self._noise_semantic_related <= 2
         if config is not None:
             self.subtask = config["subtask"]
         else:
@@ -38,18 +41,34 @@ class symbolic():
         self.file_path = os.path.join("data", "symbolic")
         self.unzip_data()
         self.init_noise_data()
+        self.thoughts_num_list = []
         return
 
     
     def init_noise_data(self):
         with open(os.path.join(self.file_path, "noise", "action_facts.json"), "r") as f:
             noise_facts = json.load(f)
+        with open(os.path.join(self.file_path, "noise", "semanticRalatedFacts.json"), "r") as f:
+            semantic1_noise_file = json.load(f)
+        with open(os.path.join(self.file_path, "noise", "taskRelatedNoise.json"), "r") as f:
+            semantic2_noise_file = json.load(f)
+        
         self.noise_facts = dict()
         for noise_fact in noise_facts:
             phrase = noise_fact["phrase"]
             facts = noise_fact["facts"] 
             self.noise_facts[phrase] = facts
 
+        self.semantic1_noise = dict()
+        noise_info = semantic1_noise_file["noise_info"]
+        for facts in noise_info:
+            self.semantic1_noise[facts["phrase"]] = facts["facts"]
+        
+        self.semantic2_noise = dict()        
+        noise_info = semantic2_noise_file["noise_info"]
+        for facts in noise_info:
+            self.semantic2_noise[facts["phrase"]] = facts["facts"]
+        
     def unzip_data(self):
         zip_files = "symbolic.zip"
         unzip_path = os.path.join(self.file_path, "unzip_data")
@@ -131,10 +150,16 @@ class symbolic():
             noise_positions = random.sample(range(n_thought), noise_count)
             for pos in noise_positions:
                 noise_distribution_list[pos] = 1
-        else:
+        elif noise_distribution == "random":
             for pos in range(len(noise_distribution_list)):
                 if random.random() < noise_ratio:
                     noise_distribution_list[pos] = 1 
+        elif noise_distribution == "n_thought":
+            assert int(noise_ratio) == noise_ratio
+            assert noise_ratio <= n_thought
+            noise_positions = random.sample(range(n_thought), noise_ratio)
+            for pos in noise_positions:
+                noise_distribution_list[pos] = 1
         return [noise_distribution_list, 0]
         
     def _should_add_noise(self, noise_distribution_state):
@@ -166,7 +191,52 @@ class symbolic():
                 break
         return fact
     
+    def get_semantic2_position_noise(self, position_index, action_sequence=""):
+        facts = self.semantic2_noise[f"position_{position_index}"]
+       
+        random_index = random.randrange(0, len(facts))
+        selected_fact = facts[random_index]
+        # selected_fact = selected_fact[0] + selected_fact[1:]
         
+        selected_fact = selected_fact + " " 
+            
+        replaced_fact = selected_fact.replace("[action_sequence]", str(action_sequence))
+        return replaced_fact
+        
+    def get_semantic2_instruction_noise(self, phrase, selected_set, action="", repetitions=""):
+        facts = self.semantic2_noise[phrase]
+        while(1):
+            random_index = random.randrange(0, len(facts))
+            selected = f"{phrase}_{random_index}"
+            if selected not in selected_set:
+                fact = facts[random_index] + " "
+                selected_set.add(selected)
+                break
+        replaced_fact = fact.replace("[action]", str(action).upper())
+        replaced_fact = replaced_fact.replace("[repetitions]", str(repetitions))
+        return replaced_fact
+    
+    def get_semantic1_position_noise(self, position_index):
+        facts = self.semantic1_noise[f"position_{position_index}"]
+       
+        random_index = random.randrange(0, len(facts))
+        selected_fact = facts[random_index]
+        # selected_fact = selected_fact[0] + selected_fact[1:]
+        selected_fact = selected_fact + " " 
+        return selected_fact
+        
+    def get_semantic1_instruction_noise(self, phrase, selected_set):
+        facts = self.semantic1_noise[phrase]
+        while(1):
+            random_index = random.randrange(0, len(facts))
+            selected = f"{phrase}_{random_index}"
+            if selected not in selected_set:
+                fact = facts[random_index] + " "
+                selected_set.add(selected)
+                break
+        return fact
+        
+    
     def find_sentence_containing_strings(self, text, name1, name2):
         sentences = text.split('.')
         for sentence in sentences:
@@ -304,7 +374,18 @@ class symbolic():
                 
                 n_ir_pos += 1
                 if self._should_add_noise(ir_noise_distrib_state):
-                    noise_fact = self.get_random_fact(this_action, selected_set)
+                    if self._noise_semantic_related == 0:
+                        noise_fact = self.get_random_fact(this_action, selected_set)
+                    elif self._noise_semantic_related == 1:
+                        if i == 0:
+                            noise_fact = self.get_semantic1_position_noise(0)
+                        else:
+                            noise_fact = self.get_semantic1_position_noise(2)
+                    elif self._noise_semantic_related == 2:
+                        if i == 0:
+                            noise_fact = self.get_semantic2_position_noise(0, f"{this_action} {this_direction}")
+                        else:
+                            noise_fact = self.get_semantic2_position_noise(2, f"{this_action} {this_direction}")
                     answer += noise_fact
                     
             elif this_angle == "":
@@ -318,7 +399,18 @@ class symbolic():
                 
                 n_ir_pos += 1
                 if self._should_add_noise(ir_noise_distrib_state):
-                    noise_fact = self.get_random_fact(this_direction, selected_set)
+                    if self._noise_semantic_related == 0:
+                        noise_fact = self.get_random_fact(this_direction, selected_set)
+                    elif self._noise_semantic_related == 1:
+                        if i == 0:
+                            noise_fact = self.get_semantic1_position_noise(0)
+                        else:
+                            noise_fact = self.get_semantic1_position_noise(2)
+                    elif self._noise_semantic_related == 2:
+                        if i == 0:
+                            noise_fact = self.get_semantic2_position_noise(0, f"{this_action} {this_direction}")
+                        else:
+                            noise_fact = self.get_semantic2_position_noise(2, f"{this_action} {this_direction}")
                     answer += noise_fact
                 
                 n_mn_pos += 1
@@ -331,7 +423,12 @@ class symbolic():
                     
                     n_ir_pos += 1
                     if self._should_add_noise(ir_noise_distrib_state):
-                        noise_fact = self.get_random_fact(this_direction, selected_set)
+                        if self._noise_semantic_related == 0:
+                            noise_fact = self.get_random_fact(this_direction, selected_set)
+                        elif self._noise_semantic_related == 1:
+                            noise_fact = self.get_semantic1_instruction_noise("direction", selected_set)
+                        elif self._noise_semantic_related == 2:
+                            noise_fact = self.get_semantic2_instruction_noise("direction", selected_set)
                         answer += noise_fact
                     
                     n_mn_pos += 1
@@ -344,7 +441,12 @@ class symbolic():
                         answer +=  f"Subsequently, '{this_action}' translates to I_{this_action.upper()}. "
                         n_ir_pos += 1
                         if self._should_add_noise(ir_noise_distrib_state):
-                            noise_fact = self.get_random_fact(this_action, selected_set)
+                            if self._noise_semantic_related == 0:
+                                noise_fact = self.get_random_fact(this_action, selected_set)
+                            elif self._noise_semantic_related == 1:
+                                noise_fact = self.get_semantic1_instruction_noise("action", selected_set)
+                            elif self._noise_semantic_related == 2:
+                                noise_fact = self.get_semantic2_instruction_noise("action", selected_set, action=this_action)
                             answer += noise_fact
                         n_mn_pos += 1
                         if self._should_add_noise(mn_noise_distrib_state):
@@ -353,7 +455,12 @@ class symbolic():
                 answer += "Therefore, the action sequence is {}. ".format(" ".join(once_action))
                 n_ir_pos += 1
                 if self._should_add_noise(ir_noise_distrib_state):
-                    noise_fact = self.get_random_fact("action sequence", selected_set)
+                    if self._noise_semantic_related == 0:
+                        noise_fact = self.get_random_fact("action sequence", selected_set)
+                    if self._noise_semantic_related == 1:
+                        noise_fact = self.get_semantic1_position_noise(1)
+                    if self._noise_semantic_related == 2:
+                        noise_fact = self.get_semantic2_position_noise(1)
                     answer += noise_fact
                 n_mn_pos += 1
                 if self._should_add_noise(mn_noise_distrib_state):
@@ -371,7 +478,18 @@ class symbolic():
                     answer += ". "       
                     n_ir_pos += 1
                     if self._should_add_noise(ir_noise_distrib_state):
-                        noise_fact = self.get_random_fact("opposite", selected_set)
+                        if self._noise_semantic_related == 0:    
+                            noise_fact = self.get_random_fact("opposite", selected_set)
+                        elif self._noise_semantic_related == 1:
+                            if i == 0:
+                                noise_fact = self.get_semantic1_position_noise(0)
+                            else:
+                                noise_fact = self.get_semantic1_position_noise(2)
+                        elif self._noise_semantic_related == 2:
+                            if i == 0:
+                                noise_fact = self.get_semantic2_position_noise(0, f"{this_action} {this_angle} {this_direction}")
+                            else:
+                                noise_fact = self.get_semantic2_position_noise(2, f"{this_action} {this_angle} {this_direction}")
                         answer += noise_fact
                     n_mn_pos += 1
                     if self._should_add_noise(mn_noise_distrib_state):
@@ -382,7 +500,12 @@ class symbolic():
                         answer += f"'{this_direction}' corresponds to the command I_TURN_{this_direction.upper()}. "
                         n_ir_pos += 1
                         if self._should_add_noise(ir_noise_distrib_state):
-                            noise_fact = self.get_random_fact(this_direction, selected_set)
+                            if self._noise_semantic_related == 0: 
+                                noise_fact = self.get_random_fact(this_direction, selected_set)
+                            elif self._noise_semantic_related == 1:
+                                noise_fact = self.get_semantic1_instruction_noise("direction", selected_set)
+                            elif self._noise_semantic_related == 2:
+                                noise_fact = self.get_semantic2_instruction_noise("direction", selected_set)
                             answer += noise_fact
                         n_mn_pos += 1
                         if self._should_add_noise(mn_noise_distrib_state):
@@ -394,7 +517,12 @@ class symbolic():
                             answer += f"'{this_action}' translates to I_{this_action.upper()}. "
                             n_ir_pos += 1
                             if self._should_add_noise(ir_noise_distrib_state):
-                                noise_fact = self.get_random_fact(this_action, selected_set)
+                                if self._noise_semantic_related == 0: 
+                                    noise_fact = self.get_random_fact(this_action, selected_set)
+                                elif self._noise_semantic_related == 1:
+                                    noise_fact = self.get_semantic1_instruction_noise("action", selected_set)
+                                elif self._noise_semantic_related == 2:
+                                    noise_fact = self.get_semantic2_instruction_noise("action", selected_set, action=this_action)
                                 answer += noise_fact
                             n_mn_pos += 1
                             if self._should_add_noise(mn_noise_distrib_state):
@@ -407,7 +535,12 @@ class symbolic():
                             answer += f"The term 'opposite' implies a 180-degree turn, which requires the agent to perform the turn {this_direction} twice. " 
                         n_ir_pos += 1
                         if self._should_add_noise(ir_noise_distrib_state):
-                            noise_fact = self.get_random_fact("opposite", selected_set)
+                            if self._noise_semantic_related == 0: 
+                                noise_fact = self.get_random_fact("opposite", selected_set)
+                            elif self._noise_semantic_related == 1:
+                                noise_fact = self.get_semantic1_instruction_noise("opposite", selected_set)
+                            elif self._noise_semantic_related == 2:
+                                noise_fact = self.get_semantic2_instruction_noise("opposite", selected_set)
                             answer += noise_fact
                         n_mn_pos += 1
                         if self._should_add_noise(mn_noise_distrib_state):
@@ -423,7 +556,18 @@ class symbolic():
                     answer += ", and repeat this action sequence four times to complete a 360-degree loop. "
                     n_ir_pos += 1
                     if self._should_add_noise(ir_noise_distrib_state):
-                        noise_fact = self.get_random_fact("around", selected_set)
+                        if self._noise_semantic_related == 0:
+                            noise_fact = self.get_random_fact("around", selected_set)
+                        elif self._noise_semantic_related == 1:
+                            if i == 0:
+                                noise_fact = self.get_semantic1_position_noise(0)
+                            else:
+                                noise_fact = self.get_semantic1_position_noise(2)
+                        elif self._noise_semantic_related == 2:
+                            if i == 0:
+                                noise_fact = self.get_semantic2_position_noise(0, f"{this_action} {this_angle} {this_direction}")
+                            else:
+                                noise_fact = self.get_semantic2_position_noise(2, f"{this_action} {this_angle} {this_direction}")
                         answer += noise_fact
                     n_mn_pos += 1
                     if self._should_add_noise(mn_noise_distrib_state):
@@ -434,7 +578,12 @@ class symbolic():
                         answer += f"'{this_direction}' corresponds to the command I_TURN_{this_direction.upper()}. "
                         n_ir_pos += 1
                         if self._should_add_noise(ir_noise_distrib_state):
-                            noise_fact = self.get_random_fact(this_direction, selected_set)
+                            if self._noise_semantic_related == 0:
+                                noise_fact = self.get_random_fact(this_direction, selected_set)
+                            elif self._noise_semantic_related == 1:
+                                noise_fact = self.get_semantic1_instruction_noise("direction", selected_set)
+                            elif self._noise_semantic_related == 2:
+                                noise_fact = self.get_semantic2_instruction_noise("direction", selected_set)
                             answer += noise_fact
                         n_mn_pos += 1
                         if self._should_add_noise(mn_noise_distrib_state):
@@ -445,7 +594,12 @@ class symbolic():
                             answer += f"'{this_action}' translates to I_{this_action.upper()}. "
                             n_ir_pos += 1
                             if self._should_add_noise(ir_noise_distrib_state):
-                                noise_fact = self.get_random_fact(this_action, selected_set)
+                                if self._noise_semantic_related == 0:
+                                    noise_fact = self.get_random_fact(this_action, selected_set)
+                                elif self._noise_semantic_related == 1:
+                                    noise_fact = self.get_semantic1_instruction_noise("action", selected_set)
+                                elif self._noise_semantic_related == 2:
+                                    noise_fact = self.get_semantic2_instruction_noise("action", selected_set, action=this_action)
                                 answer += noise_fact
                             n_mn_pos += 1
                             if self._should_add_noise(mn_noise_distrib_state):
@@ -458,7 +612,12 @@ class symbolic():
                             answer += f"The term 'around' implies to complete a 360-degree loop by repeating the sequence of I_TURN_{this_direction.upper()} four times. "  
                         n_ir_pos += 1
                         if self._should_add_noise(ir_noise_distrib_state):
-                            noise_fact = self.get_random_fact("around", selected_set)
+                            if self._noise_semantic_related == 0:
+                                noise_fact = self.get_random_fact("around", selected_set)
+                            elif self._noise_semantic_related == 1:
+                                noise_fact = self.get_semantic1_instruction_noise("around", selected_set)
+                            elif self._noise_semantic_related == 2:
+                                noise_fact = self.get_semantic2_instruction_noise("around", selected_set)
                             answer += noise_fact
                         n_mn_pos += 1
                         if self._should_add_noise(mn_noise_distrib_state):
@@ -468,7 +627,12 @@ class symbolic():
                 answer += "Therefore, the action sequence is {}. ".format(" ".join(once_action))
                 n_ir_pos += 1
                 if self._should_add_noise(ir_noise_distrib_state):
-                    noise_fact = self.get_random_fact("action sequence", selected_set)
+                    if self._noise_semantic_related == 0:
+                        noise_fact = self.get_random_fact("action sequence", selected_set)
+                    elif self._noise_semantic_related == 1:
+                        self.get_semantic1_position_noise(1)
+                    elif self._noise_semantic_related == 2:
+                        self.get_semantic2_position_noise(1)
                     answer += noise_fact
                 n_mn_pos += 1
                 if self._should_add_noise(mn_noise_distrib_state):
@@ -485,7 +649,12 @@ class symbolic():
                 answer += "so the action sequence to \"{}\" is :{}. ".format(actions_str, " ".join(sub_action_sequence))
                 n_ir_pos += 1
                 if self._should_add_noise(ir_noise_distrib_state):
-                    noise_fact = self.get_random_fact(this_times, selected_set)
+                    if self._noise_semantic_related == 0:
+                        noise_fact = self.get_random_fact(this_times, selected_set)
+                    elif self._noise_semantic_related == 1:
+                        noise_fact = self.get_semantic1_instruction_noise("repetitions", selected_set)
+                    elif self._noise_semantic_related == 2:
+                        noise_fact = self.get_semantic2_instruction_noise("repetitions", selected_set, repetitions=this_times)
                     answer += noise_fact
                     
                 n_mn_pos += 1
@@ -557,9 +726,33 @@ class symbolic():
         assert len(self.trainset) > num
         indexed_trainset = list(enumerate(self.trainset))
         selected_samples = random.sample(indexed_trainset, num)
+        if self.noise_distribution == "n_thought":
+            temp_index = set()
+            for i in range(num):
+                temp_index.add(selected_samples[i][0])
+            for i in range(num):
+                raw_data = selected_samples[i][1]
+                _, _, n_thought, _ = self._get_answer(raw_data[0])    
+                if n_thought < 8:
+                    while 1:
+                        new_index = random.randint(0, len(self.trainset) - 1)
+                        if new_index in temp_index:
+                            continue
+                        raw_data = self.trainset[new_index]
+                        _, _, n_thought, _ = self._get_answer(raw_data[0])
+                        if n_thought < 8:
+                            continue
+                        break
+                    temp_index.remove(selected_samples[i][0])
+                    temp_index.add(new_index)
+                    selected_samples[i] = [new_index, raw_data]
         if index_list is not None:
             index_list.extend([index for index, _ in selected_samples])
         demos = [demo for _, demo in selected_samples]
+        
+        for demo in demos:
+            _, _, n_thought, _ = self._get_answer(demo[0])
+            self.thoughts_num_list.append(n_thought)
         return demos
     
     def get_demos_by_index_list(self, num, index_list):
@@ -611,10 +804,10 @@ class symbolic():
                 #     prefix += "user:"
                 # else:    
                 case["in-context"] = shots
-                case["system-prompt"] = system_prompt
-                    
+        # case["system-prompt"] = system_prompt          
         case["question"] = prefix + qustion
         case["label"] = label
+        case["answer"] = self.get_answer(raw_data)
         return case
     
     @staticmethod
